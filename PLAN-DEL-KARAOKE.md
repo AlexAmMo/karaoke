@@ -16,7 +16,7 @@ Este documento sustituye a la propuesta inicial, que contemplaba una posible eta
 
 La aplicación integrada y empaquetada supera 17 comprobaciones de sesión en macOS Apple Silicon con señales sintéticas: ventana única, canto y gestión simultáneos, incorporación de canciones entre interpretaciones, puntuaciones independientes, retorno separado, persistencia y recuperación. También se ha comprobado el selector nativo de carpetas y el arranque normal desde la aplicación instalada. El servicio tiene pruebas automatizadas en macOS, Windows y Linux. La evidencia exacta se mantiene en [Validación de la implementación](docs/VALIDACION.md).
 
-**La fase de validación no se da por terminada.** El usuario todavía no dispone del micrófono por cable; faltan captura física, latencia de retorno, dos micrófonos, ejecución nativa en Windows, descargas autenticadas reales bajo carga y arranque/instalación en un equipo limpio. La instrucción posterior del usuario autoriza implementar la V1 completa mientras se mantienen pendientes las comprobaciones que requieren hardware o cuentas externas. Esa autorización no convierte esas pruebas en superadas.
+**La fase de validación no se da por terminada.** El usuario todavía no dispone del micrófono por cable; faltan captura física, latencia de retorno, dos micrófonos, sesión completa en un PC Windows, descargas autenticadas reales bajo carga y uso en equipos limpios. El motor de Windows ya supera el arranque con gráficos y audio por software en CI. La instrucción posterior del usuario autoriza implementar la V1 completa mientras se mantienen pendientes las comprobaciones que requieren hardware o cuentas externas. Esa autorización no convierte esas pruebas en superadas.
 
 ## Alcance y criterios de cierre
 
@@ -355,7 +355,7 @@ Los scripts de instalación por usuario y sus comandos están documentados en [C
 
 Ambos sistemas forman parte de la primera entrega, con las mismas funciones principales: micrófono por cable, barras y puntuación, búsqueda de mapas y variantes compatibles, preparación en segundo plano, cola y biblioteca local. No se considerará terminada la V1 si solo uno de ellos dispone de un paquete instalable y probado.
 
-El comando y el formato del paquete podrán ser distintos en cada sistema. Quedan pendientes las versiones mínimas y la matriz de arquitecturas: se evaluarán macOS Apple Silicon e Intel y Windows x64; Windows ARM no se presupone incluido. La cobertura definitiva dependerá de la compatibilidad de todos los componentes y se documentará antes de cerrar la distribución.
+La distribución se prepara para macOS Apple Silicon (mínimo declarado por los binarios: macOS 26), Mac Intel (macOS 15) y Windows x64 (objetivo Windows 10 versión 1809 o posterior y Windows 11, con OpenGL 2.0 o superior). Windows ARM queda fuera. Estos requisitos técnicos y las plataformas efectivamente probadas se distinguen en [Construcción y distribución](docs/PACKAGING.md) y [Validación](docs/VALIDACION.md); no certifican equipos o versiones que no se hayan probado.
 
 Se prepararán procesos de construcción y paquetes por plataforma, junto con pruebas de instalación limpia, permisos y captura de micrófono, reproducción y sincronización, descarga durante el canto, rutas con espacios o caracteres especiales y actualización que conserve los datos. Las pruebas de construcción automática no sustituirán la validación de audio con un micrófono real en ambos sistemas.
 

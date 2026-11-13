@@ -23,7 +23,7 @@ La automatización CUA de ratón entregó coordenadas SDL obsoletas respecto a s
 
 - Micrófono por cable real, dos dispositivos/canales, niveles, retorno audible, latencia, realimentación y sincronía durante una sesión prolongada. El usuario todavía no dispone del micrófono.
 - Descarga autenticada de canciones reales de USDB, prueba de enlaces y revisión musical de instrumentales. No se ha usado ni inventado una cuenta del usuario.
-- Ejecución y prueba física en Windows; los resultados de CI se registrarán por separado.
+- Sesión completa de canto y prueba física en Windows 10/11. El arranque con controladores por software en CI se registra más abajo.
 - Instalación en máquinas limpias y comportamiento de Gatekeeper/SmartScreen. La firma local ad hoc no es una notarización de Apple ni firma comercial de Windows.
 - La compilación local utiliza bibliotecas que requieren macOS 26. No demuestra compatibilidad con versiones anteriores. Los paquetes de CI deben declarar su mínimo efectivo a partir de su propio inventario.
 - La interfaz SDL no expone semántica completa a lectores de pantalla. Tiene foco y operación por teclado, pero no se declara accesibilidad total.
@@ -43,6 +43,14 @@ La revisión `c2d56d8` pasa las 55 pruebas Python en GitHub Actions sobre macOS,
 ## Instalación en el Mac de desarrollo
 
 Copiada a `~/Applications/Karaoke.app` y abierta mediante el mecanismo normal de lanzamiento de aplicaciones. Biblioteca inicial vacía, modo sintético desactivado. El selector nativo de carpetas abre y permite cancelar sin importar contenido. La app queda abierta para el usuario. Esta prueba no es una instalación en un Mac limpio y no verifica la política de cuarentena de una descarga nueva de navegador.
+
+## Arranque de Windows por software
+
+La revisión `ae0f0eb` supera el arranque del motor y el cierre limpio en Windows Server 2022 en 5,91 segundos ([ejecución 43483165075](https://github.com/AlexAmMo/karaoke/actions/runs/43483165075)). Se verifican también la comunicación UTF-8 por stdin con el proveedor congelado, los ejecutables de medios con PATH aislado y la arquitectura AMD64 de los binarios.
+
+El runner carece de salida WASAPI y solo ofrece OpenGL 1.1 con su controlador básico. La prueba utiliza una copia temporal con Mesa 26.2.3/llvmpipe (OpenGL 4.6) y SDL `dummy`; esos controladores se registran expresamente y no se añaden al ZIP del producto. El motor llega a `idle`, con ventana 1280×800, modo sintético y error vacío; sale con código 0. Esto no valida una sesión cantada, una GPU real ni el audio físico de Windows. El equipo del usuario necesita un controlador OpenGL 2.0 o superior.
+
+La construcción de Mac Intel también está comprobada en CI, con mínimo declarado macOS 15 y fuentes reunidas. Su alcance de validación es compilación, firma y utilidades; la sesión gráfica en Intel queda pendiente. Evidencia: `docs/validation/packaging-macos-intel.json`.
 
 ## Repertorio reproducible
 

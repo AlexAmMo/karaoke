@@ -1,0 +1,124 @@
+name: Verify published Windows installation
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published prerelease tag, for example v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: Public PowerShell command on Windows Server 2022
+    runs-on: windows-2022
+    timeout-minutes: 12
+    env:
+      KARAOKE_VERSION: ${{ inputs.tag }}
+      REPORT_DIRECTORY: ${{ runner.temp }}\karaoke-installation-report
+    steps:
+      - name: Install published prerelease and verify preserved data
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path $env:REPORT_DIRECTORY | Out-Null
+          $Report = [ordered]@{
+            scope = 'Public installation command, launcher --version, shortcut and existing-data preservation. No engine, graphics or physical audio test.'
+            tag = $env:KARAOKE_VERSION
+            platform = [Environment]::OSVersion.VersionString
+            powershell_version = $PSVersionTable.PSVersion.ToString()
+            source_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            passed = $false
+          }
+          Start-Transcript -Path (Join-Path $env:REPORT_DIRECTORY 'installation.log') | Out-Null
+          try {
+            # Strict SemVer, with the repository's mandatory v prefix. Input is
+            # passed through the environment, never interpolated into shell code.
+            $Numeric = '(0|[1-9][0-9]*)'
+            $Identifier = '(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+            $SemVer = '\Av' + $Numeric + '\.' + $Numeric + '\.' + $Numeric +
+              '(-' + $Identifier + '(\.' + $Identifier + ')*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?\z'
+            if ($env:KARAOKE_VERSION -cnotmatch $SemVer) { throw 'tag must be a strict SemVer tag prefixed with v.' }
+
+            # Use the public endpoints and the same unauthenticated command as a
+            # user. A draft must not pass by using the runner's GitHub token.
+            $Repo = 'AlexAmMo/karaoke'
+            $Tag = [Uri]::EscapeDataString($env:KARAOKE_VERSION)
+            $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/tags/$Tag"
+            if ($Release.draft -or -not $Release.prerelease -or -not $Release.published_at) {
+              throw 'This workflow requires an already published prerelease.'
+            }
+            if ($Release.tag_name -cne $env:KARAOKE_VERSION) { throw 'Published tag mismatch.' }
+            $Asset = "Karaoke-$($env:KARAOKE_VERSION.Substring(1))-windows-x86_64.zip"
+            foreach ($Name in @($Asset, "$Asset.sha256")) {
+              if (-not ($Release.assets | Where-Object name -CEQ $Name)) { throw "Missing public asset: $Name" }
+            }
+            $Report.release_url = $Release.html_url
+            $Report.release_published_at = $Release.published_at
+            $Report.package_asset = $Asset
+
+            $Data = Join-Path $env:LOCALAPPDATA 'Karaoke'
+            New-Item -ItemType Directory -Force -Path $Data | Out-Null
+            $Sentinel = Join-Path $Data 'installation-preservation-test.txt'
+            [IO.File]::WriteAllText($Sentinel, "Existing data: $([guid]::NewGuid())")
+            $Report.sentinel_sha256_before = (Get-FileHash $Sentinel -Algorithm SHA256).Hash
+            $Report.installer_url = "https://raw.githubusercontent.com/$Repo/$($env:KARAOKE_VERSION)/scripts/install.ps1"
+            irm $Report.installer_url | iex
+
+            $Target = Join-Path $env:LOCALAPPDATA 'Programs\Karaoke'
+            $Exe = Join-Path $Target 'karaoke.exe'
+            if (-not (Test-Path -LiteralPath $Exe -PathType Leaf)) { throw 'Installed launcher missing.' }
+            $Report.launcher_sha256 = (Get-FileHash $Exe -Algorithm SHA256).Hash
+            $ShortcutPath = Join-Path ([Environment]::GetFolderPath('Programs')) 'Karaoke.lnk'
+            if (-not (Test-Path -LiteralPath $ShortcutPath -PathType Leaf)) { throw 'Start menu shortcut missing.' }
+            $Shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($ShortcutPath)
+            if ($Shortcut.TargetPath -ine $Exe -or $Shortcut.WorkingDirectory -ine $Target) {
+              throw 'Shortcut does not point to the installed launcher and working directory.'
+            }
+            $Report.shortcut_verified = $true
+            if (-not (Test-Path -LiteralPath $Sentinel -PathType Leaf)) { throw 'Existing data was removed.' }
+            $Report.sentinel_sha256_after = (Get-FileHash $Sentinel -Algorithm SHA256).Hash
+            if ($Report.sentinel_sha256_after -ne $Report.sentinel_sha256_before) { throw 'Existing data was changed.' }
+            $Report.existing_data_preserved = $true
+
+            # --version exits before creating a session or starting the engine.
+            # Capture both streams and use a bounded wait for the console-hidden launcher.
+            $Start = New-Object Diagnostics.ProcessStartInfo
+            $Start.FileName = $Exe
+            $Start.Arguments = '--version'
+            $Start.UseShellExecute = $false
+            $Start.RedirectStandardOutput = $true
+            $Start.RedirectStandardError = $true
+            $Start.CreateNoWindow = $true
+            $Process = [Diagnostics.Process]::Start($Start)
+            $Stdout = $Process.StandardOutput.ReadToEndAsync()
+            $Stderr = $Process.StandardError.ReadToEndAsync()
+            if (-not $Process.WaitForExit(30000)) {
+              $Process.Kill($true)
+              $Process.WaitForExit()
+              throw 'Installed launcher --version timed out.'
+            }
+            $Report.version_exit_code = $Process.ExitCode
+            $Report.version_stdout = $Stdout.GetAwaiter().GetResult().Trim()
+            $Report.version_stderr = $Stderr.GetAwaiter().GetResult().Trim()
+            if ($Process.ExitCode -ne 0) { throw 'Installed launcher --version failed.' }
+            $ExpectedVersion = 'Karaoke ' + ($env:KARAOKE_VERSION.Substring(1) -split '[-+]')[0]
+            if ($Report.version_stdout -cne $ExpectedVersion) { throw "Unexpected launcher version: $($Report.version_stdout)" }
+            $Report.passed = $true
+          } catch {
+            $Report.error = $_.Exception.Message
+            throw
+          } finally {
+            $Report | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $env:REPORT_DIRECTORY 'result.json')
+            Stop-Transcript | Out-Null
+          }
+      - name: Upload installation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installation-${{ github.run_id }}
+          path: ${{ env.REPORT_DIRECTORY }}
+          if-no-files-found: error

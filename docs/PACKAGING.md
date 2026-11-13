@@ -23,6 +23,10 @@ La firma ad hoc permite verificar integridad local. **No es una firma Developer 
 
 El trabajo `windows` de `.github/workflows/build.yml` adapta la receta del commit fijado de Deluxe: Windows Server 2022, MSYS2 UCRT64 y Free Pascal 3.2.2. El motor usa captura y reproducción SDL; el fork desactiva BASS y su DLL se excluye del paquete.
 
+El motor necesita un controlador compatible con **OpenGL 2.0 o superior**; se recomienda 3.3. Comprueba la versión real del controlador antes de crear el renderer y muestra un error legible cuando es insuficiente.
+
+El objetivo de esta prerelease es **Windows 10 versión 1809 o posterior y Windows 11, x64**. El mínimo previsto lo determina [Qt 6.11](https://doc.qt.io/qt-6.11/windows.html); no equivale a una prueba en esos equipos. El entorno comprobado es Windows Server 2022, build 20348, en CI. La sesión completa y el hardware en Windows 10/11 siguen pendientes.
+
 Después de compilar el motor:
 
 ```powershell
@@ -33,6 +37,8 @@ uv run python scripts/collect_windows_sources.py
 
 Se genera una carpeta portable `dist/Karaoke` con `karaoke.exe`, motor, runtime de Python y utilidades. El empaquetador recorre las importaciones PE de FFmpeg, FFprobe, FFplay y Deno, copiando sus DLL no pertenecientes a Windows. El empaquetador lee la cabecera PE del motor, el lanzador y todas las DLL/PYD/EXE, y exige AMD64 (0x8664). Los ejecutables de medios se prueban desde la carpeta resultante. No se afirma compatibilidad con Windows ARM.
 
+El runner de Windows Server 2022 ofrece OpenGL 1.1 y ningún dispositivo WASAPI. Para probar el arranque, CI crea una copia temporal del paquete con Mesa llvmpipe y audio SDL `dummy`; registra esos controladores y los hashes del paquete original. El ZIP distribuido conserva las dependencias del producto y utiliza los controladores del ordenador del usuario. Esta prueba de software no valida GPU, audio ni micrófonos físicos. El adaptador de catálogo y las utilidades también se comprueban con un `PATH` que solo incluye el paquete y Windows.
+
 ## Instalación de una versión publicada
 
 Los instaladores esperan archivos publicados en Releases de `AlexAmMo/karaoke`; no simulan una descarga cuando no existe una versión. El archivo debe llamarse `Karaoke-VERSION-macos-arm64.zip`, `Karaoke-VERSION-macos-x86_64.zip` o `Karaoke-VERSION-windows-x86_64.zip`, con su archivo `.zip.sha256` al lado.
@@ -40,18 +46,16 @@ Los instaladores esperan archivos publicados en Releases de `AlexAmMo/karaoke`; 
 macOS:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.sh | KARAOKE_VERSION=v0.1.0 bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/AlexAmMo/karaoke/main/scripts/install.ps1 | iex
+$env:KARAOKE_VERSION='v0.1.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.ps1 | iex
 ```
 
-Estos comandos solo son utilizables después de publicar los archivos requeridos. Para una prerelease o versión concreta, establecer `KARAOKE_VERSION=v0.1.0` antes de ejecutar el instalador. El valor predeterminado consulta la última versión **estable**.
-
-La sintaxis para elegir esa versión es `export KARAOKE_VERSION=v0.1.0` en macOS y `$env:KARAOKE_VERSION='v0.1.0'` en PowerShell. Ejecutar después el comando de instalación correspondiente.
+Estos comandos solo son utilizables después de publicar los archivos requeridos. Seleccionan explícitamente la prerelease `v0.1.0`. Si se ejecuta el instalador sin `KARAOKE_VERSION`, consulta la última versión **estable** y excluye las prereleases.
 
 La instalación es por usuario, sin permisos de administrador: `~/Applications/Karaoke.app` en macOS y `%LOCALAPPDATA%\Programs\Karaoke` en Windows. La actualización conserva la biblioteca y los ajustes, verifica SHA-256 y guarda temporalmente la versión anterior para restaurarla si falla el reemplazo. Los hashes detectan corrupción; su autenticidad depende del canal GitHub que sirve también el paquete.
 
