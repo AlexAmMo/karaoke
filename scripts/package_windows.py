@@ -109,6 +109,10 @@ def main():
     for source in (ROOT / 'build/engine/dists/windows/deps').glob('**/*'):
         if source.is_file() and source.name.lower() in ('license', 'license.txt', 'license.md', 'copying', 'copying.lgplv2.1', 'copyright', 'notice', 'bass.txt'):
             copy_file(source, target / 'licenses/native' / source.relative_to(ROOT / 'build/engine/dists/windows/deps'))
+    msys_licenses = args.tools.parent / 'share/licenses'
+    if not msys_licenses.is_dir():
+        raise RuntimeError('MSYS2 runtime license directory is missing: ' + str(msys_licenses))
+    shutil.copytree(msys_licenses, target / 'licenses/msys2', dirs_exist_ok=True)
     manifest = bundle_tools(target / 'bin', args.tools)
     audit = {'platform': 'windows-x86_64', 'pe_architecture': audit_pe(target), 'media_dependencies': manifest, 'physical_audio_validated': False, 'audio_backend': 'SDL capture/playback; BASS is disabled and excluded by the fork.'}
     (target / 'package-audit.json').write_text(json.dumps(audit, indent=2), encoding='utf-8')

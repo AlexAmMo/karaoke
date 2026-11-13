@@ -127,12 +127,24 @@ jobs:
       - name: Prepare pinned engine
         run: uv run python scripts/prepare_engine.py
       - name: Install Free Pascal
+        id: fpc
+        timeout-minutes: 8
         run: |
           curl.exe --fail -L --max-time 120 -o fpc-installer.exe "https://sourceforge.net/projects/freepascal/files/Win32/3.2.2/fpc-3.2.2.win32.and.win64.exe/download"
-          $Process = Start-Process -FilePath '.\fpc-installer.exe' -ArgumentList '/TYPE=full /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
+          if ($LASTEXITCODE -ne 0) { throw 'FPC installer download failed' }
+          $Process = Start-Process -FilePath '.\fpc-installer.exe' -ArgumentList '/TYPE=full /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART /LOG=fpc-install.log' -PassThru
+          if (-not $Process.WaitForExit(300000)) { Stop-Process -Id $Process.Id -Force; throw 'FPC installer exceeded five minutes; inspect fpc-install.log' }
           if ($Process.ExitCode -ne 0) { throw "FPC install failed: $($Process.ExitCode)" }
-      - name: Cache native dependencies
-        uses: actions/cache@v4
+      - name: Preserve failed installer diagnostics
+        if: always() && steps.fpc.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-fpc-install-log
+          path: fpc-install.log
+          if-no-files-found: warn
+      - name: Restore native dependencies
+        id: native-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             build/engine/dists/windows/prefix
@@ -142,6 +154,9 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build/engine
+          if [[ '${{ steps.native-cache.outputs.cache-hit }}' == 'true' ]]; then
+            touch "dists/windows/prefix/$(uname -m)/built_libs"
+          fi
           make -C dists/windows
           make -C dists/windows install
           export PATH="$PATH:/c/FPC/$FPC_VERSION/bin/i386-win32"
@@ -151,6 +166,14 @@ jobs:
           ./autogen.sh
           ./configure --without-opencv --without-libprojectM
           make
+      - name: Preserve compiled native dependencies
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/engine/dists/windows/prefix
+            build/engine/dists/windows/deps
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - name: Package Python and media tools
         id: package
         run: |

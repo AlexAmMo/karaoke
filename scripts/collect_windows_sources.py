@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -110,7 +111,7 @@ def main():
                     'status': 'collected', 'sha256': hashlib.sha256(file.read_bytes()).hexdigest(),
                     'source_checks': 'makepkg-mingw --allsource with normal integrity checks'})
     # Upstream Deluxe recipe already downloaded and verified its dependency tarballs.
-    deps = ROOT / 'build/engine/dists/windows/deps'
+    deps = ROOT / 'build/engine/dists/windows/deps/dl'
     native = OUT / 'deluxe-native'
     native.mkdir(parents=True, exist_ok=True)
     for file in deps.iterdir():
@@ -123,6 +124,18 @@ def main():
     for item in python_sources():
         results.append(item if 'status' in item else source_download(item))
     results.extend(qt_sources())
+    py_version = platform.python_version()
+    results.append(source_download({'name': 'CPython', 'version': py_version, 'group': 'python', 'url': f'https://www.python.org/ftp/python/{py_version}/Python-{py_version}.tar.xz', 'filename': f'Python-{py_version}.tar.xz'}))
+    if not any(item['group'] == 'deluxe-native' for item in results):
+        raise RuntimeError('No verified Deluxe dependency source archives collected')
+    (OUT / 'BUILDING.md').write_text('''# Windows corresponding sources
+
+Use the companion application source archive, its uv.lock and .github/workflows/build.yml to build the same application. The Deluxe source tree and its patched dists/windows build recipes are included. deluxe-native contains the upstream dependency archives whose checksums were verified by those recipes.
+
+The build-recipes/msys2 directories record installed package metadata and source recipes. msys2-complete contains all-source packages generated with makepkg-mingw --allsource and normal integrity verification, including fetched upstream sources. Build these using the included PKGBUILD in MSYS2 UCRT64. QtBase, QtSvg and QtImageFormats cover the bundled Qt libraries and plugins; pyside-setup contains PySide6 and Shiboken. These modules are unmodified and use the versions locked in uv.lock. Their archives contain license texts and build instructions. See https://doc.qt.io/qtforpython-6/building_from_source/index.html for the upstream PySide build guide.
+
+The bundled DLLs are dynamically linked and can be replaced with compatible builds. Python package source archives include their build metadata and upstream instructions. CPython is included separately. Consult source-manifest.json for exact versions, source URLs, hashes and any unresolved entries; never interpret a failed or missing source download as collected.
+''', encoding='utf-8')
     report = {'items': results, 'unresolved': [r for r in results if r['status'] in ('failed', 'no-sdist')]}
     (OUT / 'source-manifest.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     archive = ROOT / 'dist' / f'Karaoke-{VERSION}-dependency-source-windows-x86_64.tar.gz'

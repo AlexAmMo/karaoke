@@ -38,4 +38,8 @@ El revisor independiente de Impeccable resolvió cuatro defectos: Enter ya no ca
 
 La aplicación congelada completó de nuevo las 17/17 comprobaciones con `PATH=/usr/bin:/bin`, sin depender de Homebrew para ejecutar medios o el motor. Evidencia: `docs/evidence/session-frozen-macos.json` (33,14 segundos, 371 muestras). El controlador de pruebas se ejecuta con Python de desarrollo; la app, el motor y sus dependencias son los del paquete.
 
-La revisión `5022719` pasa las 50 pruebas Python en GitHub Actions sobre Ubuntu, macOS y Windows Server 2022. Este resultado no equivale a probar el audio físico ni el renderizado Windows.
+La revisión `5022719` pasa las 50 pruebas Python en GitHub Actions sobre Ubuntu y Windows Server 2022; también pasan localmente en macOS. Este resultado no equivale a probar el audio físico ni el renderizado Windows.
+
+## Instalación en el Mac de desarrollo
+
+Copiada a `~/Applications/Karaoke.app` y abierta mediante el mecanismo normal de lanzamiento de aplicaciones. Biblioteca inicial vacía, modo sintético desactivado. El selector nativo de carpetas abre y permite cancelar sin importar contenido. La app queda abierta para el usuario. Esta prueba no es una instalación en un Mac limpio y no verifica la política de cuarentena de una descarga nueva de navegador.

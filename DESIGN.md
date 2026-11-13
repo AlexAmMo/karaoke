@@ -145,7 +145,7 @@ El canto conserva la representación real de UltraStar Deluxe: letras, notas, af
 - Canto visible mientras se preparan los siguientes turnos.
 - Estados y acciones explícitos en español, sin inicio automático del siguiente turno.
 
-Fuente normativa de los valores: `native/UKaraokeShell.pas`; contenido y estados: `src/karaoke/service.py`. Familia tipográfica contrastada con `build/engine/game/fonts/fonts.ini` y `build/engine/src/base/UText.pas`. Evidencia visual: `.impeccable/review/session-1280.jpg` y `.impeccable/review/settings-1000.jpg`, capturas de macOS con entrada sintética. Estas capturas preceden a las correcciones de interacción/estado de esta revisión; no prueban por sí solas los nuevos recorridos de teclado. Windows no está verificado visualmente y no se ha validado la experiencia con micrófonos físicos.
+Fuente normativa de los valores: `native/UKaraokeShell.pas`; contenido y estados: `src/karaoke/service.py`. Familia tipográfica contrastada con `build/engine/game/fonts/fonts.ini` y `build/engine/src/base/UText.pas`. Evidencia visual: `.impeccable/review/session-final-1280.jpg`, `selection-1280.jpg` y `settings-1000.jpg`, capturas de macOS con entrada sintética. La revisión final comprobó el estado de canto, la selección de texto y los recorridos de teclado corregidos. `installed-first-run.jpg` registra el primer arranque de la app instalada, sin entradas sintéticas ni canciones. Windows no está verificado visualmente y no se ha validado la experiencia con micrófonos físicos.
 
 ## Colors
 
