@@ -114,11 +114,12 @@ def main():
         raise RuntimeError('MSYS2 runtime license directory is missing: ' + str(msys_licenses))
     shutil.copytree(msys_licenses, target / 'licenses/msys2', dirs_exist_ok=True)
     manifest = bundle_tools(target / 'bin', args.tools)
-    audit = {'platform': 'windows-x86_64', 'pe_architecture': audit_pe(target), 'media_dependencies': manifest, 'physical_audio_validated': False, 'audio_backend': 'SDL capture/playback; BASS is disabled and excluded by the fork.'}
+    smoke_environment = dict(os.environ, PATH=os.pathsep.join([str(target / 'bin'), str(Path(os.environ['WINDIR']) / 'System32'), os.environ['WINDIR']]))
+    audit = {'media_smoke_path': smoke_environment['PATH'], 'platform': 'windows-x86_64', 'pe_architecture': audit_pe(target), 'media_dependencies': manifest, 'physical_audio_validated': False, 'audio_backend': 'SDL capture/playback; BASS is disabled and excluded by the fork.'}
     (target / 'package-audit.json').write_text(json.dumps(audit, indent=2), encoding='utf-8')
     for name in ('ffmpeg', 'ffprobe', 'ffplay'):
-        subprocess.run([str(target / 'bin' / (name + '.exe')), '-version'], check=True, stdout=subprocess.DEVNULL, timeout=30)
-    subprocess.run([str(target / 'bin/deno.exe'), '--version'], check=True, stdout=subprocess.DEVNULL, timeout=30)
+        subprocess.run([str(target / 'bin' / (name + '.exe')), '-version'], check=True, stdout=subprocess.DEVNULL, timeout=30, env=smoke_environment)
+    subprocess.run([str(target / 'bin/deno.exe'), '--version'], check=True, stdout=subprocess.DEVNULL, timeout=30, env=smoke_environment)
     archive = Path(shutil.make_archive(str(ROOT / 'dist' / f'Karaoke-{VERSION}-windows-x86_64'), 'zip', target.parent, target.name))
     archive.with_suffix('.zip.sha256').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n', encoding='ascii')
     print(json.dumps({'package': str(target), 'archive': str(archive), 'bytes': archive.stat().st_size}, indent=2))

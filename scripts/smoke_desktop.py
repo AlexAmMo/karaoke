@@ -22,11 +22,15 @@ def main():
     data = output / ('session-' + uuid.uuid4().hex)
     data.mkdir()
     report = {'scope': 'Real packaged launcher and native engine startup in explicit synthetic demo mode. No physical microphone, latency or visual verification.', 'platform': platform.platform(), 'launcher': str(args.launcher.resolve()), 'data_directory': str(data), 'passed': False}
+    environment = dict(os.environ)
+    if sys.platform == 'win32':
+        environment['PATH'] = os.pathsep.join([str(args.launcher.resolve().parent / 'bin'), str(Path(os.environ['WINDIR']) / 'System32'), os.environ['WINDIR']])
+    report['path_environment'] = environment.get('PATH', '')
     process = None
     started = time.monotonic()
     try:
         with (output / 'launcher.log').open('w', encoding='utf-8') as log:
-            process = subprocess.Popen([str(args.launcher.resolve()), '--data-dir', str(data), '--demo'], stdout=log, stderr=log)
+            process = subprocess.Popen([str(args.launcher.resolve()), '--data-dir', str(data), '--demo'], stdout=log, stderr=log, env=environment)
             deadline = time.monotonic() + 45
             state = {}
             while time.monotonic() < deadline:
