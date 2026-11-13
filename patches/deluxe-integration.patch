@@ -438,7 +438,7 @@ index 6b4359c..a67e00a 100644
      Renderer := TRenderer_OpenGLES.Create(glcontext, MajorVersion, MinorVersion)
    else if (MajorVersion >= 3) then
 diff --git a/src/base/URenderer_OpenGL.pas b/src/base/URenderer_OpenGL.pas
-index d3aebe1..b10689a 100644
+index d3aebe1..85fe315 100644
 --- a/src/base/URenderer_OpenGL.pas
 +++ b/src/base/URenderer_OpenGL.pas
 @@ -62,7 +62,8 @@   TRenderer_OpenGLBase = class(TRenderer)
@@ -510,23 +510,55 @@ index d3aebe1..b10689a 100644
    ViewPortArray[0] := x;
    ViewPortArray[1] := y;
    ViewPortArray[2] := width;
-@@ -1699,13 +1725,13 @@ procedure TRenderer_OpenGLBase.SetTextClipBoundary(X: single; Direction: Clippin
+@@ -1685,27 +1711,33 @@ procedure TRenderer_OpenGLBase.ClearFrameBuffer(Buffers: cardinal);
+ }
+ procedure TRenderer_OpenGLBase.SetTextClipBoundary(X: single; Direction: ClippingDirection);
+ var
+-  WindowBoundary: integer; // X converted to window coordinate
+-  NewX: single; // Recaculated vertex from window coordinate
++  WindowBoundary, ClipWidth: integer;
++  NewX: single;
+ begin
+-  WindowBoundary := Round(X * VertexW);
+-  NewX := (WindowBoundary * PixelW);
+-  if (ScreenAct = 2) then
+-    WindowBoundary := WindowBoundary + ScreenWPerScreen;
++  // The singing stage can occupy only part of the window. Both lyric layers
++  // must use its active viewport, not the width of the entire SDL window.
++  WindowBoundary := EnsureRange(Round(X * ViewPortArray[2] / RenderW), 0, ViewPortArray[2]);
++  NewX := WindowBoundary * RenderW / Max(1, ViewPortArray[2]);
++  ProjectionMatrix := OldProjectionMatrix;
+ 
+-  // Partial update of the projection matrix based on the values that are actually changing
+-  // see SetOrthographicProjection() function for equations
+   if (Direction = cdLeft) then
    begin
-     ProjectionMatrix.data[0,0] := 2 / (RenderW - NewX);
-     ProjectionMatrix.data[0,3] := -1 * ((RenderW + NewX) / (RenderW - NewX));
+-    ProjectionMatrix.data[0,0] := 2 / (RenderW - NewX);
+-    ProjectionMatrix.data[0,3] := -1 * ((RenderW + NewX) / (RenderW - NewX));
 -    glViewport(WindowBoundary, ViewPortArray[1], (ScreenAct * ScreenWPerScreen) - WindowBoundary, ViewPortArray[3]);
-+    ApplyViewport(WindowBoundary, ViewPortArray[1], (ScreenAct * ScreenWPerScreen) - WindowBoundary, ViewPortArray[3]);
++    ClipWidth := ViewPortArray[2] - WindowBoundary;
++    if ClipWidth > 0 then
++    begin
++      ProjectionMatrix.data[0,0] := 2 / (RenderW - NewX);
++      ProjectionMatrix.data[0,3] := -1 * ((RenderW + NewX) / (RenderW - NewX));
++    end;
++    ApplyViewport(ViewPortArray[0] + WindowBoundary, ViewPortArray[1], ClipWidth, ViewPortArray[3]);
    end
    else
    begin
-     ProjectionMatrix.data[0,0] := 2 / NewX;
-     ProjectionMatrix.data[0,3] := -1;
+-    ProjectionMatrix.data[0,0] := 2 / NewX;
+-    ProjectionMatrix.data[0,3] := -1;
 -    glViewPort((ScreenAct - 1) * ScreenWPerScreen, ViewPortArray[1], WindowBoundary - (ScreenAct - 1) * ScreenWPerScreen, ViewPortArray[3]);
-+    ApplyViewport((ScreenAct - 1) * ScreenWPerScreen, ViewPortArray[1], WindowBoundary - (ScreenAct - 1) * ScreenWPerScreen, ViewPortArray[3]);
++    if WindowBoundary > 0 then
++    begin
++      ProjectionMatrix.data[0,0] := 2 / NewX;
++      ProjectionMatrix.data[0,3] := -1;
++    end;
++    ApplyViewport(ViewPortArray[0], ViewPortArray[1], WindowBoundary, ViewPortArray[3]);
    end;
    UpdateTransformText := true;
    {$IFDEF DEBUG_MODE}
-@@ -1748,10 +1774,11 @@ function TRenderer_OpenGLBase.GetFrameBufferData(out RowSize: integer): PByte;
+@@ -1748,10 +1780,11 @@ function TRenderer_OpenGLBase.GetFrameBufferData(out RowSize: integer): PByte;
    // we must take the row-alignment (4byte by default) into account
    glGetIntegerv(GL_PACK_ALIGNMENT, @Align);
    // calc aligned row-size
