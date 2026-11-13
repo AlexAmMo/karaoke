@@ -40,9 +40,47 @@ def qt_sources():
     return entries
 
 
+
+def prepare_pgp_keys(msys: Path, recipe: Path, environment: dict, metadata: Path):
+    """Import only recipe-declared full fingerprints before normal makepkg checks."""
+    def command(arguments, check=True, timeout=120):
+        return subprocess.run([str(msys / 'usr/bin/bash.exe'), '-lc',
+            'cd -- "$(cygpath -u "$1")" && shift && "$@"',
+            'source-keys', str(recipe.parent), *arguments], env=environment,
+            check=check, capture_output=True, text=True, errors='replace', timeout=timeout)
+
+    info = command(['makepkg-mingw', '--printsrcinfo']).stdout
+    (metadata / 'SRCINFO').write_text(info, encoding='utf-8')
+    fingerprints = sorted(set(re.findall(r'^\s*validpgpkeys\s*=\s*(\S+)\s*$', info, re.M)))
+    for fingerprint in fingerprints:
+        if not re.fullmatch(r'[a-fA-F0-9]{40}|[a-fA-F0-9]{64}', fingerprint):
+            raise RuntimeError('Recipe declares a non-full PGP fingerprint: ' + fingerprint)
+        fingerprint = fingerprint.upper()
+        def present():
+            listing = command(['gpg', '--batch', '--with-colons', '--fingerprint', fingerprint], check=False)
+            return any(line.startswith('fpr:') and line.split(':')[9].upper() == fingerprint for line in listing.stdout.splitlines())
+        if present():
+            continue
+        bundled = recipe.parent / 'keys/pgp' / (fingerprint + '.asc')
+        if bundled.is_file():
+            command(['gpg', '--batch', '--import', bundled.as_posix()])
+        else:
+            for server in ('hkps://keyserver.ubuntu.com', 'hkps://keys.openpgp.org'):
+                try:
+                    command(['gpg', '--batch', '--keyserver-options', 'timeout=30', '--keyserver', server, '--recv-keys', fingerprint], check=False, timeout=90)
+                except subprocess.TimeoutExpired:
+                    continue
+                if present():
+                    break
+        if not present():
+            raise RuntimeError('Could not import the exact source-signing key: ' + fingerprint)
+    (metadata / 'verified-key-fingerprints.json').write_text(json.dumps(fingerprints, indent=2), encoding='utf-8')
+
+
 def main():
     if sys.platform != 'win32': raise SystemExit('Run on the Windows package builder.')
     msys = Path(os.environ.get('MSYS2_ROOT', 'C:/msys64')).resolve()
+    tar_environment = dict(os.environ, PATH=os.pathsep.join([str(msys / 'usr/bin'), str(msys / 'ucrt64/bin'), os.environ.get('PATH', '')]))
     local = msys / 'var/lib/pacman/local'
     cache = msys / 'var/cache/pacman/pkg'
     target = ROOT / 'dist/Karaoke'
@@ -59,6 +97,7 @@ def main():
     if required - owners.keys(): raise RuntimeError('Unknown native package ownership: ' + str(required-owners.keys()))
     results = []
     done = set()
+    completed_sources = set()
     for folder, description in owners.values():
         name = description['NAME'][0]; version = description['VERSION'][0]
         file_version = version.split(':', 1)[-1]
@@ -68,7 +107,7 @@ def main():
         archives = list(cache.glob(name+'-'+file_version+'-*.pkg.tar.*'))
         archives = [p for p in archives if not p.name.endswith('.sig')]
         if not archives: raise RuntimeError('Pacman package cache missing: '+name)
-        info = subprocess.check_output([str(msys / 'usr/bin/tar.exe'), '-xOf', str(archives[0]), '.PKGINFO'], text=True)
+        info = subprocess.check_output([str(msys / 'usr/bin/tar.exe'), '--force-local', '-xOf', archives[0].as_posix(), '.PKGINFO'], text=True, env=tar_environment)
         base_match = re.search(r'^pkgbase = (.+)$', info, re.M)
         if not base_match: raise RuntimeError('No pkgbase in '+str(archives[0]))
         base = base_match.group(1)
@@ -84,19 +123,22 @@ def main():
         metadata.mkdir(parents=True, exist_ok=True)
         (metadata / 'PKGINFO').write_text(info, encoding='utf-8')
         shutil.copy2(folder / 'desc', metadata / 'installed-desc')
+        if (base, file_version) in completed_sources:
+            continue
         if result['status'] == 'collected':
             # Source packages may contain recipes + source archives or source URLs.
             archive = OUT / result['group'] / result['filename']
-            listing = subprocess.check_output([str(msys / 'usr/bin/tar.exe'), '-tf', str(archive)], text=True)
+            listing = subprocess.check_output([str(msys / 'usr/bin/tar.exe'), '--force-local', '-tf', archive.as_posix()], text=True, env=tar_environment)
             (metadata / 'source-archive-files.txt').write_text(listing, encoding='utf-8')
             # Generate an all-source package, fetching and verifying any upstream
             # archives omitted from the repository's recipe-only source package.
             extracted = ROOT / 'build/msys-source-packages' / name
             extracted.mkdir(parents=True, exist_ok=True)
-            subprocess.run([str(msys / 'usr/bin/tar.exe'), '-xf', str(archive), '-C', str(extracted)], check=True)
+            subprocess.run([str(msys / 'usr/bin/tar.exe'), '--force-local', '-xf', archive.as_posix(), '-C', extracted.as_posix()], check=True, env=tar_environment)
             recipes = list(extracted.rglob('PKGBUILD'))
             if len(recipes) != 1: raise RuntimeError('Expected one PKGBUILD in '+package_source)
             environment = dict(os.environ, MSYSTEM='UCRT64', CHERE_INVOKING='1')
+            prepare_pgp_keys(msys, recipes[0], environment, metadata)
             subprocess.run([str(msys / 'usr/bin/bash.exe'), '-lc',
                 'cd -- "$(cygpath -u "$1")" && makepkg-mingw --allsource --force --nodeps --noconfirm',
                 'collect-sources', str(recipes[0].parent)], env=environment, check=True, timeout=1800)
@@ -110,6 +152,7 @@ def main():
                 results.append({'name': name+'-allsource', 'group': 'msys2-complete', 'filename': file.name,
                     'status': 'collected', 'sha256': hashlib.sha256(file.read_bytes()).hexdigest(),
                     'source_checks': 'makepkg-mingw --allsource with normal integrity checks'})
+            completed_sources.add((base, file_version))
     # Upstream Deluxe recipe already downloaded and verified its dependency tarballs.
     deps = ROOT / 'build/engine/dists/windows/deps/dl'
     native = OUT / 'deluxe-native'
