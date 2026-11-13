@@ -171,6 +171,9 @@ def main():
         "platform": platform.platform(),
         "python": platform.python_version(),
         "data_directory": str(data),
+        "launcher_command": [*launcher, "--data-dir", str(data), "--demo"],
+        "engine_override": environment.get("KARAOKE_ENGINE"),
+        "path_environment": environment.get("PATH", ""),
         "checks": checks,
     }
 

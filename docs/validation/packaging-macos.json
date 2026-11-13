@@ -1,0 +1,32 @@
+{
+  "recorded_at": "2026-11-13T17:26:56.706275+00:00",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "application_commit": "5022719762577502b3e0591a0bed3d82c8156d65",
+  "archive": "Karaoke-0.1.0-macos-arm64.zip",
+  "archive_bytes": 191283303,
+  "archive_sha256": "16088ba91f723cd987160d0fd6a6c74a3fa30e5028fdb8c2ad14dc33ec6c5aec",
+  "installed_logical_bytes": 411836524,
+  "native_executable_sha256": "a753bd6c65865b0d4e04b2e262387f63c4713970c7aee7aab04fb08d3cf574a0",
+  "audit": {
+    "mach_o_files": 189,
+    "external_absolute_references": [],
+    "minimum_macos_from_binaries": "26.0",
+    "arch": "arm64",
+    "physical_audio_validated": false
+  },
+  "codesign_deep_strict": true,
+  "bundled_media_startup_checks": [
+    "ffmpeg -version",
+    "ffprobe -version",
+    "ffplay -version",
+    "deno --version"
+  ],
+  "media_smoke_path": "bundle bin plus /usr/bin:/bin",
+  "dependency_source_entries": 102,
+  "dependency_source_unresolved": [],
+  "limitations": [
+    "macOS ARM64 build and bundled media startup checked here; Windows and Intel builds are separate CI jobs.",
+    "Ad-hoc signature; no Apple Developer ID or notarization.",
+    "No physical microphone or monitoring latency validation."
+  ]
+}

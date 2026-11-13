@@ -32,7 +32,7 @@ uv run python scripts/package_sources.py
 uv run python scripts/collect_windows_sources.py
 ```
 
-Se genera una carpeta portable `dist/Karaoke` con `karaoke.exe`, motor, runtime de Python y utilidades. El empaquetador recorre las importaciones PE de FFmpeg, FFprobe, FFplay y Deno, copiando sus DLL no pertenecientes a Windows. Los ejecutables de medios se prueban desde la carpeta resultante. No se afirma compatibilidad con Windows ARM.
+Se genera una carpeta portable `dist/Karaoke` con `karaoke.exe`, motor, runtime de Python y utilidades. El empaquetador recorre las importaciones PE de FFmpeg, FFprobe, FFplay y Deno, copiando sus DLL no pertenecientes a Windows. El empaquetador lee la cabecera PE del motor, el lanzador y todas las DLL/PYD/EXE, y exige AMD64 (0x8664). Los ejecutables de medios se prueban desde la carpeta resultante. No se afirma compatibilidad con Windows ARM.
 
 ## Instalación de una versión publicada
 

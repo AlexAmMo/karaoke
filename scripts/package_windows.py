@@ -7,9 +7,39 @@ import json
 import os
 import shutil
 import subprocess
+import struct
 import sys
 from pathlib import Path
 from package_macos import ROOT, VERSION, collect_licenses, copy_file, find_deno, pyinstaller
+
+
+def pe_machine(path: Path) -> int:
+    """Read IMAGE_FILE_HEADER.Machine instead of inferring arch from filenames."""
+    with path.open('rb') as file:
+        if file.read(2) != b'MZ':
+            raise RuntimeError('Not a PE executable: ' + str(path))
+        file.seek(0x3C)
+        pointer = file.read(4)
+        if len(pointer) != 4:
+            raise RuntimeError('Truncated DOS header: ' + str(path))
+        offset = struct.unpack('<I', pointer)[0]
+        if offset > path.stat().st_size - 6:
+            raise RuntimeError('Invalid PE header offset: ' + str(path))
+        file.seek(offset)
+        if file.read(4) != b'PE\x00\x00':
+            raise RuntimeError('Invalid PE signature: ' + str(path))
+        return struct.unpack('<H', file.read(2))[0]
+
+
+def audit_pe(target: Path):
+    files = [path for path in target.rglob('*') if path.is_file() and path.suffix.lower() in ('.exe', '.dll', '.pyd')]
+    entries = []
+    for file in files:
+        machine = pe_machine(file)
+        if machine != 0x8664:
+            raise RuntimeError(f'Expected AMD64 PE machine 0x8664, found 0x{machine:04x}: {file}')
+        entries.append({'path': str(file.relative_to(target)), 'machine': '0x8664'})
+    return entries
 
 
 def bundle_tools(destination: Path, tool_directory: Path):
@@ -26,6 +56,8 @@ def bundle_tools(destination: Path, tool_directory: Path):
             raise RuntimeError(f'Missing media tool: {source}')
         pending.append(source)
     pending.append(find_deno())
+    # SDL2-compat may LoadLibrary(SDL3.dll) without a PE import-table edge.
+    if (tool_directory / 'SDL3.dll').exists(): pending.append(tool_directory / 'SDL3.dll')
     copied = set()
     manifest = []
     while pending:
@@ -78,11 +110,11 @@ def main():
         if source.is_file() and source.name.lower() in ('license', 'license.txt', 'license.md', 'copying', 'copying.lgplv2.1', 'copyright', 'notice', 'bass.txt'):
             copy_file(source, target / 'licenses/native' / source.relative_to(ROOT / 'build/engine/dists/windows/deps'))
     manifest = bundle_tools(target / 'bin', args.tools)
-    audit = {'platform': 'windows-x86_64', 'media_dependencies': manifest, 'physical_audio_validated': False, 'audio_backend': 'SDL capture/playback; BASS is disabled and excluded by the fork.'}
+    audit = {'platform': 'windows-x86_64', 'pe_architecture': audit_pe(target), 'media_dependencies': manifest, 'physical_audio_validated': False, 'audio_backend': 'SDL capture/playback; BASS is disabled and excluded by the fork.'}
     (target / 'package-audit.json').write_text(json.dumps(audit, indent=2), encoding='utf-8')
     for name in ('ffmpeg', 'ffprobe', 'ffplay'):
-        subprocess.run([str(target / 'bin' / (name + '.exe')), '-version'], check=True, stdout=subprocess.DEVNULL)
-    subprocess.run([str(target / 'bin/deno.exe'), '--version'], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run([str(target / 'bin' / (name + '.exe')), '-version'], check=True, stdout=subprocess.DEVNULL, timeout=30)
+    subprocess.run([str(target / 'bin/deno.exe'), '--version'], check=True, stdout=subprocess.DEVNULL, timeout=30)
     archive = Path(shutil.make_archive(str(ROOT / 'dist' / f'Karaoke-{VERSION}-windows-x86_64'), 'zip', target.parent, target.name))
     archive.with_suffix('.zip.sha256').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n', encoding='ascii')
     print(json.dumps({'package': str(target), 'archive': str(archive), 'bytes': archive.stat().st_size}, indent=2))

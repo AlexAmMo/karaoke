@@ -28,7 +28,7 @@ def qt_sources():
     from importlib.metadata import version
     v = version('PySide6')
     branch = '.'.join(v.split('.')[:2])
-    urls = [f'https://download.qt.io/official_releases/qt/{branch}/{v}/submodules/{m}-everywhere-src-{v}.tar.xz' for m in ('qtbase', 'qtsvg')]
+    urls = [f'https://download.qt.io/official_releases/qt/{branch}/{v}/submodules/{m}-everywhere-src-{v}.tar.xz' for m in ('qtbase', 'qtsvg', 'qtimageformats')]
     urls.append(f'https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-{v}-src/pyside-setup-everywhere-src-{v}.tar.xz')
     entries = []
     for url in urls:

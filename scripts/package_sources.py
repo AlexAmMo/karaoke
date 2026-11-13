@@ -34,7 +34,7 @@ def main():
     with tarfile.open(archive, 'w:gz') as tar:
         tracked = set(git_files(ROOT))
         # Include the same explicit development sources before the first commit.
-        for folder in ('src', 'native', 'scripts', 'tests', 'docs', '.github'):
+        for folder in ('src', 'native', 'scripts', 'tests', 'docs', '.github', 'third_party'):
             tracked.update(p.relative_to(ROOT) for p in (ROOT / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
         tracked.update(Path(p) for p in ('pyproject.toml', 'uv.lock', 'README.md', 'LICENSE', 'NOTICE.md', 'THIRD_PARTY.md', 'PLAN-DEL-KARAOKE.md') if (ROOT / p).exists())
         for file in sorted(tracked):

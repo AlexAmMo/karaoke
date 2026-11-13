@@ -6,16 +6,24 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      target:
+        description: Platform or test suite to run
+        required: true
+        default: all
+        type: choice
+        options: [all, windows, macos, tests]
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.ref }}-${{ inputs.target || 'all' }}
   cancel-in-progress: true
 
 jobs:
   test:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'tests' }}
     name: Python integration tests
     runs-on: ${{ matrix.os }}
     strategy:
@@ -51,6 +59,7 @@ jobs:
         run: bash -n scripts/install.sh
 
   macos:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'macos' }}
     name: macOS ${{ matrix.os }} development package
     runs-on: ${{ matrix.os }}
     strategy:
@@ -67,6 +76,7 @@ jobs:
         run: brew install fpc sdl2-compat sdl2_image automake portaudio lua ffmpeg pkg-config
       - run: uv sync --locked
       - name: Build modified Deluxe
+        id: package
         run: bash scripts/build_macos.sh
       - name: Package source and provenance
         run: |
@@ -75,6 +85,7 @@ jobs:
       - name: Verify frozen launcher
         run: dist/Karaoke.app/Contents/MacOS/karaoke --version
       - uses: actions/upload-artifact@v4
+        if: always() && !cancelled() && steps.package.outcome == 'success'
         with:
           name: karaoke-${{ matrix.os }}
           path: |
@@ -84,6 +95,7 @@ jobs:
           if-no-files-found: error
 
   windows:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'windows' }}
     name: Windows x64 development package
     runs-on: windows-2022
     env:
@@ -140,14 +152,18 @@ jobs:
           ./configure --without-opencv --without-libprojectM
           make
       - name: Package Python and media tools
+        id: package
         run: |
           $env:PATH = "C:\msys64\ucrt64\bin;" + $env:PATH
           uv run python scripts/package_windows.py --tools C:/msys64/ucrt64/bin
+      - name: Collect Windows corresponding sources
+        run: |
           uv run python scripts/package_sources.py
           uv run python scripts/collect_windows_sources.py
       - name: Verify frozen launcher
         run: .\dist\Karaoke\karaoke.exe --version
       - uses: actions/upload-artifact@v4
+        if: always() && !cancelled() && steps.package.outcome == 'success'
         with:
           name: karaoke-windows-x86_64
           path: |

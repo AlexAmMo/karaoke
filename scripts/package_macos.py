@@ -134,7 +134,8 @@ def bundle_media(resources: Path, frameworks: Path):
     manifest = []
     while pending:
         source, target = pending.pop()
-        subprocess.run(['codesign', '--remove-signature', str(target)], capture_output=True)
+        # install_name_tool edits invalidate the old signature; re-sign after all edits.
+        # Removing signatures first can corrupt __LINKEDIT with older Intel tools.
         source_rpaths = rpaths(source)
         for dependency in dependencies(source):
             if system_library(dependency):

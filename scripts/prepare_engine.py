@@ -5,6 +5,8 @@ The generated checkout is disposable. Source changes live in native/ and patches
 not in an untracked build tree. Existing, unexpected changes are never discarded.
 """
 import subprocess
+import hashlib
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,4 +26,14 @@ if reverse.returncode:
     subprocess.run(['git', '-C', str(target), 'apply', '--check', str(patch)], check=True)
     subprocess.run(['git', '-C', str(target), 'apply', str(patch)], check=True)
 (target / 'src/base/UKaraokeShell.pas').write_bytes((ROOT / 'native/UKaraokeShell.pas').read_bytes())
+# Preserve the exact upstream source when its download host is intermittent.
+lua_source = ROOT / 'third_party/sources/lua-5.5.1.tar.gz'
+lua_hash = '1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce'
+if lua_source.exists():
+    if hashlib.sha256(lua_source.read_bytes()).hexdigest() != lua_hash:
+        raise SystemExit('Vendored Lua source checksum mismatch.')
+    source_cache = target / 'dists/windows/deps/dl'
+    source_cache.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(lua_source, source_cache / lua_source.name)
+# With no local archive, the native recipe uses its verified network downloader.
 print(target)

@@ -27,11 +27,14 @@ def source_download(item):
     target = OUT / item['group'] / item['filename']
     target.parent.mkdir(parents=True, exist_ok=True)
     expected = item.get('sha256')
+    vendored = ROOT / 'third_party/sources' / Path(urlparse(item['url']).path).name
+    if not target.exists() and expected and vendored.is_file() and hashlib.sha256(vendored.read_bytes()).hexdigest() == expected:
+        shutil.copy2(vendored, target)
     try:
         if not target.exists() or (expected and hashlib.sha256(target.read_bytes()).hexdigest() != expected):
             temp = target.with_suffix(target.suffix + '.part')
             url = item['url']
-            if item.get('name') == 'lua':
+            if item.get('name') == 'lua' and '5.4.8' in url:
                 # Exact upstream tarball mirrored by MacPorts; authoritative hash still applies.
                 url = 'https://distfiles.macports.org/lua/' + Path(urlparse(url).path).name
             with requests.get(url, stream=True, timeout=(20, 90)) as response:
@@ -158,7 +161,7 @@ def qt_sources(app):
     allowed = {'QtCore.framework', 'QtNetwork.framework', 'QtGui.framework', 'QtWidgets.framework', 'QtDBus.framework', 'QtOpenGL.framework', 'QtOpenGLWidgets.framework', 'QtSvg.framework', 'QtSvgWidgets.framework'}
     if modules - allowed:
         raise RuntimeError('Add source modules for additional bundled Qt frameworks: ' + str(modules-allowed))
-    urls = [qt_base+f'qtbase-everywhere-src-{version}.tar.xz', f'https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-{version}-src/pyside-setup-everywhere-src-{version}.tar.xz']
+    urls = [qt_base+f'qtbase-everywhere-src-{version}.tar.xz', qt_base+f'qtimageformats-everywhere-src-{version}.tar.xz', f'https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-{version}-src/pyside-setup-everywhere-src-{version}.tar.xz']
     if modules.intersection({'QtSvg.framework', 'QtSvgWidgets.framework'}):
         urls.append(qt_base+f'qtsvg-everywhere-src-{version}.tar.xz')
     items = []
@@ -197,7 +200,7 @@ def main():
 
 Build the application with the scripts included in its companion source archive and `uv.lock`. Build native Homebrew libraries from the included archive and installed formula. The formula `install` method records the actual configure/build invocation; apply any included patch/resource archives before that invocation. Libraries are dynamically linked and may be replaced with compatible builds; do not treat an ad-hoc signature as a restriction on replacement. Re-sign the local application ad hoc after modification (`codesign --force --deep --sign - Karaoke.app`).
 
-QtCore and QtNetwork belong to the included qtbase module. PySide6 and Shiboken are in the included pyside-setup source. Their source archives contain the upstream license texts and build instructions. The application uses the Qt for Python wheels locked in uv.lock and does not modify Qt. Qt's upstream build guide is https://doc.qt.io/qtforpython-6/building_from_source/index.html .
+QtCore, QtNetwork, QtGui, QtWidgets, QtDBus and QtOpenGL belong to the included qtbase module. SVG and additional image-format plugins are covered by qtsvg and qtimageformats. PySide6 and Shiboken are in the included pyside-setup source. Their source archives contain the upstream license texts and build instructions. The application uses the Qt for Python wheels locked in uv.lock and does not modify Qt. Qt's upstream build guide is https://doc.qt.io/qtforpython-6/building_from_source/index.html .
 
 Python package archives include their upstream build instructions, license files and build metadata. CPython is included separately. Developer tools present in the build environment may also be listed; inclusion in this source archive does not imply they are shipped in the application.
 

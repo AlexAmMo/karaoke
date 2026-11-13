@@ -1,5 +1,5 @@
 diff --git a/dists/windows/tasks.sh b/dists/windows/tasks.sh
-index 6a395ce..cadb6e1 100644
+index 6a395ce..a7e2599 100644
 --- a/dists/windows/tasks.sh
 +++ b/dists/windows/tasks.sh
 @@ -51,11 +51,7 @@ deps+=('libjpeg-turbo,https://github.com/libjpeg-turbo/libjpeg-turbo/releases/do
@@ -14,7 +14,35 @@ index 6a395ce..cadb6e1 100644
  
  # DLL Names
  ffmpeg_DLLs="avcodec avformat avutil swresample swscale"
-@@ -441,10 +437,10 @@ add_dll() {
+@@ -72,6 +68,27 @@ freetype_DLLs=libfreetype
+ opencv_DLLs="libopencv_core libopencv_imgcodecs libopencv_imgproc libopencv_videoio"
+ projectm_DLLs=libprojectM-4:projectM-4
+ 
++# Every attempt must pass the pinned source hash; never cache an HTTP error page.
++fetch_verified() {
++    local download_url="$1" download_target="$2" download_hash="$3"
++    local attempt actual_hash
++    for attempt in 1 2 3 4; do
++        if curl --fail --show-error --silent --location --retry 2 --retry-all-errors \
++            --connect-timeout 20 --max-time 180 "$download_url" -o "$download_target.tmp"; then
++            actual_hash="$(sha256sum "$download_target.tmp" | awk '{print $1}')"
++            if [ "$actual_hash" = "$download_hash" ]; then
++                mv "$download_target.tmp" "$download_target"
++                return 0
++            fi
++            echo "Source hash mismatch on attempt $attempt for $download_url" >&2
++        fi
++        rm -f "$download_target.tmp"
++        sleep "$attempt"
++    done
++    echo "Could not obtain verified source: $download_url" >&2
++    return 1
++}
++
+ clean_prefix() {
+ 	tput setaf 2 && tput bold
+ 	echo "==> Cleaning prefix"
+@@ -441,10 +458,10 @@ add_dll() {
  
  task_install() {
  	rm -f $DLL_DIR/*.debug $DLL_DIR/*.dll
@@ -27,7 +55,25 @@ index 6a395ce..cadb6e1 100644
  		echo "Installing $(basename $i)"
  		install $i $DLL_DIR
  	done
-@@ -539,7 +535,6 @@ if [ "$1" == "all_deps" ]; then
+@@ -469,7 +486,7 @@ task_dl() {
+ 			hashB="$(sha256sum "deps/dl/$bname" 2> /dev/null | awk '{print $1}')"
+ 			if [ ! -f "deps/dl/$bname" ] || [ "$hashA" != "$hashB" ]; then
+ 				echo "Downloading $name from $url"
+-				curl -s -S -L "$url" -o "deps/dl/$bname"
++				fetch_verified "$url" "deps/dl/$bname" "$hashA"
+ 				hashB="$(sha256sum "deps/dl/$bname" 2> /dev/null | awk '{print $1}')"
+ 				if [ "$hashA" != "$hashB" ]; then
+ 					echo "Hashes doesn't match!" "$hashA" "$hashB"
+@@ -499,7 +516,7 @@ task_dl() {
+ 			hashB="$(sha256sum "deps/dl/$bname" 2> /dev/null | awk '{print $1}')"
+ 			if [ ! -f "deps/dl/$bname" ] || [ "$hashA" != "$hashB" ]; then
+ 				echo "Downloading $name from $url"
+-				curl -s -S -L "$url" -o "deps/dl/$bname"
++				fetch_verified "$url" "deps/dl/$bname" "$hashA"
+ 				hashB="$(sha256sum "deps/dl/$bname" 2> /dev/null | awk '{print $1}')"
+ 				if [ "$hashA" != "$hashB" ]; then
+ 					echo "Hashes doesn't match!" "$hashA" "$hashB"
+@@ -539,7 +556,6 @@ if [ "$1" == "all_deps" ]; then
  	clean_prefix
  	echo
  
@@ -35,7 +81,7 @@ index 6a395ce..cadb6e1 100644
  	echo
  	task_libjpeg_turbo
  	echo
-@@ -563,9 +558,7 @@ if [ "$1" == "all_deps" ]; then
+@@ -563,9 +579,7 @@ if [ "$1" == "all_deps" ]; then
  	echo
  	task_freetype
  	echo

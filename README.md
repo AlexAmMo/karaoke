@@ -2,13 +2,13 @@
 
 Karaoke doméstico instalado en el ordenador: UltraStar Deluxe muestra letras, notas y puntuación; un lateral permite preparar biblioteca y próximos turnos sin abrir otra ventana.
 
-**Versión de desarrollo 0.1.0.** El código se está validando en macOS; Windows tiene construcción automatizada. Las pruebas con señales sintéticas no sustituyen una sesión con uno o dos micrófonos por cable. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
+**Versión de desarrollo 0.1.0.** La app empaquetada se ha probado en macOS Apple Silicon; las 50 pruebas Python pasan en Linux, macOS y Windows. La construcción nativa de Windows está automatizada. Las pruebas con señales sintéticas no sustituyen una sesión con uno o dos micrófonos por cable. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
 
 ## Uso
 
 1. Abre **Karaoke**. En **Ajustes**, introduce los nombres; deja el segundo vacío para cantar solo.
 2. Conecta el micrófono, pulsa **Detectar micrófonos** y asigna dispositivo/canal a cada jugador. Prueba la señal y sube el retorno gradualmente si quieres oír tu voz.
-3. Importa una carpeta UltraStar preparada desde **Biblioteca**, o conecta tu cuenta USDB en **Ajustes** y busca artista/título en **Buscar**.
+3. Importa una carpeta UltraStar preparada desde **Biblioteca**, o conecta tu cuenta gratuita de [USDB](https://usdb.animux.de/) en **Ajustes** y busca artista/título en **Buscar**.
 4. Añade un turno. La preparación ocurre en segundo plano. En **Cola**, pulsa **Empezar turno** cuando esté listo.
 5. Al terminar verás los resultados. Tú decides cuándo empieza la siguiente canción.
 

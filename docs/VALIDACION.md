@@ -33,3 +33,9 @@ La generación de mapas por IA, móviles, dúos con partes diferentes y segunda 
 ## Revisión de interfaz
 
 El revisor independiente de Impeccable resolvió cuatro defectos: Enter ya no cambia un slider, seleccionar todo conserva el texto, Tab/Shift+Tab recorren pestañas/transporte/controles y el mensaje de preparación cambia a canto al confirmarlo el motor. La segunda revisión dio `ship` para esos cuatro hallazgos y el alcance visual revisado; no certifica Windows, hardware ni lectores de pantalla. Capturas finales: `.impeccable/review/session-final-1280.jpg` y `selection-1280.jpg`.
+
+## Paquete autónomo de macOS
+
+La aplicación congelada completó de nuevo las 17/17 comprobaciones con `PATH=/usr/bin:/bin`, sin depender de Homebrew para ejecutar medios o el motor. Evidencia: `docs/evidence/session-frozen-macos.json` (33,14 segundos, 371 muestras). El controlador de pruebas se ejecuta con Python de desarrollo; la app, el motor y sus dependencias son los del paquete.
+
+La revisión `5022719` pasa las 50 pruebas Python en GitHub Actions sobre Ubuntu, macOS y Windows Server 2022. Este resultado no equivale a probar el audio físico ni el renderizado Windows.
