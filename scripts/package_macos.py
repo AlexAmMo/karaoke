@@ -82,15 +82,9 @@ def pyinstaller(destination: Path, work: Path, name='karaoke'):
 
 
 def find_deno() -> Path:
-    found = shutil.which('deno')
-    if found:
-        # The pip console wrapper is not a standalone runtime; locate actual binary.
-        candidate = Path(found).resolve()
-        if candidate.read_bytes()[:2] != b'#!':
-            return candidate
-    import deno
+    # Pip's Windows console shim is also a PE executable; never bundle it.
     from deno._find_deno import find_deno_bin
-    return Path(find_deno_bin())
+    return Path(find_deno_bin()).resolve()
 
 
 def dependencies(binary: Path):

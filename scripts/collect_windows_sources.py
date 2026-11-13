@@ -42,7 +42,7 @@ def qt_sources():
 
 def main():
     if sys.platform != 'win32': raise SystemExit('Run on the Windows package builder.')
-    msys = Path('C:/msys64')
+    msys = Path(os.environ.get('MSYS2_ROOT', 'C:/msys64')).resolve()
     local = msys / 'var/lib/pacman/local'
     cache = msys / 'var/cache/pacman/pkg'
     target = ROOT / 'dist/Karaoke'
