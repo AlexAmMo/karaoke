@@ -274,6 +274,8 @@ begin
     try
       if Singing then J.Add('state','singing') else J.Add('state','idle');
       J.Add('mouse_x',LastMouseX); J.Add('mouse_y',LastMouseY); J.Add('mouse_clicks',MouseClicks); J.Add('width',ScreenW); J.Add('height',ScreenH); J.Add('last_action',LastAction);
+      J.Add('drawable_width',DrawableW); J.Add('drawable_height',DrawableH);
+      J.Add('pixel_scale_x',DrawableScaleX); J.Add('pixel_scale_y',DrawableScaleY);
       J.Add('focus_action',FocusAction); J.Add('edit_selected',EditSelectedAll);
       J.Add('testing',TestingInput); J.Add('synthetic',ShellSynthetic);
       J.Add('token',Token); J.Add('error',ErrorText);
@@ -346,7 +348,7 @@ begin
     LabelAt(48,48,28,'Karaoke',W-96);
     if Token='' then
     begin
-      LabelAt(48,ScreenH*0.35,36,'Una canción más.',W-96);
+      LabelAt(48,ScreenH*0.35,40,'Una canción más.',W-96);
       LabelAt(48,ScreenH*0.35+62,22,'Elige tu repertorio en el lateral.',W-96,true);
       LabelAt(48,ScreenH*0.35+102,20,'La letra, las notas y tu afinación aparecerán aquí.',W-96,true);
     end else
@@ -364,13 +366,17 @@ begin
   end;
   Renderer.SetViewPort(W,0,SideWidth,ScreenH); Renderer.SetOrthographicProjection(0,400,Height,0,-1,100); Renderer.DepthTest:=false;
   Rect(0,0,400,Height,0.085,0.10,0.11); Rect(0,0,1,Height,0.22,0.25,0.27);
-  LabelAt(22,22,25,'Tu sesión',240);
+  LabelAt(22,22,28,'Tu sesión',240);
   if Assigned(View) then LabelAt(290,29,16,IntToStr(View.Get('queue_count',0))+' turnos',90,true);
   for I:=0 to 3 do
   begin
     case I of 0: Value:='Biblioteca'; 1: Value:='Buscar'; 2: Value:='Cola'; 3: Value:='Ajustes'; end;
     if Focus=I-10 then Rect(10+I*96,66,96,40,0.53,0.75,0.66);
-    if Page=Value then Rect(12+I*96,68,92,36,0.20,0.29,0.28)
+    if Page=Value then
+    begin
+      Rect(12+I*96,68,92,36,0.20,0.29,0.28);
+      Rect(12+I*96,102,92,2,0.53,0.75,0.66);
+    end
     else Rect(12+I*96,68,92,36,0.085,0.10,0.11);
     LabelAt(19+I*96,78,16,Value,86);
   end;
@@ -397,15 +403,17 @@ begin
           if Hover=I then Rect(16,Y,368,RH-8,0.21,0.26,0.27)
           else Rect(16,Y,368,RH-8,0.13,0.16,0.18);
         end;
-        LabelAt(24,Y+8,18,R.Get('label',''),350);
+        if Kind='text' then LabelAt(24,Y+8,20,R.Get('label',''),350)
+        else if Kind='input' then LabelAt(24,Y+8,16,R.Get('label',''),350,true)
+        else LabelAt(24,Y+8,18,R.Get('label',''),350);
         if Kind='input' then
         begin
           if Focused and (EditAction<>'') then Value:=EditValue else Value:=R.Get('value','');
           if R.Get('secret',false) then Value:=StringOfChar('*',Length(Value));
           if Focused and EditSelectedAll and (EditAction<>'') then Rect(22,Y+35,350,29,0.24,0.38,0.34)
           else if Focused then Value:=Value+'|';
-          if Value='' then Value:='Clic para escribir';
-          LabelAt(24,Y+40,18,Value,345,true);
+          if Value='' then LabelAt(24,Y+40,18,'Clic para escribir',345,true)
+          else LabelAt(24,Y+40,18,Value,345);
         end
         else if Kind='slider' then
         begin
@@ -416,8 +424,8 @@ begin
       end;
       Inc(Y,RH);
     end;
-    if Scroll>0 then LabelAt(365,155,14,'^',20,true);
-    if Y>Height-98 then LabelAt(365,Height-110,14,'v',20,true);
+    if Scroll>0 then Renderer.DrawTriangle(365,161,370,156,375,161,0,0.70,0.74,0.77,1);
+    if Y>Height-98 then Renderer.DrawTriangle(365,Height-110,375,Height-110,370,Height-105,0,0.70,0.74,0.77,1);
     Rect(1,Height-94,399,94,0.10,0.13,0.14);
     Msg:=View.Get('message','');
     if ErrorText<>'' then Msg:=ErrorText;

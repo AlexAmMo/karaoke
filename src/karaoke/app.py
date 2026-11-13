@@ -168,7 +168,10 @@ def main():
         "--demo", action="store_true", help="Prueba sintética de desarrollo; no valida micrófonos"
     )
     parser.add_argument(
-        "--window-size", choices=["1000x640", "1280x800", "1600x900"], default="1280x800"
+        "--window-size",
+        choices=["1000x640", "1280x800", "1600x900", "1920x1080"],
+        default="1280x800",
+        help="Tamaño lógico de la ventana; mantiene el escalado Retina del monitor.",
     )
     parser.add_argument("--version", action="version", version="Karaoke 0.1.0")
     args = parser.parse_args()

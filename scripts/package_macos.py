@@ -184,7 +184,13 @@ def bundle_media(resources: Path, frameworks: Path):
 
 
 def audit_macos(app: Path):
-    """Fail if an absolute non-system dylib reference survived bundling."""
+    """Audit dependency closure and both processes' Retina bundle declarations."""
+    high_resolution = {}
+    for label, relative in [('launcher', 'Contents/Info.plist'), ('engine', 'Contents/Resources/Engine.app/Contents/Info.plist')]:
+        info = plistlib.loads((app / relative).read_bytes())
+        high_resolution[label] = info.get('NSHighResolutionCapable') is True
+        if not high_resolution[label]:
+            raise RuntimeError('Missing NSHighResolutionCapable=true in ' + relative)
     binaries = [p for p in app.rglob('*') if macho(p)]
     failures = []
     minimums = []
@@ -202,7 +208,7 @@ def audit_macos(app: Path):
     if failures:
         raise RuntimeError('External/missing dylib references:\n' + '\n'.join(failures))
     minimum = max(minimums, key=lambda x: tuple(int(p) for p in x.split('.'))) if minimums else None
-    return {'mach_o_files': len(binaries), 'external_absolute_references': failures, 'minimum_macos_from_binaries': minimum, 'arch': platform.machine(), 'physical_audio_validated': False}
+    return {'high_resolution_capable': high_resolution, 'mach_o_files': len(binaries), 'external_absolute_references': failures, 'minimum_macos_from_binaries': minimum, 'arch': platform.machine(), 'physical_audio_validated': False}
 
 
 def main():
@@ -225,9 +231,15 @@ def main():
     shutil.copytree(python_dist / 'karaoke.app', app, symlinks=True)
     resources.mkdir(parents=True, exist_ok=True)
     shutil.copytree(engine, resources / 'Engine.app', symlinks=True)
+    # The renderer runs in the nested bundle; the launcher's flag does not cover it.
+    engine_plist = resources / 'Engine.app/Contents/Info.plist'
+    engine_info = plistlib.loads(engine_plist.read_bytes())
+    engine_info['NSHighResolutionCapable'] = True
+    engine_plist.write_bytes(plistlib.dumps(engine_info))
     collect_licenses(resources / 'licenses')
     bundle_media(resources, app / 'Contents/Frameworks/Media')
     plist = {'CFBundleName': 'Karaoke', 'CFBundleDisplayName': 'Karaoke', 'CFBundleIdentifier': 'org.alexammo.karaoke', 'CFBundleExecutable': 'karaoke', 'CFBundleVersion': VERSION, 'CFBundleShortVersionString': VERSION, 'CFBundlePackageType': 'APPL', 'NSHighResolutionCapable': True, 'LSUIElement': True, 'NSMicrophoneUsageDescription': 'Karaoke usa el micrófono para mostrar tu afinación, puntuar y reproducir tu voz si activas el retorno.'}
+    (app / 'Contents/Info.plist').write_bytes(plistlib.dumps(plist))
     audit = audit_macos(app)
     if audit['minimum_macos_from_binaries']:
         plist['LSMinimumSystemVersion'] = audit['minimum_macos_from_binaries']
