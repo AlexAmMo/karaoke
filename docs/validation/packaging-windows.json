@@ -1,0 +1,73 @@
+{
+  "ci_run": "https://github.com/AlexAmMo/karaoke/actions/runs/43483165075",
+  "application_commit": "ae0f0eb6987389471c49f5a8f29291e0ef80805f",
+  "archive": "Karaoke-0.1.0-windows-x86_64.zip",
+  "archive_bytes": 255550009,
+  "archive_sha256": "02d994169752e7ab73b44cb55e3a83d404100be7cf7d3c1a0113bd59bdee6563",
+  "installed_uncompressed_bytes": 581857243,
+  "launcher_sha256": "c78f84045e8c3633003db84ff15af0457168e634a0f759e237091c5d8036d91d",
+  "native_executable_sha256": "0a7b60dbb502dda4ef18aaf37e14fd9f7e3d51d6cbb3eb96d9ab60e411f3106c",
+  "pe_files_amd64": 329,
+  "media_dependency_files": 118,
+  "media_smoke_path": "D:\\a\\karaoke\\karaoke\\dist\\Karaoke\\bin;C:\\Windows\\System32;C:\\Windows",
+  "dependency_source_archive": "Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz",
+  "dependency_source_bytes": 2694900077,
+  "dependency_source_sha256": "6c1d1f4422cdcc6c8e71cacc40dc7687773b0f64af30a80948879527f3514b93",
+  "dependency_source_entries": 253,
+  "dependency_source_groups": {
+    "msys2": 89,
+    "msys2-complete": 87,
+    "deluxe-native": 11,
+    "python": 62,
+    "qt": 4
+  },
+  "dependency_source_unresolved": [],
+  "source_parts": [
+    {
+      "name": "Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz.part01",
+      "bytes": 1073741824,
+      "sha256": "d50db80f16a9e420c33afee65a269d005904b63944fc99da80aed47a3528e086"
+    },
+    {
+      "name": "Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz.part02",
+      "bytes": 1073741824,
+      "sha256": "879ea2b86dbd1a820733411d8bc4b97571f344145d68cf07d7263fffa380fc09"
+    },
+    {
+      "name": "Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz.part03",
+      "bytes": 547416429,
+      "sha256": "79d2a1787087ae3cf5c46961a45761a0b2a2b197c6028e20b84651a04aaabc64"
+    }
+  ],
+  "source_parts_checksums": "Karaoke-0.1.0-dependency-source-windows-x86_64.parts.sha256",
+  "source_full_checksum": "Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz.sha256",
+  "source_reassembly_instructions": "Karaoke-0.1.0-windows-source-reassembly.md",
+  "desktop_smoke": {
+    "passed": true,
+    "frozen_provider_stdin": true,
+    "platform": "Windows-2022Server-10.0.20348-SP0",
+    "engine_state": {
+      "state": "idle",
+      "synthetic": true,
+      "width": 1280,
+      "height": 800,
+      "error": ""
+    },
+    "graphics_audio_log": [
+      "2026-11-13 18:39:06.004 INFO:   Using dummy driver [SDL]",
+      "2026-11-13 18:39:06.004 STATUS: #Input-Devices: 0 [SDL]",
+      "2026-11-13 18:39:07.277 INFO:   Actual OpenGL version 4.6 (Core Profile) Mesa 26.2.3 [InitRenderer]",
+      "2026-11-13 18:39:07.278 INFO:   OpenGL vendor Mesa [TRenderer_OpenGLBase.Create]",
+      "2026-11-13 18:39:07.278 INFO:   OpenGL renderer llvmpipe (LLVM 22.1.8, 256 bits) [TRenderer_OpenGLBase.Create]",
+      "2026-11-13 18:39:07.278 INFO:   OpenGL version 4.6 (Core Profile) Mesa 26.2.3 [TRenderer_OpenGLBase.Create]",
+      "2026-11-13 18:39:07.278 INFO:   Using Modern OpenGL renderer [TRenderer_OpenGL3.CheckVersion]"
+    ],
+    "ci_audio_driver": "dummy",
+    "elapsed_seconds": 5.91
+  },
+  "validation_scope": "Windows software startup and clean quit, frozen provider stdin, AMD64 dependency audit and isolated media startup. Native desktop tested in a disposable copy with CI-only Mesa llvmpipe graphics and SDL dummy audio. No physical microphone, monitoring latency, hardware GPU or Windows singing session validated.",
+  "recorded_at": "2026-11-13T19:06:28.880054+00:00",
+  "staging_run": "https://github.com/AlexAmMo/karaoke/actions/runs/43488400734",
+  "remote_asset_digests_verified": true,
+  "release_was_draft_when_staged": true
+}

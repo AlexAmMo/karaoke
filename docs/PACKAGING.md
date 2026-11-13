@@ -67,8 +67,26 @@ El paquete contiene `licenses/`: avisos de los componentes Python presentes en e
 
 `collect_sources.py` genera un segundo archivo con las fuentes reales de las dependencias de macOS: QtBase y PySide, paquetes Python, CPython y las bibliotecas nativas identificadas a partir de los binarios y fórmulas instaladas. Descarga los tarballs de las versiones concretas y comprueba los SHA-256 de los distribuidores cuando están disponibles. Incluye las recetas de compilación, sus parches y un manifiesto. Si falla alguna descarga, termina con error y conserva el fallo identificado; no declara el conjunto completo.
 
-`collect_windows_sources.py` reúne las descargas originales de la receta de Deluxe y los paquetes fuente de las DLL instaladas por MSYS2, identificados mediante la base de datos de Pacman y los metadatos de los paquetes. Genera además paquetes completos con `makepkg-mingw --allsource`, que obtiene y verifica los recursos externos referidos por cada receta, y registra los archivos y sus hashes. Este recorrido debe validarse en el constructor de Windows; no se da por probado desde macOS.
+`collect_windows_sources.py` reúne las descargas originales de la receta de Deluxe y los paquetes fuente de las DLL instaladas por MSYS2, identificados mediante la base de datos de Pacman y los metadatos de los paquetes. Genera además paquetes completos con `makepkg-mingw --allsource`, que obtiene y verifica los recursos externos referidos por cada receta, y registra los archivos y sus hashes. El recorrido se validó en el constructor de Windows: 253 entradas recogidas y ninguna pendiente. La [evidencia del paquete](validation/packaging-windows.json) identifica el run, los hashes y el alcance exacto de las pruebas.
 
-La publicación de un binario debe incluir ambos archivos de fuentes y sus hashes. El manifiesto `source-manifest.json` y sus entradas pendientes son la evidencia concreta de la recogida. Los enlaces de procedencia no sustituyen los archivos correspondientes.
+La publicación de un binario incluye el archivo común de fuentes de la aplicación y las fuentes de dependencias de su plataforma, junto con sus hashes. El manifiesto `source-manifest.json` y sus entradas pendientes son la evidencia concreta de la recogida. Los enlaces de procedencia no sustituyen los archivos correspondientes.
 
-El workflow sube artefactos de desarrollo y no publica Releases automáticamente. El cierre de una versión requiere revisar fuentes/avisos, realizar la prueba en una máquina limpia de cada plataforma anunciada, comprobar que no contiene datos personales y registrar las limitaciones de firma y audio. El repositorio público puede revisarse y compilarse aunque todavía no exista una versión estable instalable.
+Los trabajos de construcción suben artefactos de CI. El trabajo manual `stage-windows-release` verifica un artefacto exacto y sube archivos únicamente a un borrador de Release ya existente; no lo publica. Las pruebas y sus límites se registran por plataforma: el arranque de software en CI no sustituye una sesión con micrófonos físicos. El repositorio público puede revisarse y compilarse aunque todavía no exista una versión estable instalable.
+
+
+### Reconstruir las fuentes de dependencias de Windows
+
+**Estas fuentes no hacen falta para instalar ni usar Karaoke.** El ZIP de la aplicación ocupa 255.550.009 bytes; sus archivos descomprimidos suman aproximadamente 582 MB, sin canciones. Las fuentes de dependencias ocupan 2.694.900.077 bytes y se distribuyen aparte, divididas por el límite de tamaño de cada archivo de GitHub.
+
+Descarga las tres partes `Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz.part01`, `.part02` y `.part03`, además de `Karaoke-0.1.0-dependency-source-windows-x86_64.parts.sha256` y `Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz.sha256`. Las dos primeras partes tienen 1 GiB cada una y la tercera, 547.416.429 bytes.
+
+En macOS/Linux, desde esa carpeta:
+
+```sh
+shasum -a 256 -c Karaoke-0.1.0-dependency-source-windows-x86_64.parts.sha256
+cat Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz.part[0-9][0-9] > Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz
+shasum -a 256 -c Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz.sha256
+tar -xzf Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz
+```
+
+Las [instrucciones de reconstrucción incluidas en la Release](https://github.com/AlexAmMo/karaoke/releases/download/v0.1.0/Karaoke-0.1.0-windows-source-reassembly.md) contienen también comandos PowerShell que verifican cada parte y unen los archivos sin cargarlos enteros en memoria. SHA-256 del archivo completo: `6c1d1f4422cdcc6c8e71cacc40dc7687773b0f64af30a80948879527f3514b93`.
