@@ -58,14 +58,18 @@ def test_symlink_outside_package_rejected(package, tmp_path):
     ],
 )
 def test_incompatible_or_malformed_charts_fail_before_import(package, tmp_path, change):
-    package.write_text(change(package.read_text()))
+    package.write_text(change(package.read_text(encoding="utf-8")), encoding="utf-8", newline="\n")
     with pytest.raises(SongError):
         import_package(package, tmp_path / "library")
     assert not (tmp_path / "library").exists()
 
 
 def test_audio_must_cover_notes(package):
-    package.write_text(package.read_text().replace(": 8 8 21", ": 80 8 21"))
+    package.write_text(
+        package.read_text(encoding="utf-8").replace(": 8 8 21", ": 80 8 21"),
+        encoding="utf-8",
+        newline="\n",
+    )
     with pytest.raises(SongError, match="acaba antes"):
         validate(package)
 
@@ -88,7 +92,7 @@ def test_low_disk_stops_import_without_partial_package(package, tmp_path, monkey
 
 
 def test_legacy_encoding_and_accent_search(package, tmp_path):
-    package.write_bytes(package.read_text().encode("cp1252"))
+    package.write_bytes(package.read_text(encoding="utf-8").encode("cp1252"))
     imported = import_package(package, tmp_path / "library")
     assert validate(Path(imported["chart"]))["title"] == "Canción de prueba"
     assert normalize("CANCIÓN de PRUEBA") == "cancion de prueba"
@@ -97,7 +101,7 @@ def test_legacy_encoding_and_accent_search(package, tmp_path):
 def test_line_endings_do_not_create_duplicate_packages(package, tmp_path):
     library = tmp_path / "library"
     first = import_package(package, library)
-    package.write_bytes(package.read_bytes().replace(b"\n", b"\r\n"))
+    package.write_bytes(package.read_text(encoding="utf-8").replace("\n", "\r\n").encode("utf-8"))
     second = import_package(package, library)
     assert first["id"] == second["id"]
 

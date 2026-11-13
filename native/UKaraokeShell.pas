@@ -23,6 +23,7 @@ var
   Focus: integer = -1;
   Scroll: integer = 0;
   EditValue, EditAction, Page, ErrorText, Token: UTF8String;
+  EditSelectedAll: boolean = false;
   Sequence: integer = 0;
   SynthPosition: int64 = 0;
   SynthTick: cardinal;
@@ -41,6 +42,20 @@ function ShellSynthetic: boolean;
 begin Result:=ShellEnabled and (GetEnvironmentVariable('KARAOKE_TEST_INPUT')='1'); end;
 function Singing: boolean;
 begin Result:=Assigned(ScreenSing) and Assigned(Display.CurrentScreen) and (Display.CurrentScreen^=ScreenSing); end;
+function FocusAction: string;
+begin
+  Result:='';
+  case Focus of
+    -10: Result:='page:Biblioteca';
+    -9: Result:='page:Buscar';
+    -8: Result:='page:Cola';
+    -7: Result:='page:Ajustes';
+    -6: if Singing then Result:='pause';
+    -5: if Singing then Result:='end';
+  end;
+  if (Focus>=0) and Assigned(View) and (Focus<View.Arrays['rows'].Count) then
+    Result:=TJSONObject(View.Arrays['rows'][Focus]).Get('action','');
+end;
 function SideWidth: integer;
 begin Result:=Round(EnsureRange(ScreenW*0.34,340.0,440.0)); end;
 function Height: single;
@@ -168,7 +183,7 @@ procedure ShellTick;
 var J,O: TJSONObject; A,Scores,Devices,Levels: TJSONArray; SR: TSearchRec;
     Commands: TStringList; Forgotten: TSong;
     I,K,N: integer; NowTick: cardinal; Buf: array[0..4095] of SmallInt;
-    Frequency: double; Name: string;
+    Frequency: double; Name,FocusKey: string; NewFocus: integer;
 begin
   if not ShellEnabled then Exit;
   NowTick:=SDL_GetTicks;
@@ -230,11 +245,26 @@ begin
     LastView:=NowTick;
     if FileExists(Root+'/view.json') then
     try
+      FocusKey:=FocusAction;
       J:=ReadJSON(Root+'/view.json');
       if J.Get('page','')<>Page then
-      begin Page:=J.Get('page',''); Focus:=-1; EditAction:=''; Scroll:=0; SDL_StopTextInput; end;
+      begin
+        Page:=J.Get('page','');
+        // Tabs keep their focus on navigation. Page-local controls do not.
+        if (Focus< -10) or (Focus> -7) then begin Focus:=-1; FocusKey:=''; end;
+        EditAction:=''; EditValue:=''; EditSelectedAll:=false; Scroll:=0; SDL_StopTextInput;
+      end;
       View.Free; View:=J;
-      if Focus>=View.Arrays['rows'].Count then begin Focus:=-1; EditAction:=''; SDL_StopTextInput; end;
+      // Async rows may be inserted or removed. Preserve the action, never its old index.
+      if Focus>=0 then
+      begin
+        NewFocus:=-1;
+        if FocusKey<>'' then for I:=0 to View.Arrays['rows'].Count-1 do
+          if TJSONObject(View.Arrays['rows'][I]).Get('action','')=FocusKey then begin NewFocus:=I; Break; end;
+        Focus:=NewFocus;
+      end;
+      if (FocusAction='') or ((EditAction<>'') and (FocusAction<>EditAction)) then
+      begin Focus:=-1; EditAction:=''; EditValue:=''; EditSelectedAll:=false; SDL_StopTextInput; end;
     except end;
   end;
   if NowTick-LastStatus>200 then
@@ -244,6 +274,7 @@ begin
     try
       if Singing then J.Add('state','singing') else J.Add('state','idle');
       J.Add('mouse_x',LastMouseX); J.Add('mouse_y',LastMouseY); J.Add('mouse_clicks',MouseClicks); J.Add('width',ScreenW); J.Add('height',ScreenH); J.Add('last_action',LastAction);
+      J.Add('focus_action',FocusAction); J.Add('edit_selected',EditSelectedAll);
       J.Add('testing',TestingInput); J.Add('synthetic',ShellSynthetic);
       J.Add('token',Token); J.Add('error',ErrorText);
       if Assigned(CurrentSong) then J.Add('title',CurrentSong.Title) else J.Add('title','');
@@ -338,11 +369,15 @@ begin
   for I:=0 to 3 do
   begin
     case I of 0: Value:='Biblioteca'; 1: Value:='Buscar'; 2: Value:='Cola'; 3: Value:='Ajustes'; end;
-    if Page=Value then Rect(12+I*96,68,92,36,0.20,0.29,0.28);
+    if Focus=I-10 then Rect(10+I*96,66,96,40,0.53,0.75,0.66);
+    if Page=Value then Rect(12+I*96,68,92,36,0.20,0.29,0.28)
+    else Rect(12+I*96,68,92,36,0.085,0.10,0.11);
     LabelAt(19+I*96,78,16,Value,86);
   end;
   if Singing then
   begin
+    if Focus= -6 then Rect(13,113,186,42,0.53,0.75,0.66);
+    if Focus= -5 then Rect(201,113,186,42,0.53,0.75,0.66);
     Rect(16,116,180,36,0.18,0.22,0.24); LabelAt(30,126,16,'Pausar / continuar',155);
     Rect(204,116,180,36,0.18,0.22,0.24); LabelAt(220,126,16,'Terminar canción',150);
   end else if Assigned(View) and (View.Get('next','')<>'') then LabelAt(22,123,16,View.Get('next',''),360,true)
@@ -367,7 +402,8 @@ begin
         begin
           if Focused and (EditAction<>'') then Value:=EditValue else Value:=R.Get('value','');
           if R.Get('secret',false) then Value:=StringOfChar('*',Length(Value));
-          if Focused then Value:=Value+'|';
+          if Focused and EditSelectedAll and (EditAction<>'') then Rect(22,Y+35,350,29,0.24,0.38,0.34)
+          else if Focused then Value:=Value+'|';
           if Value='' then Value:='Clic para escribir';
           LabelAt(24,Y+40,18,Value,345,true);
         end
@@ -402,6 +438,7 @@ end;
 procedure CommitEdit;
 begin
   if EditAction<>'' then begin Emit(EditAction,EditValue); EditAction:=''; EditValue:=''; end;
+  EditSelectedAll:=false;
   SDL_StopTextInput;
 end;
 function RowAt(Y: single): integer;
@@ -411,7 +448,7 @@ begin
   A:=View.Arrays['rows']; P:=174-Scroll;
   for I:=0 to A.Count-1 do begin H:=RowHeight(TJSONObject(A[I])); if (P>=168) and (P+H<=Height-98) and (Y>=P) and (Y<P+H) then begin Result:=I; Exit; end; Inc(P,H); end;
 end;
-procedure SelectRow(I: integer; X: single=24);
+procedure SelectRow(I: integer; X: single=24; PointerAction: boolean=false);
 var R: TJSONObject; Kind: string; A: TJSONArray;
 begin
   if not Assigned(View) then Exit;
@@ -420,10 +457,47 @@ begin
   if Kind='input' then
   begin EditAction:=R.Get('action',''); EditValue:=R.Get('value',''); SDL_StartTextInput; end
   else if Kind='button' then Emit(R.Get('action',''))
-  else if Kind='slider' then Emit(R.Get('action',''),IntToStr(Round(EnsureRange((X-24)/290*100,0.0,100.0))));
+  else if (Kind='slider') and PointerAction then Emit(R.Get('action',''),IntToStr(Round(EnsureRange((X-24)/290*100,0.0,100.0))));
+end;
+procedure ActivateFocus;
+var Action: string;
+begin
+  if Focus>=0 then begin SelectRow(Focus); Exit; end;
+  Action:=FocusAction;
+  if Action<>'' then begin CommitEdit; Emit(Action); end;
+end;
+procedure MoveFocus(Backwards: boolean);
+var Targets: array of integer; A: TJSONArray; R: TJSONObject;
+    I,P,OldIndex,Total: integer;
+begin
+  CommitEdit;
+  SetLength(Targets,4); for I:=0 to 3 do Targets[I]:=I-10;
+  if Singing then begin SetLength(Targets,6); Targets[4]:=-6; Targets[5]:=-5; end;
+  if Assigned(View) then
+  begin
+    A:=View.Arrays['rows'];
+    for I:=0 to A.Count-1 do
+      if TJSONObject(A[I]).Get('kind','')<>'text' then
+      begin P:=Length(Targets); SetLength(Targets,P+1); Targets[P]:=I; end;
+  end;
+  OldIndex:=-1;
+  for I:=0 to High(Targets) do if Targets[I]=Focus then begin OldIndex:=I; Break; end;
+  if Backwards then
+  begin if OldIndex<=0 then P:=High(Targets) else P:=OldIndex-1; end
+  else P:=(OldIndex+1) mod Length(Targets);
+  Focus:=Targets[P];
+  if (Focus>=0) and Assigned(View) then
+  begin
+    A:=View.Arrays['rows']; Total:=0;
+    for I:=0 to Focus-1 do Inc(Total,RowHeight(TJSONObject(A[I])));
+    if (174+Total-Scroll<168) or (174+Total-Scroll+RowHeight(TJSONObject(A[Focus]))>Height-98) then Scroll:=Total;
+    R:=TJSONObject(A[Focus]);
+    if R.Get('kind','')='input' then
+    begin EditAction:=R.Get('action',''); EditValue:=R.Get('value',''); EditSelectedAll:=false; SDL_StartTextInput; end;
+  end;
 end;
 function ShellEvent(var Event: TSDL_Event): boolean;
-var X,Y,P,I,Total: integer; A: TJSONArray; R: TJSONObject; Clip: PAnsiChar; Key: cardinal;
+var X,Y,P,I: integer; A: TJSONArray; R: TJSONObject; Clip: PAnsiChar; Key: cardinal;
 begin
   Result:=false; if not ShellEnabled or not Started then Exit;
   if Event.type_=SDL_MOUSEMOTION then
@@ -437,10 +511,11 @@ begin
       Result:=true; X:=Round((X-ScreenW+SideWidth)*400/SideWidth);
       if (Y>=68) and (Y<=108) then
       begin
-        CommitEdit; Focus:=-1; I:=(X-12) div 96;
+        CommitEdit; I:=(X-12) div 96; Focus:=I-10;
         case I of 0: Emit('page:Biblioteca'); 1: Emit('page:Buscar'); 2: Emit('page:Cola'); 3: Emit('page:Ajustes'); end;
-      end else if (Y>=116) and (Y<=152) and Singing then begin if X<200 then Emit('pause') else Emit('end'); end
-      else SelectRow(RowAt(Y),X);
+      end else if (Y>=116) and (Y<=152) and Singing then
+      begin CommitEdit; if X<200 then Focus:=-6 else Focus:=-5; ActivateFocus; end
+      else SelectRow(RowAt(Y),X,true);
     end else begin CommitEdit; Focus:=-1; Result:=true; end;
   end;
   if Event.type_=SDL_MOUSEWHEEL then
@@ -460,7 +535,10 @@ begin
     end;
   end;
   if (Event.type_=SDL_TEXTINPUT) and (EditAction<>'') then
-  begin if Length(EditValue)<4096 then EditValue:=EditValue+UTF8String(PAnsiChar(@Event.text.text[0])); Result:=true; end;
+  begin
+    if EditSelectedAll then begin EditValue:=''; EditSelectedAll:=false; end;
+    if Length(EditValue)<4096 then EditValue:=EditValue+UTF8String(PAnsiChar(@Event.text.text[0])); Result:=true;
+  end;
   if (Event.type_=SDL_KEYDOWN) or (Event.type_=SDL_KEYUP) then
   begin
     Result:=true; if Event.type_=SDL_KEYUP then Exit;
@@ -468,38 +546,36 @@ begin
     if (Event.key.keysym._mod and (KMOD_CTRL or KMOD_GUI))<>0 then
     begin
       if Key=SDLK_q then begin Display.NextScreenWithCheck:=nil; Display.CheckOK:=true; Exit; end;
+      if (Key=SDLK_p) and Singing then begin Emit('pause'); Exit; end;
+      if (Key=SDLK_e) and Singing then begin Emit('end'); Exit; end;
       if (Key>=SDLK_1) and (Key<=SDLK_4) then
       begin
-        CommitEdit; Focus:=-1;
+        CommitEdit; Focus:=integer(Key-SDLK_1)-10;
         case Key of SDLK_1: Emit('page:Biblioteca'); SDLK_2: Emit('page:Buscar'); SDLK_3: Emit('page:Cola'); SDLK_4: Emit('page:Ajustes'); end;
         Exit;
       end;
       if (Key=SDLK_v) and (EditAction<>'') then
-      begin Clip:=SDL_GetClipboardText; if Clip<>nil then begin EditValue:=Copy(EditValue+UTF8String(Clip),1,4096); SDL_free(Clip); end; end;
-      if (Key=SDLK_a) and (EditAction<>'') then EditValue:='';
+      begin
+        Clip:=SDL_GetClipboardText;
+        if Clip<>nil then
+        begin
+          if EditSelectedAll then EditValue:='';
+          EditValue:=Copy(EditValue+UTF8String(Clip),1,4096); EditSelectedAll:=false; SDL_free(Clip);
+        end;
+      end;
+      if (Key=SDLK_a) and (EditAction<>'') then EditSelectedAll:=true;
       Exit;
     end;
-    if Key=SDLK_TAB then
-    begin
-      CommitEdit;
-      if Assigned(View) then
-      begin
-        A:=View.Arrays['rows']; if A.Count=0 then begin Focus:=-1; Exit; end; P:=0;
-        repeat Inc(P); Inc(Focus); if Focus>=A.Count then Focus:=0;
-        until (TJSONObject(A[Focus]).Get('kind','')<>'text') or (P>=A.Count);
-        if TJSONObject(A[Focus]).Get('kind','')='text' then begin Focus:=-1; Exit; end;
-        Total:=0; for I:=0 to Focus-1 do Inc(Total,RowHeight(TJSONObject(A[I])));
-        if (174+Total-Scroll<168) or (174+Total-Scroll+RowHeight(TJSONObject(A[Focus]))>Height-98) then Scroll:=Total;
-        R:=TJSONObject(A[Focus]); if R.Get('kind','')='input' then begin EditAction:=R.Get('action',''); EditValue:=R.Get('value',''); SDL_StartTextInput; end;
-      end;
-    end
+    if Key=SDLK_TAB then MoveFocus((Event.key.keysym._mod and KMOD_SHIFT)<>0)
     else if EditAction<>'' then
     begin
-      if Key=SDLK_BACKSPACE then TrimLast(EditValue);
+      if Key=SDLK_BACKSPACE then
+      begin if EditSelectedAll then EditValue:='' else TrimLast(EditValue); EditSelectedAll:=false; end;
+      if (Key=SDLK_LEFT) or (Key=SDLK_RIGHT) then EditSelectedAll:=false;
       if Key=SDLK_RETURN then CommitEdit;
-      if Key=SDLK_ESCAPE then begin EditAction:=''; EditValue:=''; Focus:=-1; SDL_StopTextInput; end;
+      if Key=SDLK_ESCAPE then begin EditAction:=''; EditValue:=''; EditSelectedAll:=false; Focus:=-1; SDL_StopTextInput; end;
     end
-    else if (Key=SDLK_RETURN) and (Focus>=0) then SelectRow(Focus)
+    else if (Key=SDLK_RETURN) or ((Key=SDLK_SPACE) and (Focus<> -1)) then ActivateFocus
     else if (Key=SDLK_LEFT) or (Key=SDLK_RIGHT) then
     begin
       if Assigned(View) and (Focus>=0) and (Focus<View.Arrays['rows'].Count) then

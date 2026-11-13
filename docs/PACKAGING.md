@@ -11,6 +11,7 @@ uv sync --locked
 bash scripts/build_macos.sh
 uv run python scripts/package_macos.py
 uv run python scripts/package_sources.py
+uv run python scripts/collect_sources.py
 ```
 
 El paquete resultante es `dist/Karaoke.app`. Se comprueba que los ejecutables de medios arrancan sin depender de Homebrew en `PATH`, se verifica la firma ad hoc y se auditan las referencias absolutas a bibliotecas. `Contents/Resources/package-audit.json` registra la arquitectura y la mayor versión mínima de macOS declarada por sus binarios; el instalador compara esa versión con el equipo de destino.
@@ -28,6 +29,7 @@ Después de compilar el motor:
 ```powershell
 uv run python scripts/package_windows.py --tools C:/msys64/ucrt64/bin
 uv run python scripts/package_sources.py
+uv run python scripts/collect_windows_sources.py
 ```
 
 Se genera una carpeta portable `dist/Karaoke` con `karaoke.exe`, motor, runtime de Python y utilidades. El empaquetador recorre las importaciones PE de FFmpeg, FFprobe, FFplay y Deno, copiando sus DLL no pertenecientes a Windows. Los ejecutables de medios se prueban desde la carpeta resultante. No se afirma compatibilidad con Windows ARM.
@@ -58,6 +60,10 @@ Para desinstalar, borrar la aplicación y el acceso directo. La carpeta de datos
 
 El paquete contiene `licenses/`: avisos de los componentes Python presentes en el entorno, versiones, licencias de Deluxe y de medios, e identificación de fuentes. macOS añade las fórmulas y recibos de Homebrew correspondientes a las utilidades y bibliotecas copiadas. `package_sources.py` incluye el proyecto, el código modificado de Deluxe y el commit exacto de Syncer.
 
-Antes de publicar binarios se debe comprobar la disponibilidad de **todas las fuentes correspondientes** de los componentes copyleft distribuidos, incluyendo Qt, FFmpeg y sus códecs y bibliotecas nativas. El archivo de fuentes de la aplicación no incluye por sí solo todas esas dependencias. Los enlaces y las fórmulas documentan procedencia; no se presentan como un reemplazo automático de las obligaciones de redistribución.
+`collect_sources.py` genera un segundo archivo con las fuentes reales de las dependencias de macOS: QtBase y PySide, paquetes Python, CPython y las bibliotecas nativas identificadas a partir de los binarios y fórmulas instaladas. Descarga los tarballs de las versiones concretas y comprueba los SHA-256 de los distribuidores cuando están disponibles. Incluye las recetas de compilación, sus parches y un manifiesto. Si falla alguna descarga, termina con error y conserva el fallo identificado; no declara el conjunto completo.
+
+`collect_windows_sources.py` reúne las descargas originales de la receta de Deluxe y los paquetes fuente de las DLL instaladas por MSYS2, identificados mediante la base de datos de Pacman y los metadatos de los paquetes. Genera además paquetes completos con `makepkg-mingw --allsource`, que obtiene y verifica los recursos externos referidos por cada receta, y registra los archivos y sus hashes. Este recorrido debe validarse en el constructor de Windows; no se da por probado desde macOS.
+
+La publicación de un binario debe incluir ambos archivos de fuentes y sus hashes. El manifiesto `source-manifest.json` y sus entradas pendientes son la evidencia concreta de la recogida. Los enlaces de procedencia no sustituyen los archivos correspondientes.
 
 El workflow sube artefactos de desarrollo y no publica Releases automáticamente. El cierre de una versión requiere revisar fuentes/avisos, realizar la prueba en una máquina limpia de cada plataforma anunciada, comprobar que no contiene datos personales y registrar las limitaciones de firma y audio. El repositorio público puede revisarse y compilarse aunque todavía no exista una versión estable instalable.

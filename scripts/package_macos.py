@@ -60,14 +60,14 @@ def collect_licenses(destination: Path):
         source = ROOT / 'build/engine' / name
         if source.exists():
             copy_file(source, destination / 'UltraStar-Deluxe' / name)
-    for name in ('LICENSE', 'NOTICE.md'):
+    for name in ('LICENSE', 'NOTICE.md', 'THIRD_PARTY.md'):
         source = ROOT / name
         if source.exists():
             copy_file(source, destination / name)
     for name in ('ffmpeg', 'ffprobe', 'ffplay'):
         result = subprocess.run([name, '-L'], text=True, capture_output=True)
         (destination / f'{name}-license.txt').write_text(result.stdout + result.stderr, encoding='utf-8')
-    (destination / 'SOURCE.json').write_text(json.dumps({'application': 'https://github.com/AlexAmMo/karaoke', 'application_commit': output('git', '-C', ROOT, 'rev-parse', 'HEAD') if (ROOT / '.git/refs/heads/main').exists() else 'uncommitted-development-build', 'engine': {'repository': 'https://github.com/UltraStar-Deluxe/USDX', 'commit': USDX_COMMIT, 'modifications': 'scripts/prepare_engine.py and native/UKaraokeShell.pas in application source'}, 'syncer': {'repository': 'https://github.com/bohning/usdb_syncer', 'commit': SYNCER_COMMIT}, 'python_dependencies': 'uv.lock in application source', 'distribution_note': 'A release must accompany binaries with corresponding-source assets and native dependency provenance. This file alone is not a source offer.'}, indent=2), encoding='utf-8')
+    (destination / 'SOURCE.json').write_text(json.dumps({'application': 'https://github.com/AlexAmMo/karaoke', 'application_commit': output('git', '-C', ROOT, 'rev-parse', 'HEAD') if subprocess.run(['git', '-C', str(ROOT), 'rev-parse', '--verify', 'HEAD'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0 else 'uncommitted-development-build', 'engine': {'repository': 'https://github.com/UltraStar-Deluxe/USDX', 'commit': USDX_COMMIT, 'modifications': 'scripts/prepare_engine.py and native/UKaraokeShell.pas in application source'}, 'syncer': {'repository': 'https://github.com/bohning/usdb_syncer', 'commit': SYNCER_COMMIT}, 'python_dependencies': 'uv.lock in application source', 'distribution_note': 'A release must accompany binaries with corresponding-source assets and native dependency provenance. This file alone is not a source offer.'}, indent=2), encoding='utf-8')
 
 
 def pyinstaller(destination: Path, work: Path, name='karaoke'):
@@ -232,7 +232,7 @@ def main():
     shutil.copytree(engine, resources / 'Engine.app', symlinks=True)
     collect_licenses(resources / 'licenses')
     bundle_media(resources, app / 'Contents/Frameworks/Media')
-    plist = {'CFBundleName': 'Karaoke', 'CFBundleDisplayName': 'Karaoke', 'CFBundleIdentifier': 'org.alexammo.karaoke', 'CFBundleExecutable': 'karaoke', 'CFBundleVersion': VERSION, 'CFBundleShortVersionString': VERSION, 'CFBundlePackageType': 'APPL', 'NSHighResolutionCapable': True, 'NSMicrophoneUsageDescription': 'Karaoke usa el micrófono para mostrar tu afinación, puntuar y reproducir tu voz si activas el retorno.'}
+    plist = {'CFBundleName': 'Karaoke', 'CFBundleDisplayName': 'Karaoke', 'CFBundleIdentifier': 'org.alexammo.karaoke', 'CFBundleExecutable': 'karaoke', 'CFBundleVersion': VERSION, 'CFBundleShortVersionString': VERSION, 'CFBundlePackageType': 'APPL', 'NSHighResolutionCapable': True, 'LSUIElement': True, 'NSMicrophoneUsageDescription': 'Karaoke usa el micrófono para mostrar tu afinación, puntuar y reproducir tu voz si activas el retorno.'}
     audit = audit_macos(app)
     if audit['minimum_macos_from_binaries']:
         plist['LSMinimumSystemVersion'] = audit['minimum_macos_from_binaries']

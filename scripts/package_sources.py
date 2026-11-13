@@ -36,7 +36,7 @@ def main():
         # Include the same explicit development sources before the first commit.
         for folder in ('src', 'native', 'scripts', 'tests', 'docs', '.github'):
             tracked.update(p.relative_to(ROOT) for p in (ROOT / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
-        tracked.update(Path(p) for p in ('pyproject.toml', 'uv.lock', 'README.md', 'LICENSE', 'NOTICE.md', 'PLAN-DEL-KARAOKE.md') if (ROOT / p).exists())
+        tracked.update(Path(p) for p in ('pyproject.toml', 'uv.lock', 'README.md', 'LICENSE', 'NOTICE.md', 'THIRD_PARTY.md', 'PLAN-DEL-KARAOKE.md') if (ROOT / p).exists())
         for file in sorted(tracked):
             if file.parts[0] in ('build', 'dist', '.venv') or file.suffix == '.pyc':
                 continue

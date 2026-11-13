@@ -76,9 +76,12 @@ class Service:
         self.last_view = None
         self.pending_start = None
         self.sent_audio = None
+        self.command_sequence = 0
 
     def command(self, op, **kwargs):
-        atomic_json(self.ipc / "commands" / (str(time.time_ns()) + ".json"), {"op": op, **kwargs})
+        self.command_sequence += 1
+        filename = f"{self.command_sequence:020d}-{uuid.uuid4().hex}.json"
+        atomic_json(self.ipc / "commands" / filename, {"op": op, **kwargs})
 
     def names(self):
         return [self.fields.get("player1", "").strip() or "Cantante 1"] + (
@@ -208,6 +211,7 @@ class Service:
             )
 
         self.submit(work, done)
+        self.futures[-1][0].search_generation = generation
 
     def prepare(self, job):
         payload = json.loads(job["payload"])
@@ -236,15 +240,23 @@ class Service:
 
     def choose_folder(self):
         response = self.root / ("picker-" + uuid.uuid4().hex + ".json")
+        proc = subprocess.Popen(
+            child_command("karaoke.picker"),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        with self.children_lock:
+            self.children.add(proc)
         try:
-            subprocess.run(
-                child_command("karaoke.picker"),
-                input=json.dumps({"response": str(response)}),
-                text=True,
-                check=True,
-            )
-            return json.loads(response.read_text())["folder"]
+            proc.communicate(json.dumps({"response": str(response)}))
+            if not response.exists():
+                return ""
+            return json.loads(response.read_text(encoding="utf-8"))["folder"]
         finally:
+            with self.children_lock:
+                self.children.discard(proc)
             response.unlink(missing_ok=True)
 
     def add_import(self, value):
@@ -328,7 +340,9 @@ class Service:
                 if e
             ]
 
-        self.submit(work, lambda items: self.set_candidates(items))
+        self.submit(
+            work, lambda items: self.set_candidates(items) if self.detail == song["id"] else None
+        )
 
     def set_candidates(self, items):
         self.candidates = items
@@ -376,6 +390,8 @@ class Service:
             return {"path": str(audio), "source": candidate["url"], "song": song["id"]}
 
         def done(value):
+            if self.detail != value["song"]:
+                return
             self.candidate_audio = value
             self.message = "Preescucha principio, centro y final. Confirma solo si notas, estructura y tono coinciden."
 
@@ -678,6 +694,11 @@ class Service:
         for future, callback in list(self.futures):
             if future.done():
                 self.futures.remove((future, callback))
+                if (
+                    getattr(future, "search_generation", self.search_generation)
+                    != self.search_generation
+                ):
+                    continue
                 try:
                     callback(future.result())
                 except Exception as exc:
@@ -696,6 +717,11 @@ class Service:
             self.sent_audio = True
         if self.active:
             if self.engine.get("state") == "singing" and self.engine.get("token") == self.active:
+                if (
+                    not self.was_singing
+                    and self.message == "Preparando micrófonos e interpretación…"
+                ):
+                    self.message = "Cantando. Puedes buscar y preparar los próximos turnos."
                 self.was_singing = True
                 self.store.execute("UPDATE turns SET state='singing' WHERE id=?", (self.active,))
             elif self.was_singing and self.engine.get("state") != "singing":
@@ -734,7 +760,7 @@ class Service:
             progress = self.root / "download-progress.json"
             if progress.exists():
                 try:
-                    value = json.loads(progress.read_text())
+                    value = json.loads(progress.read_text(encoding="utf-8"))
                     self.store.execute(
                         "UPDATE jobs SET message=? WHERE id=?",
                         (value.get("message", "Preparando recursos"), self.download[1]["id"]),

@@ -1,0 +1,3 @@
+# Patch context and UltraStar syllable delimiters intentionally contain whitespace.
+*.patch -whitespace
+technical-spike/fixtures/**/*.txt -whitespace

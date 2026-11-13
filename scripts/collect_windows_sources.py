@@ -60,17 +60,18 @@ def main():
     done = set()
     for folder, description in owners.values():
         name = description['NAME'][0]; version = description['VERSION'][0]
+        file_version = version.split(':', 1)[-1]
         if name in done: continue
         done.add(name)
         # Binary .PKGINFO records package base for split packages as well.
-        archives = list(cache.glob(name+'-'+version+'-*.pkg.tar.*'))
+        archives = list(cache.glob(name+'-'+file_version+'-*.pkg.tar.*'))
         archives = [p for p in archives if not p.name.endswith('.sig')]
         if not archives: raise RuntimeError('Pacman package cache missing: '+name)
         info = subprocess.check_output([str(msys / 'usr/bin/tar.exe'), '-xOf', str(archives[0]), '.PKGINFO'], text=True)
         base_match = re.search(r'^pkgbase = (.+)$', info, re.M)
         if not base_match: raise RuntimeError('No pkgbase in '+str(archives[0]))
         base = base_match.group(1)
-        package_source = base+'-'+version+'.src.tar.zst'
+        package_source = base+'-'+file_version+'.src.tar.zst'
         url = 'https://repo.msys2.org/mingw/sources/'+package_source
         item = {'name': name, 'version': version, 'group': 'msys2', 'filename': package_source, 'url': url, 'package_base': base}
         result = source_download(item)
@@ -87,6 +88,27 @@ def main():
             archive = OUT / result['group'] / result['filename']
             listing = subprocess.check_output([str(msys / 'usr/bin/tar.exe'), '-tf', str(archive)], text=True)
             (metadata / 'source-archive-files.txt').write_text(listing, encoding='utf-8')
+            # Generate an all-source package, fetching and verifying any upstream
+            # archives omitted from the repository's recipe-only source package.
+            extracted = ROOT / 'build/msys-source-packages' / name
+            extracted.mkdir(parents=True, exist_ok=True)
+            subprocess.run([str(msys / 'usr/bin/tar.exe'), '-xf', str(archive), '-C', str(extracted)], check=True)
+            recipes = list(extracted.rglob('PKGBUILD'))
+            if len(recipes) != 1: raise RuntimeError('Expected one PKGBUILD in '+package_source)
+            environment = dict(os.environ, MSYSTEM='UCRT64', CHERE_INVOKING='1')
+            subprocess.run([str(msys / 'usr/bin/bash.exe'), '-lc',
+                'cd -- "$(cygpath -u "$1")" && makepkg-mingw --allsource --force --nodeps --noconfirm',
+                'collect-sources', str(recipes[0].parent)], env=environment, check=True, timeout=1800)
+            complete = list(recipes[0].parent.glob('*.src.tar.*'))
+            if not complete: raise RuntimeError('makepkg produced no complete source package for '+name)
+            full = OUT / 'msys2-complete'
+            full.mkdir(exist_ok=True)
+            for file in complete:
+                if file.name.endswith('.sig'): continue
+                shutil.copy2(file, full / file.name)
+                results.append({'name': name+'-allsource', 'group': 'msys2-complete', 'filename': file.name,
+                    'status': 'collected', 'sha256': hashlib.sha256(file.read_bytes()).hexdigest(),
+                    'source_checks': 'makepkg-mingw --allsource with normal integrity checks'})
     # Upstream Deluxe recipe already downloaded and verified its dependency tarballs.
     deps = ROOT / 'build/engine/dists/windows/deps'
     native = OUT / 'deluxe-native'
@@ -101,7 +123,7 @@ def main():
     for item in python_sources():
         results.append(item if 'status' in item else source_download(item))
     results.extend(qt_sources())
-    report = {'items': results, 'unresolved': [r for r in results if r['status'] in ('failed', 'no-sdist')], 'msys2_source_contents_review_required': 'Review source-archive-files.txt: upstream archives referenced by PKGBUILD must accompany recipe-only source packages.'}
+    report = {'items': results, 'unresolved': [r for r in results if r['status'] in ('failed', 'no-sdist')]}
     (OUT / 'source-manifest.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     archive = ROOT / 'dist' / f'Karaoke-{VERSION}-dependency-source-windows-x86_64.tar.gz'
     with tarfile.open(archive, 'w:gz') as tar: tar.add(OUT, arcname='corresponding-sources', filter=lambda info: None if info.name.endswith('.part') else info)

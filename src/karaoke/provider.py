@@ -129,7 +129,16 @@ def run(request: dict) -> dict:
     # This is the upstream bootstrap order. Importing settings/download_options
     # first currently triggers its utils/settings circular import.
     from usdb_syncer.song_loader import _SongLoader
-    from usdb_syncer import SongId, db, download_options, resource_dl, settings, usdb_scraper, utils
+    from usdb_syncer import (
+        SongId,
+        db,
+        download_options,
+        path_template,
+        resource_dl,
+        settings,
+        usdb_scraper,
+        utils,
+    )
     from usdb_syncer.usdb_song import UsdbSong, UsdbSongEncoder
 
     _app = QCoreApplication.instance() or QCoreApplication([])
@@ -195,7 +204,21 @@ def run(request: dict) -> dict:
             options = download_options.download_options()
             # Never download artwork from unneeded arbitrary URLs. Media transformations
             # and sync offsets remain owned by Syncer, not guessed by this adapter.
-            options = dataclasses.replace(options, cover_options=None, background_options=None)
+            # Own the output contract rather than inheriting an unrelated Syncer
+            # installation's path template or locale-dependent text preferences.
+            destination = Path(request["destination"]).resolve()
+            options = dataclasses.replace(
+                options,
+                song_dir=destination,
+                path_template=path_template.PathTemplate.parse(":id: / song"),
+                txt_options=dataclasses.replace(
+                    options.txt_options,
+                    encoding=settings.Encoding.UTF_8,
+                    newline=settings.Newline.LF,
+                ),
+                cover_options=None,
+                background_options=None,
+            )
             if options.video_options:
                 options = dataclasses.replace(
                     options, video_options=_bounded_video_options(options.video_options)
@@ -210,16 +233,22 @@ def run(request: dict) -> dict:
                 raise ValueError(
                     "Syncer utilizó un audio alternativo de los comentarios. Requiere comprobar GAP/BPM y grabación; no se marcará como lista automáticamente."
                 )
-        charts = list(Path(request["destination"]).rglob("*.txt"))
-        if not charts:
+        # SyncMeta is authoritative. Do not scan unrelated/retried TXT files and
+        # accidentally import a different map when an earlier preparation failed.
+        txt_resource = finished.sync_meta.txt
+        if not txt_resource or not txt_resource.file:
             raise ValueError("La preparación no ha producido un mapa TXT.")
+        chart = (finished.sync_meta.path.parent / txt_resource.file.fname).resolve()
+        if not chart.is_relative_to(destination) or not chart.is_file():
+            raise ValueError("El mapa preparado no se encuentra dentro de la carpeta de descarga.")
         progress.write("preparing", "Recursos preparados; validando paquete")
-        return {"charts": [str(p) for p in charts]}
+        return {"charts": [str(chart)]}
     raise ValueError("Operación de catálogo desconocida.")
 
 
 def main():
-    request = json.load(sys.stdin)
+    # The parent sends UTF-8 regardless of the Windows console code page.
+    request = json.loads(sys.stdin.buffer.read().decode("utf-8"))
     try:
         result = run(request)
     except Exception as exc:

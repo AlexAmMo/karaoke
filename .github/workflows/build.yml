@@ -39,6 +39,16 @@ jobs:
         run: choco install ffmpeg --no-progress -y
       - run: uv sync --locked
       - run: uv run pytest -q
+      - name: Validate PowerShell installer syntax
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $Tokens = $null; $Errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/install.ps1'), [ref]$Tokens, [ref]$Errors) | Out-Null
+          if ($Errors.Count) { $Errors | Out-String | Write-Error; exit 1 }
+      - name: Validate shell installer syntax
+        if: runner.os != 'Windows'
+        run: bash -n scripts/install.sh
 
   macos:
     name: macOS ${{ matrix.os }} development package
@@ -58,8 +68,6 @@ jobs:
       - run: uv sync --locked
       - name: Build modified Deluxe
         run: bash scripts/build_macos.sh
-      - name: Build complete application
-        run: uv run python scripts/package_macos.py
       - name: Package source and provenance
         run: |
           uv run python scripts/package_sources.py
@@ -117,7 +125,7 @@ jobs:
           path: |
             build/engine/dists/windows/prefix
             build/engine/dists/windows/deps
-          key: windows-native-${{ hashFiles('scripts/prepare_engine.py') }}-8b9d9e08
+          key: windows-native-${{ hashFiles('scripts/prepare_engine.py', 'patches/deluxe-integration.patch') }}-8b9d9e08
       - name: Build native dependencies and Deluxe
         shell: msys2 {0}
         run: |

@@ -6,7 +6,7 @@ Estado inicial del 13 de noviembre de 2026. Este documento distingue código imp
 
 - Compilación de Deluxe modificado en macOS Apple Silicon y verificación de firma ad hoc.
 - Biblioteca/cola SQLite, alias de fuentes, deduplicación, staging, validación de recursos, recuperación de trabajos y turnos.
-- 46 pruebas automatizadas del backend correctas. Incluyen procesamiento real TXT/SQLite/FFmpeg/Syncer con fronteras remotas sustituidas por datos de prueba. No simulan el resultado de todos los componentes.
+- 50 pruebas automatizadas del backend correctas. Incluyen procesamiento real TXT/SQLite/FFmpeg/Syncer con fronteras remotas sustituidas por datos de prueba. No simulan el resultado de todos los componentes.
 - Error de autenticación USDB explícito desde el proceso real del adaptador, sin credenciales; no se confunde con catálogo vacío.
 - Navegación de biblioteca, selección, añadir turno e inicio desde teclado en la app real.
 - Canto con dos señales sintéticas: resultado 10.000 frente a 0. Escribir espacios y pegar `canción española` en el campo enfocado conserva el canto y los acentos.
@@ -14,6 +14,10 @@ Estado inicial del 13 de noviembre de 2026. Este documento distingue código imp
 - Cierre de la ventana mediante el atajo de sistema sin una confirmación oculta del menú anterior.
 
 La automatización CUA de ratón entregó coordenadas SDL obsoletas respecto a su indicador visual. Se observó selección real de una fila mediante el ratón, pero esta evidencia no certifica todos los objetivos de clic. No se cambió el cálculo de coordenadas basándose en esa inyección inconsistente.
+
+## Sesión integral
+
+`scripts/test_session.py` completó 17/17 comprobaciones en 32,25 segundos (367 muestras). `docs/evidence/session-macos.json` contiene la evidencia: ganancias distintas producen picos 4000/800, silenciar conserva nivel de captura y subida de puntos, importar C durante A conserva el canto, los resultados no arrancan otro turno, y reabrir recupera B/C en orden sin autoplay. Se verificó también exclusión de segunda instancia.
 
 ## Pendiente antes de declarar una V1 estable
 
@@ -25,3 +29,7 @@ La automatización CUA de ratón entregó coordenadas SDL obsoletas respecto a s
 - La interfaz SDL no expone semántica completa a lectores de pantalla. Tiene foco y operación por teclado, pero no se declara accesibilidad total.
 
 La generación de mapas por IA, móviles, dúos con partes diferentes y segunda pantalla siguen fuera de V1. Los mapas de tiempos relativos requieren conversión previa; se rechazan con explicación. Si Syncer necesita escoger un audio alternativo ambiguo de comentarios, se rechaza y se pide otra fuente/importación compatible.
+
+## Revisión de interfaz
+
+El revisor independiente de Impeccable resolvió cuatro defectos: Enter ya no cambia un slider, seleccionar todo conserva el texto, Tab/Shift+Tab recorren pestañas/transporte/controles y el mensaje de preparación cambia a canto al confirmarlo el motor. La segunda revisión dio `ship` para esos cuatro hallazgos y el alcance visual revisado; no certifica Windows, hardware ni lectores de pantalla. Capturas finales: `.impeccable/review/session-final-1280.jpg` y `selection-1280.jpg`.

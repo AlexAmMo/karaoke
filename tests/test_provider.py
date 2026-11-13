@@ -105,7 +105,9 @@ def test_real_syncer_download_pipeline_prepares_local_media(
         votes=0,
         audio_sample=None,
     )
-    notes = ("#VIDEO:v=yearlyTEST01\n" if not fallback else "") + package.read_text()
+    notes = ("#VIDEO:v=yearlyTEST01\n" if not fallback else "") + package.read_text(
+        encoding="utf-8"
+    )
     if fallback:
         from types import SimpleNamespace
 
@@ -140,7 +142,9 @@ def test_real_syncer_download_pipeline_prepares_local_media(
             provider.run(request)
         return
     result = provider.run(request)
-    assert json.loads((tmp_path / "progress.json").read_text())["stage"] == "preparing"
+    assert (
+        json.loads((tmp_path / "progress.json").read_text(encoding="utf-8"))["stage"] == "preparing"
+    )
     from karaoke.songs import validate
 
     assert len(result["charts"]) == 1
@@ -179,13 +183,13 @@ def test_download_progress_measures_resource_bytes_without_inventing_total(tmp_p
     target = tmp_path / "progress.json"
     progress = provider.PreparationProgress(str(target), tmp_path)
     progress.download({"status": "downloading", "downloaded_bytes": 25, "total_bytes": 100})
-    result = json.loads(target.read_text())
+    result = json.loads(target.read_text(encoding="utf-8"))
     assert result["percent"] == 25
     assert result["estimated"] is False
     progress.download({"status": "downloading", "downloaded_bytes": 25})
-    assert "percent" not in json.loads(target.read_text())
+    assert "percent" not in json.loads(target.read_text(encoding="utf-8"))
     progress.postprocess({"status": "started"})
-    assert json.loads(target.read_text())["stage"] == "preparing"
+    assert json.loads(target.read_text(encoding="utf-8"))["stage"] == "preparing"
     assert not list(tmp_path.glob("*.tmp"))
 
 
@@ -201,3 +205,27 @@ def test_progress_hooks_do_not_leak_across_jobs(tmp_path, no_network):
         assert options["progress_hooks"] == [progress.download]
         assert options["postprocessor_hooks"] == [progress.postprocess]
     assert resource_dl._ytdl_options is original
+
+
+def test_worker_reads_utf8_protocol_even_with_legacy_console_encoding(tmp_path):
+    import os
+    import sys
+
+    response = tmp_path / "response.json"
+    invalid_resolution = "resolución inválida ñ"
+    request = {
+        "root": str(tmp_path / "worker"),
+        "response": str(response),
+        "operation": "search",
+        "query": "fixture",
+        "resolution": invalid_resolution,
+    }
+    process = subprocess.run(
+        [sys.executable, "-m", "karaoke.provider"],
+        input=json.dumps(request, ensure_ascii=False).encode("utf-8"),
+        capture_output=True,
+        env={**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0"},
+        timeout=30,
+    )
+    assert process.returncode == 0, process.stderr.decode("utf-8", errors="replace")
+    assert invalid_resolution in json.loads(response.read_text(encoding="utf-8"))["error"]

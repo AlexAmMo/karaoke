@@ -13,5 +13,6 @@ def package(tmp_path):
     chart.write_text(
         "#TITLE:Canción de prueba\n#ARTIST:Fixture\n#LANGUAGE:Spanish\n#BPM:120\n#GAP:0\n#MP3:audio.wav\n: 0 8 21 sí\n- 8\n: 8 8 21 no\nE\n",
         encoding="utf-8",
+        newline="\n",
     )
     return chart

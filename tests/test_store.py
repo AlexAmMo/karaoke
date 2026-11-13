@@ -69,7 +69,11 @@ def test_updated_source_reassigns_alias_without_deleting_old_package(tmp_path, p
     store = Store(tmp_path / "state.sqlite")
     first = import_package(package, tmp_path / "library")
     store.save_song(first, "import:folder")
-    package.write_text(package.read_text().replace("Canción de prueba", "Otra edición"))
+    package.write_text(
+        package.read_text(encoding="utf-8").replace("Canción de prueba", "Otra edición"),
+        encoding="utf-8",
+        newline="\n",
+    )
     second = import_package(package, tmp_path / "library")
     store.save_song(second, "import:folder")
     store.close()
