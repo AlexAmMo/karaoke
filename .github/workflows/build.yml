@@ -1,0 +1,149 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python integration tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2022]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: '3.12'
+      - name: Install FFmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install FFmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Install FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --no-progress -y
+      - run: uv sync --locked
+      - run: uv run pytest -q
+
+  macos:
+    name: macOS ${{ matrix.os }} development package
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: '3.12'
+      - name: Install native build tools
+        run: brew install fpc sdl2-compat sdl2_image automake portaudio lua ffmpeg pkg-config
+      - run: uv sync --locked
+      - name: Build modified Deluxe
+        run: bash scripts/build_macos.sh
+      - name: Build complete application
+        run: uv run python scripts/package_macos.py
+      - name: Package source and provenance
+        run: |
+          uv run python scripts/package_sources.py
+          uv run python scripts/collect_sources.py
+      - name: Verify frozen launcher
+        run: dist/Karaoke.app/Contents/MacOS/karaoke --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: karaoke-${{ matrix.os }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+            dist/*source*.tar.gz
+          if-no-files-found: error
+
+  windows:
+    name: Windows x64 development package
+    runs-on: windows-2022
+    env:
+      FPC_VERSION: 3.2.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: '3.12'
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            base-devel
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-autotools
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-meson
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-git
+            mingw-w64-ucrt-x86_64-ntldd
+            mingw-w64-ucrt-x86_64-nasm
+            mingw-w64-ucrt-x86_64-ffmpeg
+            patch
+            unzip
+      - run: uv sync --locked
+      - name: Prepare pinned engine
+        run: uv run python scripts/prepare_engine.py
+      - name: Install Free Pascal
+        run: |
+          curl.exe --fail -L --max-time 120 -o fpc-installer.exe "https://sourceforge.net/projects/freepascal/files/Win32/3.2.2/fpc-3.2.2.win32.and.win64.exe/download"
+          $Process = Start-Process -FilePath '.\fpc-installer.exe' -ArgumentList '/TYPE=full /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
+          if ($Process.ExitCode -ne 0) { throw "FPC install failed: $($Process.ExitCode)" }
+      - name: Cache native dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/engine/dists/windows/prefix
+            build/engine/dists/windows/deps
+          key: windows-native-${{ hashFiles('scripts/prepare_engine.py') }}-8b9d9e08
+      - name: Build native dependencies and Deluxe
+        shell: msys2 {0}
+        run: |
+          cd build/engine
+          make -C dists/windows
+          make -C dists/windows install
+          export PATH="$PATH:/c/FPC/$FPC_VERSION/bin/i386-win32"
+          export FPCCFG="/c/FPC/$FPC_VERSION/bin/i386-win32/fpc.cfg"
+          export FPCDIR="/c/FPC/$FPC_VERSION"
+          export FPCMAKE="/c/FPC/$FPC_VERSION/bin/i386-win32/fpcmake"
+          ./autogen.sh
+          ./configure --without-opencv --without-libprojectM
+          make
+      - name: Package Python and media tools
+        run: |
+          $env:PATH = "C:\msys64\ucrt64\bin;" + $env:PATH
+          uv run python scripts/package_windows.py --tools C:/msys64/ucrt64/bin
+          uv run python scripts/package_sources.py
+          uv run python scripts/collect_windows_sources.py
+      - name: Verify frozen launcher
+        run: .\dist\Karaoke\karaoke.exe --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: karaoke-windows-x86_64
+          path: |
+            dist/*.zip
+            dist/*.sha256
+            dist/*source*.tar.gz
+          if-no-files-found: error

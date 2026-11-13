@@ -1,0 +1,23 @@
+{
+  "recorded_at": "2026-11-13T17:16:48.216380+00:00",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "compiler": "3.2.2",
+  "upstream_commit": "8b9d9e08eca997d2e3fe789084fbac136988f276",
+  "build_command": "make macos-standalone-app",
+  "build_exit_code": 0,
+  "ad_hoc_signature_verified": true,
+  "patch_reverse_check_passed": true,
+  "source_sha256": {
+    "native/UKaraokeShell.pas": "aec51e225770ca75216f64dacce3077f243186b77e22c4e5a0aabb96c2d8834e",
+    "patches/deluxe-integration.patch": "a55d7deee0a53c10649fb56a79bf489688c674236aaebe3415253f379f180f0c",
+    "scripts/prepare_engine.py": "8fba2ed23001820f67979a177cf0d229c8059955f4482ee6648e7ff57d6b33b3"
+  },
+  "executable_sha256": "8736fdf19fca9ae23c08dc14cb3018548a04ed75dfeaaa9a0d4232751e2ee54d",
+  "notes": [
+    "macOS Apple Silicon build only; Windows SDL backend requires CI and hardware validation.",
+    "No physical microphone or low-latency measurement was performed by this build check.",
+    "Monitoring uses a separate S16 copy with a 240-sample gain ramp; detector input is not scaled.",
+    "Native mixer bounds sample sums; this is not evidence of feedback cancellation or distortion-free physical monitoring.",
+    "GUI QA owned by root; CUA injected mouse clicks reported stale SDL client coordinates, so automated pointer fidelity is not claimed."
+  ]
+}

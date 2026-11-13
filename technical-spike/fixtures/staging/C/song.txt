@@ -1,0 +1,36 @@
+#TITLE:Probe C
+#ARTIST:Karaoke technical spike
+#LANGUAGE:English
+#MP3:tone.wav
+#BPM:120
+#GAP:1000
+: 0 3 21 la 
+: 4 3 21 la 
+: 8 3 21 la 
+: 12 3 21 la 
+- 15
+: 16 3 21 la 
+: 20 3 21 la 
+: 24 3 21 la 
+: 28 3 21 la 
+- 31
+: 32 3 21 la 
+: 36 3 21 la 
+: 40 3 21 la 
+: 44 3 21 la 
+- 47
+: 48 3 21 la 
+: 52 3 21 la 
+: 56 3 21 la 
+: 60 3 21 la 
+- 63
+: 64 3 21 la 
+: 68 3 21 la 
+: 72 3 21 la 
+: 76 3 21 la 
+- 79
+: 80 3 21 la 
+: 84 3 21 la 
+: 88 3 21 la 
+: 92 3 21 la 
+E

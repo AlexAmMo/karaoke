@@ -1,0 +1,175 @@
+"""Validate and stage untrusted UltraStar packages without changing their timing."""
+
+from __future__ import annotations
+
+import hashlib
+import math
+import ntpath
+import re
+import shutil
+import subprocess
+import uuid
+from pathlib import Path
+
+
+class SongError(ValueError):
+    pass
+
+
+def normalize(value: str) -> str:
+    import unicodedata
+
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", value.casefold()) if not unicodedata.combining(c)
+    )
+
+
+def headers(text: str) -> dict[str, str]:
+    return dict(
+        (k.upper(), v.strip()) for k, v in re.findall(r"^#([A-Za-z0-9]+):(.*)$", text, re.M)
+    )
+
+
+def read_chart(path: Path) -> tuple[str, dict]:
+    if path.stat().st_size > 8_000_000:
+        raise SongError("El mapa supera el tamaño permitido.")
+    raw = path.read_bytes()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("cp1252")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    meta = headers(text)
+    for key in ("TITLE", "ARTIST", "BPM"):
+        if not meta.get(key):
+            raise SongError(f"Falta #{key} en el mapa.")
+    try:
+        bpm = float(meta["BPM"].replace(",", "."))
+        gap = float(meta.get("GAP", "0").replace(",", "."))
+        if not math.isfinite(bpm) or not 0 < bpm < 2000 or not math.isfinite(gap):
+            raise ValueError
+    except ValueError:
+        raise SongError("BPM o GAP no válidos.") from None
+    if re.search(r"^P\s*[23]", text, re.M) or meta.get("DUETSINGERP2"):
+        raise SongError("Este mapa es un dúo con partes distintas; V1 usa una melodía común.")
+    if meta.get("RELATIVE", "NO").upper() == "YES":
+        raise SongError("Convierte este mapa de tiempos relativos a absolutos antes de importarlo.")
+    notes = []
+    for line in text.splitlines():
+        if line[:1] in (":", "*", "F", "R", "G"):
+            match = re.match(r"^[:*FRG]\s+(-?\d+)\s+(\d+)\s+(-?\d+)(?:\s|$)", line)
+            if not match:
+                raise SongError("Hay una nota con formato incorrecto.")
+            start, length, pitch = map(int, match.groups())
+            if length <= 0 or abs(pitch) > 127:
+                raise SongError("Hay una nota con duración o tono no válidos.")
+            notes.append((start, length))
+    if not notes or not re.search(r"^E\s*$", text, re.M):
+        raise SongError("El mapa no contiene notas o le falta el final E.")
+    meta["end_seconds"] = gap / 1000 + max(s + d for s, d in notes) * 60 / (4 * bpm)
+    meta["freestyle"] = bool(re.search(r"^[FRG] ", text, re.M))
+    return text, meta
+
+
+def resource(folder: Path, name: str) -> Path:
+    # Reject absolute paths even if they currently point inside the source folder:
+    # joining one to the staging directory would otherwise write outside staging.
+    if not name or "\\" in name or Path(name).is_absolute() or ntpath.splitdrive(name)[0]:
+        raise SongError("El paquete contiene una ruta de archivo no válida.")
+    candidate = (folder / name).resolve()
+    if not candidate.is_relative_to(folder.resolve()) or not candidate.is_file():
+        raise SongError(f"No se encuentra un recurso del paquete: {name}")
+    return candidate
+
+
+def duration(path: Path) -> float:
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    try:
+        value = float(result.stdout.strip())
+        if result.returncode or not math.isfinite(value) or value <= 0:
+            raise ValueError
+        return value
+    except ValueError:
+        raise SongError(
+            "El audio no se puede leer. Revisa el archivo o vuelve a descargarlo."
+        ) from None
+
+
+def validate(path: Path) -> dict:
+    _, meta = read_chart(path)
+    audio = resource(path.parent, meta.get("AUDIO") or meta.get("MP3", ""))
+    seconds = duration(audio)
+    if meta["end_seconds"] > seconds + 2:
+        raise SongError("El audio acaba antes de las últimas notas. No es una versión compatible.")
+    for key in ("VIDEO", "COVER", "BACKGROUND"):
+        if meta.get(key):
+            resource(path.parent, meta[key])
+    return {
+        "title": meta["TITLE"],
+        "artist": meta["ARTIST"],
+        "language": meta.get("LANGUAGE", ""),
+        "duration": seconds,
+        "freestyle": meta["freestyle"],
+        "chart": str(path.resolve()),
+        "audio": str(audio),
+    }
+
+
+def import_package(chart: Path, library: Path) -> dict:
+    info = validate(chart)
+    text, meta = read_chart(chart)
+    names = {meta.get("AUDIO") or meta.get("MP3", "")}
+    names.update(meta[k] for k in ("VIDEO", "COVER", "BACKGROUND") if meta.get(k))
+    # Canonical encoding makes reimporting our own prepared package idempotent.
+    text = re.sub(r"^#ENCODING:.*\n?", "", text, flags=re.M | re.I)
+    text = "#ENCODING:UTF8\n" + text
+    digest = hashlib.sha256(text.encode())
+    for name in sorted(names):
+        with resource(chart.parent, name).open("rb") as f:
+            for block in iter(lambda: f.read(1024 * 1024), b""):
+                digest.update(block)
+    song_id = digest.hexdigest()[:32]
+    library.mkdir(parents=True, exist_ok=True)
+    target = library / song_id
+    if target.exists():
+        # External deletion or edits must not turn a broken directory into ready media.
+        validate(target / "song.txt")
+    if not target.exists():
+        required = sum(resource(chart.parent, n).stat().st_size for n in names)
+        if shutil.disk_usage(library).free < required + 256 * 1024**2:
+            raise SongError(
+                "No hay espacio suficiente. Libera espacio o cambia la carpeta de biblioteca."
+            )
+        staging = library / (".import-" + uuid.uuid4().hex)
+        try:
+            staging.mkdir()
+            for name in names:
+                dest = staging / name
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(resource(chart.parent, name), dest)
+            (staging / "song.txt").write_text(text, encoding="utf-8")
+            validate(staging / "song.txt")
+            staging.rename(target)
+        finally:
+            if staging.exists():
+                shutil.rmtree(staging)
+    return {
+        **info,
+        "id": song_id,
+        "chart": str(target / "song.txt"),
+        "audio": str(target / (meta.get("AUDIO") or meta["MP3"])),
+    }
