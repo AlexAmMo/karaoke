@@ -2,7 +2,7 @@
 """Collect source archives for the Windows native build and MSYS2 media runtime.
 
 Run on the same Windows builder as package_windows.py. Pacman ownership and
-cached .PKGINFO determine exact package base/version; unknown ownership fails.
+installed local database determine exact package base/version; unknown ownership fails.
 """
 from __future__ import annotations
 import hashlib
@@ -82,7 +82,6 @@ def main():
     msys = Path(os.environ.get('MSYS2_ROOT', 'C:/msys64')).resolve()
     tar_environment = dict(os.environ, PATH=os.pathsep.join([str(msys / 'usr/bin'), str(msys / 'ucrt64/bin'), os.environ.get('PATH', '')]))
     local = msys / 'var/lib/pacman/local'
-    cache = msys / 'var/cache/pacman/pkg'
     target = ROOT / 'dist/Karaoke'
     manifest = json.loads((target / 'package-audit.json').read_text())
     required = {str(Path(m['source']).relative_to(msys)).replace('\\', '/').lower() for m in manifest['media_dependencies'] if Path(m['source']).is_relative_to(msys)}
@@ -103,14 +102,12 @@ def main():
         file_version = version.split(':', 1)[-1]
         if name in done: continue
         done.add(name)
-        # Binary .PKGINFO records package base for split packages as well.
-        archives = list(cache.glob(name+'-'+file_version+'-*.pkg.tar.*'))
-        archives = [p for p in archives if not p.name.endswith('.sig')]
-        if not archives: raise RuntimeError('Pacman package cache missing: '+name)
-        info = subprocess.check_output([str(msys / 'usr/bin/tar.exe'), '--force-local', '-xOf', archives[0].as_posix(), '.PKGINFO'], text=True, env=tar_environment)
-        base_match = re.search(r'^pkgbase = (.+)$', info, re.M)
-        if not base_match: raise RuntimeError('No pkgbase in '+str(archives[0]))
-        base = base_match.group(1)
+        # Pacman persists pkgbase as %BASE% in the installed local database.
+        # setup-msys2 may remove binary downloads; source identity must not depend on its cache.
+        base_values = description.get('BASE', [])
+        if len(base_values) != 1 or not base_values[0]:
+            raise RuntimeError('Installed pacman metadata lacks exact pkgbase: ' + name)
+        base = base_values[0]
         package_source = base+'-'+file_version+'.src.tar.zst'
         url = 'https://repo.msys2.org/mingw/sources/'+package_source
         item = {'name': name, 'version': version, 'group': 'msys2', 'filename': package_source, 'url': url, 'package_base': base}
@@ -121,7 +118,7 @@ def main():
         results.append(result)
         metadata = OUT / 'build-recipes/msys2' / name
         metadata.mkdir(parents=True, exist_ok=True)
-        (metadata / 'PKGINFO').write_text(info, encoding='utf-8')
+        (metadata / 'installed-metadata.json').write_text(json.dumps(description, indent=2), encoding='utf-8')
         shutil.copy2(folder / 'desc', metadata / 'installed-desc')
         if (base, file_version) in completed_sources:
             continue
