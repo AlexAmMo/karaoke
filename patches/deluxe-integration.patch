@@ -202,6 +202,77 @@ index ea54f6b..c0384cd 100644
  
    // we assume that samples are in S16Int format
    // TODO: support float too
+diff --git a/src/base/URenderer.pas b/src/base/URenderer.pas
+index 6b4359c..d0b5aa8 100644
+--- a/src/base/URenderer.pas
++++ b/src/base/URenderer.pas
+@@ -676,6 +676,10 @@ procedure PreInitRenderer();
+  * Initialize the renderer based on the type of SDL window that was created
+ }
+ procedure InitRenderer();
++{$IFDEF MSWINDOWS}
++type
++  TGetGLVersionString = function(Name: cardinal): PAnsiChar; stdcall;
++{$ENDIF}
+ var
+   Profile: integer;
+   MajorVersion: integer;
+@@ -685,6 +689,12 @@ procedure InitRenderer();
+   MinorArray: array of SInt32;
+   ProfileArray: array of SInt32;
+   I: integer;
++  {$IFDEF MSWINDOWS}
++  GetGLVersionString: TGetGLVersionString;
++  VersionPointer: PAnsiChar;
++  ActualVersion, VersionError: string;
++  FirstDigit, DotPosition, LastDigit: integer;
++  {$ENDIF}
+ begin
+ 
+   // Try to get a 3.3 core profile context, then a 3.0 context, then a 2.0 context
+@@ -737,6 +747,42 @@ procedure InitRenderer();
+   SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, @MajorVersion);
+   SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, @MinorVersion);
+   SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, @Profile);
++  {$IFDEF MSWINDOWS}
++  // Windows GDI may return a legacy context while SDL reports the requested
++  // attributes. Read the actual driver version before calling shader functions
++  // or constructing a renderer whose destructor expects those functions.
++  GetGLVersionString := TGetGLVersionString(SDL_GL_GetProcAddress('glGetString'));
++  ActualVersion := 'unknown';
++  if Assigned(GetGLVersionString) then
++  begin
++    VersionPointer := GetGLVersionString($1F02); // GL_VERSION
++    if VersionPointer <> nil then
++      ActualVersion := string(VersionPointer);
++  end;
++  MajorVersion := 0;
++  MinorVersion := 0;
++  DotPosition := Pos('.', ActualVersion);
++  if DotPosition > 1 then
++  begin
++    FirstDigit := DotPosition - 1;
++    while (FirstDigit > 0) and (ActualVersion[FirstDigit] in ['0'..'9']) do
++      Dec(FirstDigit);
++    LastDigit := DotPosition + 1;
++    while (LastDigit <= Length(ActualVersion)) and (ActualVersion[LastDigit] in ['0'..'9']) do
++      Inc(LastDigit);
++    MajorVersion := StrToIntDef(Copy(ActualVersion, FirstDigit + 1, DotPosition - FirstDigit - 1), 0);
++    MinorVersion := StrToIntDef(Copy(ActualVersion, DotPosition + 1, LastDigit - DotPosition - 1), 0);
++  end;
++  Log.LogInfo('Actual OpenGL version ' + ActualVersion, 'InitRenderer');
++  if MajorVersion < 2 then
++  begin
++    SDL_GL_DeleteContext(glcontext);
++    VersionError := 'Karaoke necesita OpenGL 2.0 o superior. Detectado: ' + ActualVersion +
++      '. Actualiza el controlador de video o usa un equipo compatible.';
++    Log.LogError(VersionError, 'InitRenderer');
++    raise Exception.Create(VersionError);
++  end;
++  {$ENDIF}
+   if (Profile = SDL_GL_CONTEXT_PROFILE_ES) then
+     Renderer := TRenderer_OpenGLES.Create(glcontext, MajorVersion, MinorVersion)
+   else if (MajorVersion >= 3) then
 diff --git a/src/base/USongs.pas b/src/base/USongs.pas
 index baf0317..da31342 100644
 --- a/src/base/USongs.pas

@@ -117,6 +117,7 @@ jobs:
           update: false
           install: >-
             base-devel
+            git
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-autotools
             mingw-w64-ucrt-x86_64-cmake
@@ -147,6 +148,16 @@ jobs:
           name: windows-fpc-install-log
           path: fpc-install.log
           if-no-files-found: warn
+      - name: Fingerprint native dependency recipes
+        id: recipes
+        run: |
+          $Tasks = (Get-FileHash build/engine/dists/windows/tasks.sh -Algorithm SHA256).Hash.ToLowerInvariant()
+          $Makefile = (Get-FileHash build/engine/dists/windows/Makefile -Algorithm SHA256).Hash.ToLowerInvariant()
+          "tasks=$Tasks" >> $env:GITHUB_OUTPUT
+          "makefile=$Makefile" >> $env:GITHUB_OUTPUT
+          # Exact bytes verified against the corresponding-source artifact of run 43478281732.
+          $Legacy = $Tasks -eq '82c8bc51066ecc512497e92da91c9619d36da1a6916777819e8283fdc9487b72' -and $Makefile -eq '8cf4b2b66d85f8e6cffc80714fa3297783072519648e262b224ce21c45ad6198'
+          "legacy-compatible=$($Legacy.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
       - name: Restore native dependencies
         id: native-cache
         uses: actions/cache/restore@v4
@@ -154,12 +165,13 @@ jobs:
           path: |
             build/engine/dists/windows/prefix
             build/engine/dists/windows/deps
-          key: windows-native-${{ hashFiles('scripts/prepare_engine.py', 'patches/deluxe-integration.patch') }}-8b9d9e08
+          key: windows-native-v2-${{ steps.recipes.outputs.tasks }}-${{ steps.recipes.outputs.makefile }}
+          restore-keys: ${{ steps.recipes.outputs.legacy-compatible == 'true' && 'windows-native-76b94d18c22a7617d5f77ad37516dddeaa3630fe9ceafe1b9f554a9bfc89d930-8b9d9e08' || '' }}
       - name: Build native dependencies
         shell: msys2 {0}
         run: |
           cd build/engine
-          if [[ '${{ steps.native-cache.outputs.cache-hit }}' == 'true' ]]; then
+          if [[ '${{ steps.native-cache.outputs.cache-hit }}' == 'true' || ( '${{ steps.recipes.outputs.legacy-compatible }}' == 'true' && '${{ steps.native-cache.outputs.cache-matched-key }}' == 'windows-native-76b94d18c22a7617d5f77ad37516dddeaa3630fe9ceafe1b9f554a9bfc89d930-8b9d9e08' ) ]]; then
             touch "dists/windows/prefix/$(uname -m)/built_libs"
           fi
           make -C dists/windows
@@ -189,9 +201,14 @@ jobs:
           $Tools = Join-Path "${{ steps.msys.outputs.msys2-location }}" "ucrt64/bin"
           $env:PATH = "$Tools;" + $env:PATH
           uv run python scripts/package_windows.py --tools "$Tools"
-      - name: Verify real Windows desktop startup
+      - name: Prepare isolated CI graphics driver
+        shell: msys2 {0}
+        run: pacman --noconfirm -S --needed mingw-w64-ucrt-x86_64-mesa
+      - name: Prepare disposable software-rendered test copy
+        run: uv run python scripts/prepare_ci_graphics.py --package dist/Karaoke --tools "${{ steps.msys.outputs.msys2-location }}/ucrt64/bin" --output build/windows-ci-runtime
+      - name: Verify Windows desktop with software graphics and dummy audio
         timeout-minutes: 3
-        run: uv run python scripts/smoke_desktop.py --launcher dist/Karaoke/karaoke.exe --output build/windows-desktop-smoke
+        run: uv run python scripts/smoke_desktop.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke --package-archive dist/Karaoke-0.1.0-windows-x86_64.zip --source-run "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
       - name: Preserve desktop startup diagnostics
         if: always() && !cancelled() && steps.package.outcome == 'success'
         uses: actions/upload-artifact@v4

@@ -42,22 +42,25 @@ def audit_pe(target: Path):
     return entries
 
 
-def bundle_tools(destination: Path, tool_directory: Path):
+def bundle_tools(destination: Path, tool_directory: Path, initial_files=None):
     """Follow PE imports, copying non-system DLLs alongside the media tools."""
     objdump = shutil.which('objdump') or str(tool_directory / 'objdump.exe')
     if not Path(objdump).is_file():
         raise RuntimeError('objdump.exe from MSYS2 UCRT64 is required for dependency auditing')
     system = Path(os.environ['WINDIR']) / 'System32'
     search = [tool_directory, ROOT / 'build/engine/game', ROOT / 'build/engine/dists/windows/prefix/x86_64/bin']
-    pending = []
-    for name in ('ffmpeg.exe', 'ffprobe.exe', 'ffplay.exe'):
-        source = tool_directory / name
-        if not source.exists():
-            raise RuntimeError(f'Missing media tool: {source}')
-        pending.append(source)
-    pending.append(find_deno())
-    # SDL2-compat may LoadLibrary(SDL3.dll) without a PE import-table edge.
-    if (tool_directory / 'SDL3.dll').exists(): pending.append(tool_directory / 'SDL3.dll')
+    if initial_files is None:
+        pending = []
+        for name in ('ffmpeg.exe', 'ffprobe.exe', 'ffplay.exe'):
+            source = tool_directory / name
+            if not source.exists():
+                raise RuntimeError(f'Missing media tool: {source}')
+            pending.append(source)
+        pending.append(find_deno())
+        # SDL2-compat may LoadLibrary(SDL3.dll) without a PE import-table edge.
+        if (tool_directory / 'SDL3.dll').exists(): pending.append(tool_directory / 'SDL3.dll')
+    else:
+        pending = list(initial_files)
     copied = set()
     manifest = []
     while pending:

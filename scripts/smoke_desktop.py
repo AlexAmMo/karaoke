@@ -15,7 +15,7 @@ import uuid
 
 
 
-def windows_diagnostics(launcher: Path, output: Path):
+def windows_diagnostics(launcher: Path, output: Path, capture=False):
     copy_errors = []
     for label, directory in [('engine', launcher.parent / 'engine'), ('user', Path(os.environ.get('APPDATA', '')) / 'ultrastardx')]:
         for log in directory.glob('*.log'):
@@ -25,7 +25,7 @@ def windows_diagnostics(launcher: Path, output: Path):
                 copy_errors.append({'path': str(log), 'error': str(exc)})
     (output / 'log-copy-errors.json').write_text(json.dumps(copy_errors, indent=2), encoding='utf-8')
     # Desktop capture is restricted to disposable GitHub Actions runners.
-    if os.environ.get('GITHUB_ACTIONS') != 'true':
+    if not capture or os.environ.get('GITHUB_ACTIONS') != 'true':
         return
     script = output / 'capture-desktop.ps1'
     script.write_text(r'''param([string]$OutputDir)
@@ -67,6 +67,10 @@ def main():
     if sys.platform == 'win32':
         environment['PATH'] = os.pathsep.join([str(args.launcher.resolve().parent / 'bin'), str(Path(os.environ['WINDIR']) / 'System32'), os.environ['WINDIR']])
     report['path_environment'] = environment.get('PATH', '')
+    report['ci_audio_driver'] = environment.get('SDL_AUDIODRIVER')
+    report['ci_opengl_library'] = environment.get('SDL_OPENGL_LIBRARY')
+    if environment.get('GITHUB_ACTIONS') == 'true' and environment.get('KARAOKE_CI_GRAPHICS_MANIFEST'):
+        report['ci_graphics'] = json.loads(Path(environment['KARAOKE_CI_GRAPHICS_MANIFEST']).read_text(encoding='utf-8'))
     process = None
     started = time.monotonic()
     try:
@@ -110,9 +114,9 @@ def main():
     except Exception as exc:
         report['error'] = str(exc)
     finally:
-        if sys.platform == 'win32' and not report['passed']:
+        if sys.platform == 'win32':
             try:
-                windows_diagnostics(args.launcher.resolve(), output)
+                windows_diagnostics(args.launcher.resolve(), output, capture=not report['passed'])
             except Exception as exc:
                 report['diagnostic_error'] = str(exc)
         if process is not None and process.poll() is None:
@@ -125,6 +129,9 @@ def main():
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5)
+        native_log = output / 'engine-Error.log'
+        if native_log.exists():
+            report['graphics_audio_log'] = [line for line in native_log.read_text(encoding='utf-8', errors='replace').splitlines() if any(term in line for term in ('OpenGL vendor', 'OpenGL renderer', 'OpenGL version', 'driver [SDL]', '#Input-Devices'))]
         report['elapsed_seconds'] = round(time.monotonic() - started, 2)
         (output / 'result.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
         print(json.dumps(report, indent=2), flush=True)
