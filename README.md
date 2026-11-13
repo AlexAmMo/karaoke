@@ -2,7 +2,29 @@
 
 Karaoke doméstico instalado en el ordenador: UltraStar Deluxe muestra letras, notas y puntuación; un lateral permite preparar biblioteca y próximos turnos sin abrir otra ventana.
 
-**Versión de desarrollo 0.1.0.** La app empaquetada se ha probado en macOS Apple Silicon. Las 55 pruebas Python pasan localmente y en CI sobre macOS, Linux y Windows. La construcción nativa de Windows está automatizada. Las pruebas con señales sintéticas no sustituyen una sesión con uno o dos micrófonos por cable. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
+**Versión de desarrollo 0.1.0.** La app empaquetada supera 17 comprobaciones de sesión en macOS Apple Silicon. Las 55 pruebas Python pasan localmente y en CI sobre macOS, Linux y Windows. Windows supera una prueba de arranque y cierre con gráficos y audio simulados. Las pruebas sintéticas no sustituyen una sesión con uno o dos micrófonos por cable; las descargas con cuenta USDB también están pendientes de validación real. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
+
+## Instalación
+
+Descarga los paquetes de la [prerelease v0.1.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.1.0), o usa uno de estos comandos. Incluyen el motor y las herramientas necesarias: no necesitas Python ni compiladores.
+
+**macOS**, desde Terminal (Apple Silicon: macOS 26 o posterior; Intel: macOS 15 o posterior):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.sh | KARAOKE_VERSION=v0.1.0 bash
+```
+
+Se instala en `~/Applications/Karaoke.app`. En Apple Silicon ocupa aproximadamente 192 MB descargados y 412 MB instalado, sin canciones. La firma es ad hoc y no está notarizada; el instalador no desactiva Gatekeeper.
+
+**Windows x64**, desde PowerShell (objetivo: Windows 10 versión 1809 o posterior y Windows 11; controlador OpenGL 2.0 o superior):
+
+```powershell
+$env:KARAOKE_VERSION='v0.1.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.ps1 | iex
+```
+
+Se instala en `%LOCALAPPDATA%\Programs\Karaoke` y crea un acceso directo en Inicio. El ejecutable no tiene firma comercial. La validación automatizada usa Windows Server 2022; quedan pendientes pruebas de audio y gráficos en un PC físico. En Mac Intel están comprobados la compilación y el arranque de utilidades; falta validar una sesión gráfica.
+
+Los instaladores verifican SHA-256 y conservan la biblioteca y los ajustes fuera de la app. Esta prerelease no incluye canciones comerciales.
 
 ## Uso
 
