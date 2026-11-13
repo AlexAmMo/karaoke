@@ -1,0 +1,12 @@
+{
+  "scope": "Published macOS installer on the development Mac; existing SQLite data preserved; normal native startup. Not a clean-machine or quarantine test.",
+  "tag": "v0.1.0",
+  "installer_exit_code": 0,
+  "installer_stdout": "Karaoke instalado en ~/Applications/Karaoke.app\nLa biblioteca y la configuraci\u00f3n se conservan en Application Support/Karaoke.\nAbre Karaoke desde Finder. Una compilaci\u00f3n sin notarizar puede requerir autorizaci\u00f3n en Ajustes del Sistema.",
+  "existing_database_files": 2,
+  "existing_database_hashes_unchanged": true,
+  "launcher_sha256": "fda1a1ced934cfda1f991585b64598a2f2b596ddea496b52b87e9bbc1ad27a85",
+  "version": "Karaoke 0.1.0",
+  "normal_startup_idle": true,
+  "passed": true
+}

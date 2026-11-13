@@ -1,6 +1,6 @@
 # Validación de la implementación
 
-Estado inicial del 13 de noviembre de 2026. Este documento distingue código implementado, pruebas de software y comprobaciones que requieren equipos o cuentas externos.
+Estado de la prerelease [v0.1.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.1.0), publicada el 13 de noviembre de 2026. Este documento distingue código implementado, pruebas de software y comprobaciones que requieren equipos o cuentas externos.
 
 ## Comprobado localmente
 
@@ -42,7 +42,11 @@ La revisión `c2d56d8` pasa las 55 pruebas Python en GitHub Actions sobre macOS,
 
 ## Instalación en el Mac de desarrollo
 
-Copiada a `~/Applications/Karaoke.app` y abierta mediante el mecanismo normal de lanzamiento de aplicaciones. Biblioteca inicial vacía, modo sintético desactivado. El selector nativo de carpetas abre y permite cancelar sin importar contenido. La app queda abierta para el usuario. Esta prueba no es una instalación en un Mac limpio y no verifica la política de cuarentena de una descarga nueva de navegador.
+La instalación inicial se abrió mediante el mecanismo normal de lanzamiento de aplicaciones, con biblioteca vacía y modo sintético desactivado. El selector nativo de carpetas abre y permite cancelar sin importar contenido.
+
+Después de publicar v0.1.0, se ejecutó el comando público de README (`curl …/v0.1.0/scripts/install.sh | KARAOKE_VERSION=v0.1.0 bash`) en este Mac. El script descargó el ZIP público, verificó su SHA-256, firma ad hoc y mínimo de macOS, y reinstaló `~/Applications/Karaoke.app` con código de salida 0. Los dos archivos SQLite existentes conservaron exactamente sus hashes antes de volver a abrir la app. El launcher devuelve `Karaoke 0.1.0`; el motor vuelve a `idle`, sin error y con modo sintético desactivado. La app queda abierta para el usuario. [Evidencia de instalación](validation/installation-macos.json).
+
+Esta prueba usa el Mac de desarrollo: no es una instalación en un Mac limpio y no verifica la política de cuarentena de una descarga nueva de navegador.
 
 ## Arranque de Windows por software
 
