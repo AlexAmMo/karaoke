@@ -101,10 +101,14 @@ def main():
     if target.exists():
         shutil.rmtree(target)
     shutil.copytree(python_dist / 'karaoke', target)
-    shutil.copytree(engine, target / 'engine', ignore=shutil.ignore_patterns('*.debug', '*.o', '*.ppu', '*.a', '*.log', '*.ini', '*.db', 'bass.dll'))
+    shutil.copytree(engine, target / 'engine', ignore=shutil.ignore_patterns('*.debug', '*.o', '*.ppu', '*.a', '*.log', '*.db', 'bass.dll'))
     # No personal config, songs, or captured audio are part of a distribution.
     for filename in ('config.ini', 'Ultrastar.db'):
         (target / 'engine' / filename).unlink(missing_ok=True)
+    # INI files below themes/fonts/languages are required application resources.
+    for resource in ('themes/Deluxe.ini', 'themes/Modern.ini', 'fonts/fonts.ini', 'languages/English.ini', 'languages/Spanish.ini'):
+        if not (target / 'engine' / resource).is_file():
+            raise RuntimeError('Packaged engine resource is missing: ' + resource)
     collect_licenses(target / 'licenses')
     for source in (ROOT / 'build/engine/dists/windows/deps').glob('**/*'):
         if source.is_file() and source.name.lower() in ('license', 'license.txt', 'license.md', 'copying', 'copying.lgplv2.1', 'copyright', 'notice', 'bass.txt'):
