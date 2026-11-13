@@ -72,7 +72,7 @@ def collect_licenses(destination: Path):
 
 def pyinstaller(destination: Path, work: Path, name='karaoke'):
     run(sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--name', name,
-        *(['--windowed', '--osx-bundle-identifier', 'org.alexammo.karaoke'] if sys.platform == 'darwin' else []),
+        *(['--windowed', '--osx-bundle-identifier', 'org.alexammo.karaoke'] if sys.platform == 'darwin' else ['--hide-console', 'hide-early'] if sys.platform == 'win32' else []),
         '--distpath', destination, '--workpath', work, '--specpath', ROOT / 'build',
         '--additional-hooks-dir', ROOT / 'scripts/pyinstaller-hooks', '--paths', ROOT / 'src', '--hidden-import', 'karaoke.provider', '--hidden-import', 'karaoke.picker',
         '--hidden-import', 'usdb_syncer.song_loader', '--collect-data', 'usdb_syncer',

@@ -1,0 +1,29 @@
+{
+  "recorded_at": "2026-11-13T17:57:10.187779+00:00",
+  "ci_run": "https://github.com/AlexAmMo/karaoke/actions/runs/43475510487",
+  "application_commit": "c2d56d8533635e36a7bba0e880199b4ffab4a744",
+  "archive": "Karaoke-0.1.0-macos-x86_64.zip",
+  "archive_bytes": 206527596,
+  "archive_sha256": "88c5d7b29e6d87ec9c024ce8251133bf3b3398a9572786787037efbabbce1497",
+  "audit": {
+    "mach_o_files": 247,
+    "external_absolute_references": [],
+    "minimum_macos_from_binaries": "15.0",
+    "arch": "x86_64",
+    "physical_audio_validated": false
+  },
+  "dependency_source_entries": 105,
+  "dependency_source_unresolved": [],
+  "ci_checks": {
+    "native_compilation": true,
+    "codesign_deep_strict": true,
+    "bundled_media_startup": [
+      "ffmpeg -version",
+      "ffprobe -version",
+      "ffplay -version",
+      "deno --version"
+    ],
+    "frozen_launcher_version": true
+  },
+  "validation_scope": "CI build, binary dependency audit, signature verification and command-line startup only. No Intel graphical session, physical microphone, pitch accuracy or audio latency validated. Minimum macOS 15.0 comes from binary load commands, not a physical OS compatibility session."
+}
