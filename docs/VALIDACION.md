@@ -62,6 +62,20 @@ El comando PowerShell publicado para v0.1.0 supera la [ejecución 43489268529](h
 
 Esta prueba verifica instalación, versión y conservación del archivo testigo. No inicia el motor, no añade Mesa y no prueba audio. Complementa el arranque del motor descrito arriba; no equivale a validar una sesión de canto en un PC físico. El workflow se corrigió en main para que la ruta temporal de GitHub se resolviera en el contexto del paso; el instalador del tag publicado permaneció sin cambios.
 
+## Actualización HiDPI posterior a v0.1.0
+
+La actualización del renderer separa coordenadas lógicas y píxeles físicos, declara Retina en ambos bundles y rasteriza las fuentes según el viewport y la proyección de cada zona. El tamaño predeterminado sigue siendo 1280×800 puntos; `--window-size 1920x1080` permite solicitar una ventana mayor. El motor respeta el tamaño real si macOS la limita al espacio disponible. El recorte de la sílaba resaltada también usa el viewport del escenario para mantener alineadas ambas capas de la letra.
+
+La [evidencia de pantalla](evidence/display-hidpi-macos.json) registra muestras estabilizadas del paquete, sin override del motor: 1280×800 lógico → 2560×1600 físico; petición 1920×1080 → 1512×831 lógico real → 3024×1662 físico en este monitor. Ambos casos conservan factor 2 en cada eje. Estas medidas verifican densidad y geometría; la revisión visual comprueba aparte la nitidez.
+
+La [sesión integral HiDPI](evidence/session-hidpi-macos.json) repite las 17 comprobaciones con el paquete y PATH restringido. El [informe de empaquetado](validation/packaging-hidpi-macos.json) identifica el motor exacto, la firma ad hoc, las declaraciones Retina y las dependencias. Las pruebas siguen usando señales sintéticas, sin certificar micrófonos físicos.
+
+La revisión visual de la app instalada comprueba canto y ajustes a 1000×640, biblioteca a 1280×800 y ampliación/restauración mediante el control nativo de macOS. La letra resaltada permanece alineada con su capa base. Se verifican selección de pestaña y campo con ratón, pegado de `canción española`, foco visible y regreso a la biblioteca. Capturas: `.impeccable/review/retina-singing-demo-1000.jpg`, `retina-settings-1000.jpg`, `retina-search-zoomed.jpg` y `retina-library-1280.jpg`. Los dos archivos SQLite existentes conservan sus hashes al sustituir la app; queda abierta en modo normal, sin entrada sintética.
+
+Esta actualización se instala localmente en el Mac y su código está en main. Los archivos de la release v0.1.0 se conservan intactos; no representan esta compilación posterior.
+
+Windows compila, empaqueta y supera el arranque/cierre del motor corregido en la [ejecución 43498190710](https://github.com/AlexAmMo/karaoke/actions/runs/43498190710), revisión `7515194`. El [informe de Windows](validation/display-windows-ci.json) registra una ventana 1280×800 y drawable 1280×800, factor 1 en ese runner, con Mesa llvmpipe y audio SDL dummy. Se verifica también el proveedor congelado. El cambio activa el soporte DPI de SDL en Windows; esta prueba por software no certifica un monitor Windows a escala 125/150/200%, ni audio físico.
+
 ## Repertorio reproducible
 
 [REPERTORIO-VALIDACION.csv](REPERTORIO-VALIDACION.csv) contiene 40 candidatos únicos: 20 en inglés y 20 en español, incluyendo cuatro canciones de Eminem y rap en español. Es una selección de trabajo para la fase 1 del plan, no una medida de cobertura del catálogo. Todas las filas están `pendiente`; `mapa_id` y `resultado` permanecen vacíos porque todavía no se ha realizado la comprobación autenticada.

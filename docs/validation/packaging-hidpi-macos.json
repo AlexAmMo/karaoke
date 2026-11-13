@@ -1,0 +1,92 @@
+{
+  "recorded_at": "2026-11-13T20:05:25.008037+00:00",
+  "scope": "Local HiDPI update; this archive is not the published v0.1.0 release asset.",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "application_commit": "7515194217f927d4ecd47e40d41be1fac787e5d2",
+  "archive": "Karaoke-0.1.0-macos-arm64.zip",
+  "archive_bytes": 191494206,
+  "archive_sha256": "a7e7469dd84554a43290290d5591b3a8b9c9e654e893a7b37856f1a76a7ed975",
+  "installed_logical_bytes": 411855302,
+  "native_executable_sha256": "a40d2d4d3e80791daff3f2c4c4aaf9bdbde57e873d87e84e345ffda003e0a7d4",
+  "audit": {
+    "high_resolution_capable": {
+      "launcher": true,
+      "engine": true
+    },
+    "mach_o_files": 189,
+    "external_absolute_references": [],
+    "minimum_macos_from_binaries": "26.0",
+    "arch": "arm64",
+    "physical_audio_validated": false
+  },
+  "codesign_deep_strict": true,
+  "bundled_media_startup_checks": [
+    "ffmpeg -version",
+    "ffprobe -version",
+    "ffplay -version",
+    "deno --version"
+  ],
+  "media_smoke_path": "bundle bin plus /usr/bin:/bin",
+  "window_size": {
+    "default_logical": "1280x800",
+    "explicit_full_hd_supported": "1920x1080",
+    "behavior": "macOS may clamp logical dimensions to the available screen; Retina drawable dimensions are independent."
+  },
+  "validation_references": {
+    "display_metrics": "docs/evidence/display-hidpi-macos.json",
+    "session_e2e": "docs/evidence/session-hidpi-macos.json",
+    "display_and_session_status": "Passed with the packaged launcher and its bundled engine, without overrides; PATH=/usr/bin:/bin.",
+    "session_checks_passed": 17,
+    "session_checks_total": 17,
+    "geometry": [
+      {
+        "requested": "1280x800",
+        "observed": {
+          "width": 1280,
+          "height": 800,
+          "drawable_width": 2560,
+          "drawable_height": 1600,
+          "pixel_scale_x": 2.0,
+          "pixel_scale_y": 2.0
+        },
+        "requested_size_honored": true,
+        "close_exit_code": 0
+      },
+      {
+        "requested": "1920x1080",
+        "observed": {
+          "width": 1512,
+          "height": 831,
+          "drawable_width": 3024,
+          "drawable_height": 1662,
+          "pixel_scale_x": 2.0,
+          "pixel_scale_y": 2.0
+        },
+        "requested_size_honored": false,
+        "close_exit_code": 0
+      }
+    ],
+    "windows_software_startup": "docs/validation/display-windows-ci.json"
+  },
+  "limitations": [
+    "Local macOS ARM64 package. Windows software startup is documented separately in display-windows-ci.json; physical Windows HiDPI and Mac Intel GUI remain unverified.",
+    "Ad-hoc signature; no Apple Developer ID or notarization.",
+    "No physical microphone or monitoring latency validation.",
+    "Corresponding dependency sources remain unchanged; no new release assets published."
+  ],
+  "local_installation": {
+    "location": "~/Applications/Karaoke.app",
+    "engine_sha256": "a40d2d4d3e80791daff3f2c4c4aaf9bdbde57e873d87e84e345ffda003e0a7d4",
+    "normal_startup": true,
+    "logical_size": [
+      1280,
+      800
+    ],
+    "drawable_size": [
+      2560,
+      1600
+    ],
+    "existing_sqlite_files_preserved": 2,
+    "visual_review": "Singing and settings at minimum size; normal library; native zoom/restore; mouse selection; keyboard focus and accented paste. Singing used an isolated synthetic session."
+  }
+}

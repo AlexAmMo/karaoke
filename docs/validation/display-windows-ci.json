@@ -1,0 +1,42 @@
+{
+  "scope": "Final HiDPI/clipping runtime build: packaged Windows startup and frozen-provider stdin in CI. This is a software-rendered 1x smoke check, not physical HiDPI, visual-quality, GPU, microphone or full-session validation.",
+  "source_revision": "7515194217f927d4ecd47e40d41be1fac787e5d2",
+  "source_run": "https://github.com/AlexAmMo/karaoke/actions/runs/43498190710",
+  "workflow_conclusion": "success",
+  "artifact_name": "windows-desktop-smoke",
+  "artifact_result_sha256": "b6054660ea376fd97b6ab2ce913dad176673f617f84f7a09c80071e4655cd01a",
+  "distribution_status": "CI development package; this evidence does not replace the published v0.1.0 release assets.",
+  "platform": "Windows-2022Server-10.0.20348-SP0",
+  "passed": true,
+  "elapsed_seconds": 4.09,
+  "launcher_sha256": "88bd2025a73eba304f864845f5a0afde2f3f73f6730e3c51b9bb2fa97d09b845",
+  "package_sha256": "ec0e3218203be9d7c20191042c9f7db49d82d1dcefbdec0bd015ce2f097494b8",
+  "path_environment": "D:\\a\\karaoke\\karaoke\\build\\windows-ci-runtime\\Karaoke\\bin;C:\\Windows\\System32;C:\\Windows",
+  "frozen_provider_stdin": true,
+  "engine_state": {
+    "state": "idle",
+    "synthetic": true,
+    "error": "",
+    "width": 1280,
+    "height": 800,
+    "drawable_width": 1280,
+    "drawable_height": 800,
+    "pixel_scale_x": 1.0,
+    "pixel_scale_y": 1.0,
+    "devices": []
+  },
+  "ci_audio_driver": "dummy",
+  "ci_graphics_scope": "MSYS2 Mesa llvmpipe graphics driver added only to a disposable CI copy. SDL dummy audio. Driver DLLs are absent from the release ZIP; no physical audio or GPU test.",
+  "graphics_audio_log": [
+    "2026-11-13 20:10:58.530 INFO:   Using dummy driver [SDL]",
+    "2026-11-13 20:10:58.530 STATUS: #Input-Devices: 0 [SDL]",
+    "2026-11-13 20:10:58.939 INFO:   Actual OpenGL version 4.6 (Core Profile) Mesa 26.2.3 [InitRenderer]",
+    "2026-11-13 20:10:58.939 INFO:   OpenGL vendor Mesa [TRenderer_OpenGLBase.Create]",
+    "2026-11-13 20:10:58.939 INFO:   OpenGL renderer llvmpipe (LLVM 22.1.8, 256 bits) [TRenderer_OpenGLBase.Create]",
+    "2026-11-13 20:10:58.939 INFO:   OpenGL version 4.6 (Core Profile) Mesa 26.2.3 [TRenderer_OpenGLBase.Create]",
+    "2026-11-13 20:10:58.939 INFO:   Using Modern OpenGL renderer [TRenderer_OpenGL3.CheckVersion]"
+  ],
+  "physical_hidpi_tested": false,
+  "physical_audio_tested": false,
+  "physical_gpu_tested": false
+}

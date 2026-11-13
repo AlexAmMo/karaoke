@@ -18,7 +18,7 @@ colors:
 typography:
   display:
     fontFamily: "Noto Sans"
-    fontSize: "36px"
+    fontSize: "40px"
     fontWeight: 400
   headline:
     fontFamily: "Noto Sans"
@@ -34,7 +34,7 @@ typography:
     fontWeight: 400
   title:
     fontFamily: "Noto Sans"
-    fontSize: "25px"
+    fontSize: "28px"
     fontWeight: 400
   result-body:
     fontFamily: "Noto Sans"
@@ -59,10 +59,6 @@ typography:
   caption:
     fontFamily: "Noto Sans"
     fontSize: "15px"
-    fontWeight: 400
-  scroll-cue:
-    fontFamily: "Noto Sans"
-    fontSize: "14px"
     fontWeight: 400
 rounded:
   square: "0px"
@@ -147,6 +143,8 @@ El canto conserva la representación real de UltraStar Deluxe: letras, notas, af
 
 Fuente normativa de los valores: `native/UKaraokeShell.pas`; contenido y estados: `src/karaoke/service.py`. Familia tipográfica contrastada con `build/engine/game/fonts/fonts.ini` y `build/engine/src/base/UText.pas`. Evidencia visual: `.impeccable/review/session-final-1280.jpg`, `selection-1280.jpg` y `settings-1000.jpg`, capturas de macOS con entrada sintética. La revisión final comprobó el estado de canto, la selección de texto y los recorridos de teclado corregidos. `installed-first-run.jpg` registra el primer arranque de la app instalada, sin entradas sintéticas ni canciones. Windows no está verificado visualmente y no se ha validado la experiencia con micrófonos físicos.
 
+La actualización Retina se registra en `retina-library-1280.jpg`, `retina-search-zoomed.jpg`, `retina-settings-1000.jpg` y `retina-singing-demo-1000.jpg`, dentro de la misma carpeta. Se revisan nitidez, ampliación/restauración nativa, clics y texto con acentos. Las dos últimas capturas usan una sesión sintética aislada; la biblioteca del usuario no incluye esas canciones de prueba. El recorte de la sílaba activa se calcula dentro del viewport del escenario, evitando que su capa resaltada se desplace hacia el lateral.
+
 ## Colors
 
 Grises oscuros ligeramente fríos, blancos suaves y un verde salvia moderado. Los valores RGB porcentuales del frontmatter preservan exactamente los canales normalizados del renderer; no son colores muestreados del JPEG. Las rampas OKLCH del sidecar son muestras derivadas para explorar el color en el panel, no tokens implementados ni autorización para añadir tonos al shell.
@@ -180,10 +178,10 @@ El tamaño en el frontmatter representa la altura solicitada a `SetFontSize`, ex
 - **Display / headline:** frase de bienvenida y título de resultados.
 - **Score / brand / title:** puntuación, nombre Karaoke y cabecera «Tu sesión».
 - **Result-body / stage-lead / stage-body:** canción y cantantes de resultados, orientación de espera.
-- **Body:** etiquetas y valores de filas; aviso inferior del escenario.
-- **Label:** pestañas, transporte, contador, porcentajes y mensajes.
+- **Body:** etiquetas de botones y valores de campos; aviso inferior del escenario. Las cabeceras de sección usan 20 unidades.
+- **Label:** pestañas, transporte, contador, porcentajes, mensajes y etiquetas persistentes de campos.
 - **Caption:** segunda línea descriptiva de una fila.
-- **Scroll-cue:** indicadores de contenido fuera de la vista.
+- Los indicadores de contenido fuera de la vista son triángulos vectoriales, sin glifos tipográficos.
 
 El texto de fila empieza en `(24, Y + 8)`; la segunda línea descriptiva en `Y + 36` y el valor de un campo en `Y + 40`. Las etiquetas largas se acortan por ancho con `...`, retirando caracteres UTF-8 completos. No presentar este recorte como ajuste automático en varias líneas.
 
@@ -195,7 +193,11 @@ El escenario de canto conserva proporción 4:3: `W = min(ScreenW − SideWidth, 
 
 En coordenadas del lateral: cabecera en `(22, 22)`; cuatro pestañas desde `(12, 68)` con paso 96 y rectángulo 92 × 36; contexto o transporte desde `Y = 116`; filas desde `Y = 174 − Scroll`. Cada fila ocupa 48 unidades sin descripción, 72 con descripción, 82 para campo y 74 para volumen. Los fondos de controles miden el alto de fila menos 8. Solo se dibujan filas enteras dentro de los límites del área desplazable; el desplazamiento del ratón avanza por filas.
 
-La banda de estado está anclada al fondo. El escenario usa margen lateral 48, ancho de texto `W − 96` y mantiene el aviso de preparación o prueba sintética cerca del borde inferior. Verificar la composición a 1280 × 800 y al mínimo acordado de 1000 × 640; estas medidas son tamaños de ventana de prueba, no resoluciones de archivo JPEG ni de framebuffer Retina.
+La banda de estado está anclada al fondo. El escenario usa margen lateral 48, ancho de texto `W − 96` y mantiene el aviso de preparación o prueba sintética cerca del borde inferior. Verificar la composición a 1280 × 800, al mínimo acordado de 1000 × 640 y con la opción 1920 × 1080; estas medidas son tamaños lógicos de ventana, no resoluciones de archivo JPEG ni de framebuffer Retina.
+
+### Densidad de pantalla
+
+El layout y los eventos SDL conservan unidades lógicas. El renderer consulta el drawable real y convierte los límites del viewport y scissor a píxeles físicos, redondeando ambos bordes para evitar juntas. Las fuentes eligen su rasterización según el viewport y la proyección activos, con resolución base mínima de 128 píxeles. El launcher y el motor declaran soporte Retina. En una pantalla de escala 2, una ventana lógica 1280 × 800 dibuja a 2560 × 1600; el tamaño de controles y el mapa de clics permanecen expresados en unidades lógicas.
 
 ## Elevation & Depth
 
@@ -217,11 +219,11 @@ Acciones de texto alineadas a la izquierda, con fondo oscuro y separación regul
 
 ### Inputs / Fields
 
-Etiqueta persistente arriba y valor secundario debajo, dentro de la misma superficie. Campo vacío muestra «Clic para escribir»; foco de edición añade `|` al final. Seleccionar todo preserva el valor y añade un fondo `text-selection` de 350 × 29 en `(22, Y + 35)`; escribir, pegar o borrar sustituye la selección. Contraseñas se ocultan con asteriscos. El marco verde es el mismo que en los botones; hover comparte el cambio tonal. Los textos visibles se recortan al ancho disponible; la edición y el almacenamiento no deben confundirse con ese recorte visual.
+Etiqueta persistente secundaria de 16 unidades arriba y valor de 18 unidades en color principal debajo, dentro de la misma superficie. Campo vacío muestra «Clic para escribir» en color secundario; foco de edición añade `|` al final. Seleccionar todo preserva el valor y añade un fondo `text-selection` de 350 × 29 en `(22, Y + 35)`; escribir, pegar o borrar sustituye la selección. Contraseñas se ocultan con asteriscos. El marco verde es el mismo que en los botones; hover comparte el cambio tonal. Los textos visibles se recortan al ancho disponible; la edición y el almacenamiento no deben confundirse con ese recorte visual.
 
 ### Navigation
 
-Biblioteca, Buscar, Cola y Ajustes mantienen orden y posición. La pestaña activa tiene fondo pizarra; no hay iconos ni navegación móvil alternativa. El contador de turnos queda a la derecha de «Tu sesión». Cambiar de página reinicia el desplazamiento; conserva el foco si ya estaba en una pestaña y descarta el foco de un control de la página anterior. Cuando una actualización asíncrona cambia las filas de la misma página, se conserva la acción enfocada por su identificador, no por su antiguo índice.
+Biblioteca, Buscar, Cola y Ajustes mantienen orden y posición. La pestaña activa tiene fondo pizarra y una línea inferior salvia de dos unidades; no hay iconos ni navegación móvil alternativa. El contador de turnos queda a la derecha de «Tu sesión». Cambiar de página reinicia el desplazamiento; conserva el foco si ya estaba en una pestaña y descarta el foco de un control de la página anterior. Cuando una actualización asíncrona cambia las filas de la misma página, se conserva la acción enfocada por su identificador, no por su antiguo índice.
 
 ### Volume
 

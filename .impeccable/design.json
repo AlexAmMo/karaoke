@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-13T17:22:20.874518+00:00",
+  "generatedAt": "2026-11-13T19:58:32.636716+00:00",
   "title": "Design System: Karaoke",
   "extensions": {
     "colorMeta": {
@@ -222,7 +222,7 @@
       },
       "body": {
         "displayName": "body",
-        "purpose": "Altura 18: etiquetas/valores del lateral en unidades SDL lógicas y aviso inferior del escenario en coordenadas de ventana."
+        "purpose": "Altura 18: botones y valores de campos; las etiquetas persistentes de campos usan 16 y las cabeceras de sección 20."
       },
       "label": {
         "displayName": "label",
@@ -230,10 +230,6 @@
       },
       "caption": {
         "displayName": "caption",
-        "purpose": "Altura SDL lógica del lateral; consultar DESIGN.md para escalado y uso."
-      },
-      "scroll-cue": {
-        "displayName": "scroll-cue",
         "purpose": "Altura SDL lógica del lateral; consultar DESIGN.md para escalado y uso."
       }
     },
@@ -262,17 +258,17 @@
       "name": "Campo",
       "kind": "input",
       "refersTo": "input",
-      "description": "Etiqueta y valor en una superficie; selección de texto con verde más oscuro. Traducción HTML de coordenadas lógicas SDL a escala 1:1; fuentes del navegador pueden diferir. No añade semántica nativa a SDL.",
+      "description": "Etiqueta secundaria de 16 unidades y valor principal de 18; selección verde. Ejemplo HTML de las coordenadas lógicas SDL, sin certificar semántica accesible nativa.",
       "html": "<label class=\"ds-field\">Buscar en USDB<input class=\"ds-field-value\" value=\"Canción\" aria-label=\"Buscar en USDB\" /></label>",
-      "css": ".ds-field{border:0;border-radius:0;background:rgb(13% 16% 18%);color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:18px;text-align:left;display:block;position:relative;width:368px;height:74px;}.ds-field{text-indent:8px;padding-top:8px;height:66px;}.ds-field-value{position:absolute;left:8px;top:40px;width:345px;padding:0;border:0;border-radius:0;background:transparent;color:rgb(70% 74% 77%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:18px;outline:0;}.ds-field:hover{background:rgb(21% 26% 27%);}.ds-field:focus-within{outline:3px solid rgb(53% 75% 66%);outline-offset:0;}.ds-field-value::selection{background:rgb(24% 38% 34%);}"
+      "css": ".ds-field{border:0;border-radius:0;background:rgb(13% 16% 18%);color:rgb(70% 74% 77%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:16px;text-align:left;display:block;position:relative;width:368px;height:74px;}.ds-field{text-indent:8px;padding-top:8px;height:66px;}.ds-field-value{position:absolute;left:8px;top:40px;width:345px;padding:0;border:0;border-radius:0;background:transparent;color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:18px;outline:0;}.ds-field:hover{background:rgb(21% 26% 27%);}.ds-field:focus-within{outline:3px solid rgb(53% 75% 66%);outline-offset:0;}.ds-field-value::selection{background:rgb(24% 38% 34%);}"
     },
     {
       "name": "Navegación",
       "kind": "nav",
       "refersTo": "navigation-selected",
-      "description": "Cuatro destinos estables; selección tonal, foco de dos unidades. El hover nativo no añade un estado diferente. Traducción HTML de coordenadas lógicas SDL a escala 1:1; fuentes del navegador pueden diferir. No añade semántica nativa a SDL.",
+      "description": "Cuatro destinos estables; selección tonal y línea inferior salvia, foco de dos unidades. Ejemplo HTML de las coordenadas lógicas SDL.",
       "html": "<nav class=\"ds-nav\" aria-label=\"Tu sesión\"><button class=\"ds-tab ds-tab-selected\" aria-current=\"page\">Biblioteca</button><button class=\"ds-tab\">Buscar</button><button class=\"ds-tab\">Cola</button><button class=\"ds-tab\">Ajustes</button></nav>",
-      "css": ".ds-nav{display:flex;gap:4px;padding:2px;background:rgb(8.5% 10% 11%);width:380px;}.ds-tab{border:0;border-radius:0;background:rgb(8.5% 10% 11%);color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:16px;text-align:left;padding:0 7px;width:92px;height:36px;flex-shrink:0;}.ds-tab-selected{background:rgb(20% 29% 28%);}.ds-tab:focus-visible{outline:2px solid rgb(53% 75% 66%);outline-offset:0;}"
+      "css": ".ds-nav{display:flex;gap:4px;padding:2px;background:rgb(8.5% 10% 11%);width:380px;}.ds-tab{border:0;border-radius:0;background:rgb(8.5% 10% 11%);color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:16px;text-align:left;padding:0 7px;width:92px;height:36px;flex-shrink:0;}.ds-tab-selected{background:rgb(20% 29% 28%);border-bottom:2px solid rgb(53% 75% 66%);box-sizing:border-box;}.ds-tab:focus-visible{outline:2px solid rgb(53% 75% 66%);outline-offset:0;}"
     },
     {
       "name": "Volumen",

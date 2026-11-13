@@ -2,17 +2,17 @@
   "scope": "Real packaged launcher and SDL geometry in synthetic demo mode. No UI automation, visual sharpness or physical audio validation.",
   "platform": "macOS-26.6.2-arm64-arm-64bit",
   "launcher": "/Users/ton/Desktop/Karaoke/dist/Karaoke.app/Contents/MacOS/karaoke",
-  "launcher_sha256": "7e6d5e3a03566eb8bba5698439a9a6ad19b6a03e745da4e3b034626e523066e3",
+  "launcher_sha256": "d946c0f51a70bb13d4edd8dcd45a36359b08c682fb67f0d92c40e274b9ba9ca2",
   "engine_override": null,
   "engine_path": "/Users/ton/Desktop/Karaoke/dist/Karaoke.app/Contents/Resources/Engine.app/Contents/MacOS/ultrastardx",
-  "engine_sha256": "87ae9727153c1d3cc0547a2b46a424a085b966852daf17c0f8db658820a4167c",
+  "engine_sha256": "a40d2d4d3e80791daff3f2c4c4aaf9bdbde57e873d87e84e345ffda003e0a7d4",
   "path_environment": "/usr/bin:/bin",
   "require_hidpi": true,
   "same_display": true,
   "windows": [
     {
       "requested_size": "1280x800",
-      "data_directory": "/var/folders/7j/y5y2x815771b_g3j6_v0znk40000gn/T/karaoke-display-8opvbmak",
+      "data_directory": "/var/folders/7j/y5y2x815771b_g3j6_v0znk40000gn/T/karaoke-display-7u4n3knm",
       "geometry_observations": [
         {
           "width": 1280,
@@ -92,7 +92,7 @@
     },
     {
       "requested_size": "1920x1080",
-      "data_directory": "/var/folders/7j/y5y2x815771b_g3j6_v0znk40000gn/T/karaoke-display-jokzhomz",
+      "data_directory": "/var/folders/7j/y5y2x815771b_g3j6_v0znk40000gn/T/karaoke-display-ln4u3yv8",
       "geometry_observations": [
         {
           "width": 1512,
@@ -172,5 +172,5 @@
     }
   ],
   "passed": true,
-  "elapsed_seconds": 7.19
+  "elapsed_seconds": 7.21
 }
