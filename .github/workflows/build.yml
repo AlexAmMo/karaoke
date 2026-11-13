@@ -21,6 +21,11 @@ on:
         description: Expected package SHA256 for draft staging only
         required: false
         type: string
+      collect_windows_sources:
+        description: Collect Windows dependency sources (required before publishing a release)
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -221,6 +226,7 @@ jobs:
           path: build/windows-desktop-smoke
           if-no-files-found: warn
       - name: Collect Windows corresponding sources
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.collect_windows_sources }}
         if: always() && !cancelled() && steps.package.outcome == 'success'
         run: |
           uv run python scripts/package_sources.py
