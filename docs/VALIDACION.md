@@ -56,6 +56,12 @@ El runner carece de salida WASAPI y solo ofrece OpenGL 1.1 con su controlador b�
 
 La construcción de Mac Intel también está comprobada en CI, con mínimo declarado macOS 15 y fuentes reunidas. Su alcance de validación es compilación, firma y utilidades; la sesión gráfica en Intel queda pendiente. Evidencia: `docs/validation/packaging-macos-intel.json`.
 
+## Instalación pública en Windows
+
+El comando PowerShell publicado para v0.1.0 supera la [ejecución 43489268529](https://github.com/AlexAmMo/karaoke/actions/runs/43489268529), en Windows Server 2022 con PowerShell 7.6.9. Descarga sin token el script del tag público y el ZIP de la release; el instalador verifica SHA-256. El launcher instalado devuelve `Karaoke 0.1.0` y sale con código 0. Se comprueban el destino y el directorio del acceso directo de Inicio, y un archivo testigo previo en la carpeta de datos conserva su hash. [Evidencia de instalación](validation/installation-windows.json).
+
+Esta prueba verifica instalación, versión y conservación del archivo testigo. No inicia el motor, no añade Mesa y no prueba audio. Complementa el arranque del motor descrito arriba; no equivale a validar una sesión de canto en un PC físico. El workflow se corrigió en main para que la ruta temporal de GitHub se resolviera en el contexto del paso; el instalador del tag publicado permaneció sin cambios.
+
 ## Repertorio reproducible
 
 [REPERTORIO-VALIDACION.csv](REPERTORIO-VALIDACION.csv) contiene 40 candidatos únicos: 20 en inglés y 20 en español, incluyendo cuatro canciones de Eminem y rap en español. Es una selección de trabajo para la fase 1 del plan, no una medida de cobertura del catálogo. Todas las filas están `pendiente`; `mapa_id` y `resultado` permanecen vacíos porque todavía no se ha realizado la comprobación autenticada.
