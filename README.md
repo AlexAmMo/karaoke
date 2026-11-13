@@ -2,7 +2,7 @@
 
 Karaoke doméstico instalado en el ordenador: UltraStar Deluxe muestra letras, notas y puntuación; un lateral permite preparar biblioteca y próximos turnos sin abrir otra ventana.
 
-**Versión de desarrollo 0.1.0.** La app empaquetada se ha probado en macOS Apple Silicon. Las 55 pruebas Python pasan localmente; la revisión anterior, con 50 pruebas, también pasó en CI sobre Linux y Windows. La construcción nativa de Windows está automatizada. Las pruebas con señales sintéticas no sustituyen una sesión con uno o dos micrófonos por cable. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
+**Versión de desarrollo 0.1.0.** La app empaquetada se ha probado en macOS Apple Silicon. Las 55 pruebas Python pasan localmente y en CI sobre macOS, Linux y Windows. La construcción nativa de Windows está automatizada. Las pruebas con señales sintéticas no sustituyen una sesión con uno o dos micrófonos por cable. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
 
 ## Uso
 

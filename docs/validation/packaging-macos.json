@@ -1,11 +1,11 @@
 {
-  "recorded_at": "2026-11-13T17:35:30.941561+00:00",
+  "recorded_at": "2026-11-13T17:43:24.969188+00:00",
   "platform": "macOS-26.6.2-arm64-arm-64bit",
-  "application_commit": "d6319ae1e479bf1405d1e623231724e5d7bb40c8",
+  "application_commit": "c2d56d8533635e36a7bba0e880199b4ffab4a744",
   "archive": "Karaoke-0.1.0-macos-arm64.zip",
-  "archive_bytes": 191490047,
-  "archive_sha256": "da5dd1e1b59f1cad7e9fc575489c0b8b856a2bd04ae23357c8e45c52c91cdfd2",
-  "installed_logical_bytes": 411836524,
+  "archive_bytes": 191492753,
+  "archive_sha256": "82563139e8107bd70c41910c34226b1fbc3e8c7d813680eaa753862577f5afa7",
+  "installed_logical_bytes": 411837068,
   "native_executable_sha256": "a753bd6c65865b0d4e04b2e262387f63c4713970c7aee7aab04fb08d3cf574a0",
   "audit": {
     "mach_o_files": 189,

@@ -36,10 +36,24 @@ El revisor independiente de Impeccable resolvió cuatro defectos: Enter ya no ca
 
 ## Paquete autónomo de macOS
 
-La aplicación congelada completó de nuevo las 17/17 comprobaciones con `PATH=/usr/bin:/bin`, sin depender de Homebrew para ejecutar medios o el motor. Evidencia: `docs/evidence/session-frozen-macos.json` (33,14 segundos, 371 muestras). El controlador de pruebas se ejecuta con Python de desarrollo; la app, el motor y sus dependencias son los del paquete.
+La aplicación congelada de la revisión `c2d56d8` completó de nuevo las 17/17 comprobaciones con `PATH=/usr/bin:/bin`, sin depender de Homebrew para ejecutar medios o el motor. La [evidencia del paquete](evidence/session-frozen-macos.json) registra 35,05 segundos, 363 muestras, los ejecutables utilizados y sus hashes. El controlador de pruebas se ejecuta con Python de desarrollo; la app, el motor y sus dependencias son los del paquete. Estas 17 comprobaciones integrales complementan las 55 pruebas del backend; siguen usando entrada sintética y no sustituyen la validación de micrófonos ni del catálogo autenticado.
 
-La revisión `5022719` pasa las 50 pruebas Python en GitHub Actions sobre Ubuntu y Windows Server 2022; también pasan localmente en macOS. Este resultado no equivale a probar el audio físico ni el renderizado Windows.
+La revisión `c2d56d8` pasa las 55 pruebas Python en GitHub Actions sobre macOS, Ubuntu y Windows Server 2022 ([ejecución 43475448571](https://github.com/AlexAmMo/karaoke/actions/runs/43475448571)); también pasan localmente en macOS. Este resultado no equivale a probar el audio físico ni el renderizado Windows.
 
 ## Instalación en el Mac de desarrollo
 
 Copiada a `~/Applications/Karaoke.app` y abierta mediante el mecanismo normal de lanzamiento de aplicaciones. Biblioteca inicial vacía, modo sintético desactivado. El selector nativo de carpetas abre y permite cancelar sin importar contenido. La app queda abierta para el usuario. Esta prueba no es una instalación en un Mac limpio y no verifica la política de cuarentena de una descarga nueva de navegador.
+
+## Repertorio reproducible
+
+[REPERTORIO-VALIDACION.csv](REPERTORIO-VALIDACION.csv) contiene 40 candidatos únicos: 20 en inglés y 20 en español, incluyendo cuatro canciones de Eminem y rap en español. Es una selección de trabajo para la fase 1 del plan, no una medida de cobertura del catálogo. Todas las filas están `pendiente`; `mapa_id` y `resultado` permanecen vacíos porque todavía no se ha realizado la comprobación autenticada.
+
+Cuando se disponga de acceso a USDB, se seguirá el mismo recorrido para cada fila:
+
+1. Buscar artista y título; registrar en `mapa_id` el identificador y la URL de la ficha elegida. Identificar la edición o grabación concreta antes de preparar sus medios.
+2. Preparar la canción con voz original y comprobar la descarga automática, los recursos, las letras y el mapa. Revisar inicio, centro y final; un audio con el mismo título no acredita compatibilidad.
+3. Cantar el mapa y comprobar notas, sincronización y puntuación. Para rap, anotar las partes que el mapa marca como libres y las que evalúa el motor.
+4. Buscar una instrumental existente; registrar si es compatible, ambigua, incompatible o no localizada. Su ausencia no convierte en fallida una canción que funciona con voz original.
+5. Anotar en `resultado` fecha, edición/enlace del medio, presencia de voz original, resultado de la preparación automática, revisión de instrumental, incidencias y referencia a la evidencia. Marcar `validado` solo después de una sesión real; usar `bloqueado` para problemas de acceso o recursos y `sin_mapa_en_USDB` únicamente tras una búsqueda completada sin coincidencias.
+
+Los errores de autenticación o de conexión no cuentan como ausencia de mapas. Los resultados se resumirán por separado para cada idioma: canciones comprobadas sobre 20 y canciones listas sobre 20, acompañadas de los fallos observados. No se extrapolarán estos resultados a todas las canciones del catálogo.
