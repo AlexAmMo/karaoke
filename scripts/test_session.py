@@ -41,6 +41,20 @@ def read_json(path: Path):
         return {}
 
 
+def resolve_engine(launcher: Path | None, environment: dict) -> Path:
+    """Locate the executable used by the tested process, including frozen apps."""
+    if environment.get("KARAOKE_ENGINE"):
+        return Path(environment["KARAOKE_ENGINE"]).resolve()
+    if launcher:
+        executable = launcher.resolve()
+        if sys.platform == "darwin":
+            return executable.parent.parent / "Resources/Engine.app/Contents/MacOS/ultrastardx"
+        return executable.parent / "engine/ultrastardx.exe"
+    from karaoke.app import engine_path
+
+    return engine_path()
+
+
 class Session:
     def __init__(self, data: Path, launcher: list[str], environment: dict):
         self.data = data
@@ -368,13 +382,12 @@ def main():
             result["passed"] = False
         result["elapsed_seconds"] = round(time.monotonic() - started, 2)
         result["samples"] = session.samples
-        engine = args.engine
-        if not engine:
-            from karaoke.app import engine_path
-
-            engine = engine_path()
+        engine = resolve_engine(args.launcher, environment)
+        result["engine_path"] = str(engine)
         if engine.is_file():
             result["engine_sha256"] = hashlib.sha256(engine.read_bytes()).hexdigest()
+        if args.launcher and args.launcher.is_file():
+            result["launcher_sha256"] = hashlib.sha256(args.launcher.read_bytes()).hexdigest()
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
         print("EVIDENCE " + str(args.output.resolve()), flush=True)

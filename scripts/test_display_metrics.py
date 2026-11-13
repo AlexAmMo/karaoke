@@ -18,7 +18,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from test_session import Session
+from test_session import Session, resolve_engine
 
 
 def main():
@@ -38,12 +38,15 @@ def main():
     environment.pop("KARAOKE_ENGINE", None)
     if args.engine:
         environment["KARAOKE_ENGINE"] = str(args.engine.resolve())
+    engine = resolve_engine(launcher, environment)
     report = {
         "scope": "Real packaged launcher and SDL geometry in synthetic demo mode. No UI automation, visual sharpness or physical audio validation.",
         "platform": platform.platform(),
         "launcher": str(launcher),
         "launcher_sha256": hashlib.sha256(launcher.read_bytes()).hexdigest(),
         "engine_override": environment.get("KARAOKE_ENGINE"),
+        "engine_path": str(engine),
+        "engine_sha256": hashlib.sha256(engine.read_bytes()).hexdigest(),
         "path_environment": environment.get("PATH"),
         "require_hidpi": args.require_hidpi,
         "same_display": args.same_display,

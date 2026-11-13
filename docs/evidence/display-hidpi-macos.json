@@ -1,0 +1,176 @@
+{
+  "scope": "Real packaged launcher and SDL geometry in synthetic demo mode. No UI automation, visual sharpness or physical audio validation.",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "launcher": "/Users/ton/Desktop/Karaoke/dist/Karaoke.app/Contents/MacOS/karaoke",
+  "launcher_sha256": "7e6d5e3a03566eb8bba5698439a9a6ad19b6a03e745da4e3b034626e523066e3",
+  "engine_override": null,
+  "engine_path": "/Users/ton/Desktop/Karaoke/dist/Karaoke.app/Contents/Resources/Engine.app/Contents/MacOS/ultrastardx",
+  "engine_sha256": "87ae9727153c1d3cc0547a2b46a424a085b966852daf17c0f8db658820a4167c",
+  "path_environment": "/usr/bin:/bin",
+  "require_hidpi": true,
+  "same_display": true,
+  "windows": [
+    {
+      "requested_size": "1280x800",
+      "data_directory": "/var/folders/7j/y5y2x815771b_g3j6_v0znk40000gn/T/karaoke-display-8opvbmak",
+      "geometry_observations": [
+        {
+          "width": 1280,
+          "height": 800,
+          "drawable_width": 2560,
+          "drawable_height": 1600,
+          "pixel_scale_x": 2.0,
+          "pixel_scale_y": 2.0
+        },
+        {
+          "width": 1280,
+          "height": 800,
+          "drawable_width": 2560,
+          "drawable_height": 1600,
+          "pixel_scale_x": 2.0,
+          "pixel_scale_y": 2.0
+        },
+        {
+          "width": 1280,
+          "height": 800,
+          "drawable_width": 2560,
+          "drawable_height": 1600,
+          "pixel_scale_x": 2.0,
+          "pixel_scale_y": 2.0
+        }
+      ],
+      "engine_state": {
+        "state": "idle",
+        "mouse_x": 0,
+        "mouse_y": 0,
+        "mouse_clicks": 0,
+        "width": 1280,
+        "height": 800,
+        "last_action": "",
+        "drawable_width": 2560,
+        "drawable_height": 1600,
+        "pixel_scale_x": 2.0,
+        "pixel_scale_y": 2.0,
+        "focus_action": "",
+        "edit_selected": false,
+        "testing": false,
+        "synthetic": true,
+        "token": "",
+        "error": "",
+        "title": "",
+        "position": 0.0,
+        "scores": [
+          0
+        ],
+        "levels": [
+          0.0,
+          0.0
+        ],
+        "tones": [
+          0,
+          0
+        ],
+        "monitor_peaks": [
+          0,
+          0
+        ],
+        "devices": []
+      },
+      "requested_size_honored": true,
+      "checks": {
+        "finite_positive_geometry_x": true,
+        "drawable_matches_logical_times_scale_x": true,
+        "physical_pixels_exceed_logical_units_x": true,
+        "same_display_density_x": true,
+        "finite_positive_geometry_y": true,
+        "drawable_matches_logical_times_scale_y": true,
+        "physical_pixels_exceed_logical_units_y": true,
+        "same_display_density_y": true,
+        "synthetic_mode": true
+      },
+      "close_exit_code": 0
+    },
+    {
+      "requested_size": "1920x1080",
+      "data_directory": "/var/folders/7j/y5y2x815771b_g3j6_v0znk40000gn/T/karaoke-display-jokzhomz",
+      "geometry_observations": [
+        {
+          "width": 1512,
+          "height": 831,
+          "drawable_width": 3024,
+          "drawable_height": 1662,
+          "pixel_scale_x": 2.0,
+          "pixel_scale_y": 2.0
+        },
+        {
+          "width": 1512,
+          "height": 831,
+          "drawable_width": 3024,
+          "drawable_height": 1662,
+          "pixel_scale_x": 2.0,
+          "pixel_scale_y": 2.0
+        },
+        {
+          "width": 1512,
+          "height": 831,
+          "drawable_width": 3024,
+          "drawable_height": 1662,
+          "pixel_scale_x": 2.0,
+          "pixel_scale_y": 2.0
+        }
+      ],
+      "engine_state": {
+        "state": "idle",
+        "mouse_x": 0,
+        "mouse_y": 0,
+        "mouse_clicks": 0,
+        "width": 1512,
+        "height": 831,
+        "last_action": "",
+        "drawable_width": 3024,
+        "drawable_height": 1662,
+        "pixel_scale_x": 2.0,
+        "pixel_scale_y": 2.0,
+        "focus_action": "",
+        "edit_selected": false,
+        "testing": false,
+        "synthetic": true,
+        "token": "",
+        "error": "",
+        "title": "",
+        "position": 0.0,
+        "scores": [
+          0
+        ],
+        "levels": [
+          0.0,
+          0.0
+        ],
+        "tones": [
+          0,
+          0
+        ],
+        "monitor_peaks": [
+          0,
+          0
+        ],
+        "devices": []
+      },
+      "requested_size_honored": false,
+      "checks": {
+        "finite_positive_geometry_x": true,
+        "drawable_matches_logical_times_scale_x": true,
+        "physical_pixels_exceed_logical_units_x": true,
+        "same_display_density_x": true,
+        "finite_positive_geometry_y": true,
+        "drawable_matches_logical_times_scale_y": true,
+        "physical_pixels_exceed_logical_units_y": true,
+        "same_display_density_y": true,
+        "synthetic_mode": true
+      },
+      "close_exit_code": 0
+    }
+  ],
+  "passed": true,
+  "elapsed_seconds": 7.19
+}
