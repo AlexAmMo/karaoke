@@ -1,6 +1,6 @@
 # Plan del karaoke casero con puntuación
 
-**Estado: alcance de V1 cerrado para iniciar implementación y validaciones técnicas. Versión del plan: 1.0. Fecha: 13 de noviembre de 2026.**
+**Estado: alcance de V1 cerrado; implementación y distribución en validación. Versión del plan: 1.1. Fecha: 13 de noviembre de 2026.**
 
 Este documento es la referencia vigente del producto. Consolida las decisiones expresas del usuario y fija criterios de cierre para los detalles que seguían como propuestas. Las comprobaciones técnicas y los datos de publicación pendientes se enumeran al final; no son funciones opcionales ni pruebas ya superadas. La implementación de la V1 está en curso; el estado comprobado y los pendientes se registran en README.md y docs/VALIDACION.md.
 
@@ -10,13 +10,13 @@ Queremos una experiencia de karaoke casero parecida a SingStar: cantar con letra
 
 La solución reunirá herramientas abiertas bajo una experiencia de uso común. **La generación de notas mediante IA queda fuera del alcance actual.** Se utilizarán mapas de notas existentes. **El despliegue elegido para la V1 es una aplicación completa instalada en el ordenador, con repositorio público en GitHub y objetivo de instalación mediante un solo comando.** El motor, la preparación de canciones y la biblioteca funcionarán localmente; **macOS y Windows están incluidos desde la V1**; quedan por concretar las versiones mínimas, las arquitecturas soportadas y el mecanismo de distribución de cada sistema.
 
-Este documento sustituye como definición de alcance a [PROPUESTA-KARAOKE-INTEGRADO.md](/Users/ton/Desktop/Karaoke/PROPUESTA-KARAOKE-INTEGRADO.md), que contemplaba una posible etapa de generación con IA. Las investigaciones anteriores se conservan como antecedentes.
+Este documento sustituye a la propuesta inicial, que contemplaba una posible etapa de generación con IA. Las investigaciones anteriores se conservan como antecedentes locales; no son necesarias para construir la aplicación desde este repositorio.
 
 ## Estado de la validación técnica
 
-Primera prueba realizada el 13 de noviembre de 2026. **Viabilidad parcial demostrada en macOS Apple Silicon con señales sintéticas:** Deluxe compila, muestra canto y lateral dentro de una ventana, incorpora canciones entre interpretaciones sin reiniciar y permite silenciar la rama de retorno sin detener la puntuación. Nueve comprobaciones automatizadas correctas, más inspección visual y escritura en el lateral durante el canto.
+La aplicación integrada y empaquetada supera 17 comprobaciones de sesión en macOS Apple Silicon con señales sintéticas: ventana única, canto y gestión simultáneos, incorporación de canciones entre interpretaciones, puntuaciones independientes, retorno separado, persistencia y recuperación. También se ha comprobado el selector nativo de carpetas y el arranque normal desde la aplicación instalada. El servicio tiene pruebas automatizadas en macOS, Windows y Linux. La evidencia exacta se mantiene en [Validación de la implementación](docs/VALIDACION.md).
 
-**La fase de validación no se da por terminada.** El usuario todavía no dispone del micrófono por cable; faltan captura física, latencia de retorno, dos micrófonos, Windows, descargas reales bajo carga y arranque/instalación en un equipo limpio. El prototipo no es la interfaz final ni una implementación del catálogo. La instrucción posterior del usuario autoriza implementar la V1 completa mientras se mantienen pendientes las comprobaciones que requieren hardware o cuentas externas. Esa autorización no convierte esas pruebas en superadas. Detalles, evidencia y límites en [Informe de pruebas técnicas](/Users/ton/Desktop/Karaoke/INFORME-PRUEBAS-TECNICAS.md).
+**La fase de validación no se da por terminada.** El usuario todavía no dispone del micrófono por cable; faltan captura física, latencia de retorno, dos micrófonos, ejecución nativa en Windows, descargas autenticadas reales bajo carga y arranque/instalación en un equipo limpio. La instrucción posterior del usuario autoriza implementar la V1 completa mientras se mantienen pendientes las comprobaciones que requieren hardware o cuentas externas. Esa autorización no convierte esas pruebas en superadas.
 
 ## Alcance y criterios de cierre
 
@@ -45,7 +45,7 @@ Primera prueba realizada el 13 de noviembre de 2026. **Viabilidad parcial demost
 - Una instrumental ambigua requiere preescucha y validación explícita del anfitrión; la confirmación no sustituye las comprobaciones técnicas del paquete ni certifica automáticamente su calidad musical.
 - La interfaz inicial estará en español; los títulos y letras conservarán su idioma original. Inglés y español son prioritarios para repertorio, no una obligación de traducir toda la interfaz a ambos idiomas en V1.
 
-**Comprobaciones de implementación:** versión mínima y arquitectura soportadas, motor y composición de la ventana, recorrido de audio, compatibilidad de variantes y empaquetado. **Datos necesarios para publicar:** propietario y nombre del repositorio. Estos puntos tienen responsables y momentos de resolución al final del documento; no reabren las decisiones de producto anteriores.
+**Comprobaciones de implementación:** versión mínima y arquitectura soportadas, motor y composición de la ventana, recorrido de audio, compatibilidad de variantes y empaquetado. **Destino de publicación confirmado:** [AlexAmMo/karaoke](https://github.com/AlexAmMo/karaoke), aplicación «Karaoke». Los pendientes técnicos tienen responsables y momentos de resolución al final del documento; no reabren las decisiones de producto anteriores.
 
 ## La experiencia completa
 
@@ -349,7 +349,7 @@ El objetivo es ejecutar **un solo comando documentado para cada sistema: macOS y
 
 La instalación incorporará o resolverá automáticamente las dependencias necesarias, identificará la arquitectura del equipo y comprobará que se han instalado los componentes de la misma versión. El mecanismo podrá ser un gestor de paquetes o un instalador automatizado, según la plataforma. Si depende de una herramienta previa, ese requisito se hará explícito y se ofrecerá un instalador directo como alternativa.
 
-El comando real se publicará cuando exista un paquete probado: todavía no hay un nombre de paquete ni un comando utilizable. Un comando de instalación no elimina los permisos normales del sistema, como autorizar el micrófono al abrir la aplicación por primera vez. La firma del paquete y esos avisos se validarán por separado en macOS y Windows.
+Los scripts de instalación por usuario y sus comandos están documentados en [Construcción y distribución](docs/PACKAGING.md). Descargan paquetes de GitHub Releases y verifican su SHA-256; solo funcionan para versiones cuyos archivos estén publicados. Un comando de instalación no elimina los permisos normales del sistema, como autorizar el micrófono al abrir la aplicación por primera vez. La firma del paquete y esos avisos se validarán por separado en macOS y Windows.
 
 ### Cobertura de macOS y Windows desde la V1
 
@@ -375,7 +375,7 @@ El repositorio público de GitHub contendrá el código propio, los cambios o re
 
 La biblioteca del usuario, las credenciales de las fuentes y los archivos temporales de descarga permanecen fuera del repositorio. Se conservarán las licencias y atribuciones de los componentes distribuidos. La publicación del código no significa incluir canciones comerciales en las releases.
 
-La creación del repositorio y la primera release forman parte de la entrega; su propietario y nombre están pendientes. Este documento no declara que ya exista un repositorio remoto ni un instalador funcional.
+El repositorio público [AlexAmMo/karaoke](https://github.com/AlexAmMo/karaoke) está creado y contiene la implementación. La primera release forma parte de la entrega; su disponibilidad y plataformas se comprueban en la sección Releases. Una compilación de desarrollo no implica que se hayan superado todas las validaciones de una V1 estable.
 
 ### Actualización y conservación de datos
 
@@ -383,7 +383,7 @@ Las actualizaciones de la aplicación y de sus descargadores deben conservar bib
 
 Desinstalar la aplicación y borrar la biblioteca serán operaciones separadas. Se documentará cómo conservar o retirar los datos. No se requiere contratar alojamiento para ejecutar el servicio: el trabajo ocurre en el PC, y GitHub sirve como repositorio y canal de distribución.
 
-La referencia preliminar de tamaño es de **500 MB a 1,5 GB instalados sin canciones**, pendiente de medir con el paquete real. La biblioteca se presupuestará aparte según número de canciones, duración y calidad de vídeo. No es un límite garantizado ni una condición para elegir una tecnología antes de probarla.
+El paquete local de macOS Apple Silicon mide aproximadamente **192 MB descargados y 412 MB instalados, sin canciones**; sus bibliotecas requieren macOS 26. El inventario exacto está en [la evidencia de empaquetado](docs/validation/packaging-macos.json). Estas cifras no se extrapolan a Windows ni Mac Intel. La biblioteca se presupuestará aparte según número de canciones, duración y calidad de vídeo.
 
 ## Condiciones de calidad
 
@@ -539,8 +539,8 @@ La V1 solo se considerará completa al cumplir los criterios de aceptación en m
 | Tecnologías de interfaz, comunicación y persistencia | Implementación, tras la prueba de integración. | Elección documentada compatible con ventana única, separación de audio y trabajos de descarga, y recuperación de biblioteca y cola. |
 | Comando, instaladores y actualización | Implementación, prueba temprana en fases 2–3 y cierre en fase 6. | Instalación sin herramientas de desarrollo, dependencias resueltas, arranque por icono y actualización que conserve datos en ambos sistemas. |
 | Licencias, firma y publicación | Implementación, antes de distribuir. | Licencias compatibles con la forma de integración y distribución, avisos incluidos y procedimiento de firma/publicación con sus requisitos y costes reales. |
-| Propietario y nombre del repositorio | Dato del usuario necesario antes de crear el remoto. | Destino concreto en GitHub; mientras tanto, el desarrollo y los paquetes de prueba pueden ser locales. |
-| Tamaño y límites operativos | Implementación, a partir de mediciones. | Tamaño real, espacio necesario, tamaño mínimo de ventana y límites de preparación concurrente probados. La estimación de 500 MB–1,5 GB no es un resultado medido. |
+| Propietario y nombre del repositorio | Resuelto por el usuario. | Repositorio público AlexAmMo/karaoke; nombre de aplicación Karaoke. |
+| Tamaño y límites operativos | Implementación, a partir de mediciones. | macOS arm64: aproximadamente 192 MB de descarga y 412 MB instalado; ventana revisada desde 1000×640. Faltan las mediciones de las demás plataformas y la sesión física bajo carga. |
 
 ### Orden de ejecución
 

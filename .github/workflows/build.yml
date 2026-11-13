@@ -128,9 +128,9 @@ jobs:
         run: uv run python scripts/prepare_engine.py
       - name: Install Free Pascal
         id: fpc
-        timeout-minutes: 8
+        timeout-minutes: 16
         run: |
-          curl.exe --fail -L --max-time 120 -o fpc-installer.exe "https://sourceforge.net/projects/freepascal/files/Win32/3.2.2/fpc-3.2.2.win32.and.win64.exe/download"
+          curl.exe --fail -L --connect-timeout 30 --max-time 600 -o fpc-installer.exe "https://sourceforge.net/projects/freepascal/files/Win32/3.2.2/fpc-3.2.2.win32.and.win64.exe/download"
           if ($LASTEXITCODE -ne 0) { throw 'FPC installer download failed' }
           $Process = Start-Process -FilePath '.\fpc-installer.exe' -ArgumentList '/TYPE=full /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART /LOG=fpc-install.log' -PassThru
           if (-not $Process.WaitForExit(300000)) { Stop-Process -Id $Process.Id -Force; throw 'FPC installer exceeded five minutes; inspect fpc-install.log' }

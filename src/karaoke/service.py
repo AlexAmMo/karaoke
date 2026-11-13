@@ -73,6 +73,8 @@ class Service:
         self.preview = None
         self.confirm_delete = None
         self.candidate_audio = None
+        self.candidate_generation = 0
+        self.pending_result = None
         self.last_view = None
         self.pending_start = None
         self.sent_audio = None
@@ -164,6 +166,7 @@ class Service:
         self.query = query.strip()
         self.page = "Buscar"
         self.results = []
+        self.pending_result = None
         self.search_generation += 1
         generation = self.search_generation
         query_snapshot = self.query
@@ -283,9 +286,14 @@ class Service:
         song = dict(self.results[index])
         if song.get("requested_video"):
             # Require a deliberate selection, never replace the source media with pasted video.
-            self.fields["selected_result"] = str(index)
+            # Capture the actual song and intent. A later search can replace the
+            # result array while this confirmation is still on screen.
+            self.pending_result = {"song": song, "queue": bool(queue)}
             self.page = "Confirmar versión"
             return
+        self._request_song(song, queue)
+
+    def _request_song(self, song, queue):
         self.store.request(
             "usdb:" + str(song["song_id"]),
             {
@@ -318,6 +326,8 @@ class Service:
         self.page = "Instrumental"
         self.candidates = []
         self.candidate_audio = None
+        self.candidate_generation += 1
+        generation = self.candidate_generation
         self.message = "Buscando pistas instrumentales existentes…"
 
         def work():
@@ -341,8 +351,14 @@ class Service:
             ]
 
         self.submit(
-            work, lambda items: self.set_candidates(items) if self.detail == song["id"] else None
+            work,
+            lambda items: (
+                self.set_candidates(items)
+                if self.detail == song["id"] and generation == self.candidate_generation
+                else None
+            ),
         )
+        self.futures[-1][0].candidate_generation = generation
 
     def set_candidates(self, items):
         self.candidates = items
@@ -356,6 +372,11 @@ class Service:
         self.stop_preview()
         candidate = self.candidates[index]
         song = self.song(self.detail)
+        # Once another candidate is chosen, the previous pre-listen/confirmation
+        # is no longer valid, even when both belong to the same song.
+        self.candidate_audio = None
+        self.candidate_generation += 1
+        generation = self.candidate_generation
         self.message = "Preparando preescucha; no sustituye la voz original…"
 
         def work():
@@ -390,12 +411,13 @@ class Service:
             return {"path": str(audio), "source": candidate["url"], "song": song["id"]}
 
         def done(value):
-            if self.detail != value["song"]:
+            if self.detail != value["song"] or generation != self.candidate_generation:
                 return
             self.candidate_audio = value
             self.message = "Preescucha principio, centro y final. Confirma solo si notas, estructura y tono coinciden."
 
         self.submit(work, done)
+        self.futures[-1][0].candidate_generation = generation
 
     def space_guard(self, _):
         if self.closing or shutil.disk_usage(self.root).free < 256 * 1024**2:
@@ -476,6 +498,7 @@ class Service:
                 self.search(value)
             return
         if action.startswith("page:"):
+            self.pending_result = None
             self.page = action[5:]
             return
         if action == "search":
@@ -580,16 +603,19 @@ class Service:
             self.request_result(int(index), op == "queue")
             return
         if action == "confirm-version":
-            index = int(self.fields["selected_result"])
-            self.results[index]["requested_video"] = None
-            self.request_result(index, True)
-            self.page = "Cola"
+            if not self.pending_result:
+                raise SongError("Vuelve a seleccionar la versión que quieres preparar.")
+            selection = self.pending_result
+            self.pending_result = None
+            self._request_song(selection["song"], selection["queue"])
+            self.page = "Cola" if selection["queue"] else "Biblioteca"
             return
         if action.startswith("song:"):
             self.detail = action[5:]
             self.page = "Canción"
             self.confirm_delete = None
             self.candidate_audio = None
+            self.candidate_generation += 1
             return
         if action == "enqueue":
             self.store.request(self.detail, {}, self.names())
@@ -697,6 +723,11 @@ class Service:
                 if (
                     getattr(future, "search_generation", self.search_generation)
                     != self.search_generation
+                ):
+                    continue
+                if (
+                    getattr(future, "candidate_generation", self.candidate_generation)
+                    != self.candidate_generation
                 ):
                     continue
                 try:
@@ -864,11 +895,20 @@ class Service:
                 "Comprueba la grabación",
                 "El enlace pegado no demuestra compatibilidad con este mapa.",
             )
+            selection = self.pending_result
+            if selection:
+                text(selection["song"]["title"], selection["song"].get("artist", ""))
             text(
                 "Se usará el audio asociado por USDB",
                 "No se sustituirá automáticamente por el vídeo pegado.",
             )
-            button("Elegir esta versión de USDB", "confirm-version")
+            if selection:
+                button(
+                    "Añadir esta versión a la cola"
+                    if selection["queue"]
+                    else "Guardar esta versión",
+                    "confirm-version",
+                )
             button("Volver a los resultados", "page:Buscar")
         elif self.page == "Cola":
             turns = self.store.queue()

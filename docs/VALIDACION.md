@@ -6,7 +6,7 @@ Estado inicial del 13 de noviembre de 2026. Este documento distingue código imp
 
 - Compilación de Deluxe modificado en macOS Apple Silicon y verificación de firma ad hoc.
 - Biblioteca/cola SQLite, alias de fuentes, deduplicación, staging, validación de recursos, recuperación de trabajos y turnos.
-- 50 pruebas automatizadas del backend correctas. Incluyen procesamiento real TXT/SQLite/FFmpeg/Syncer con fronteras remotas sustituidas por datos de prueba. No simulan el resultado de todos los componentes.
+- 55 pruebas automatizadas del backend correctas. Incluyen procesamiento real TXT/SQLite/FFmpeg/Syncer con fronteras remotas sustituidas por datos de prueba. No simulan el resultado de todos los componentes. Las cinco regresiones más recientes comprueban guardar una versión elegida desde un enlace sin crear turno y descartar resultados tardíos al cambiar de instrumental.
 - Error de autenticación USDB explícito desde el proceso real del adaptador, sin credenciales; no se confunde con catálogo vacío.
 - Navegación de biblioteca, selección, añadir turno e inicio desde teclado en la app real.
 - Canto con dos señales sintéticas: resultado 10.000 frente a 0. Escribir espacios y pegar `canción española` en el campo enfocado conserva el canto y los acentos.

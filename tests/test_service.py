@@ -168,3 +168,90 @@ def test_ending_performance_requires_explicit_confirmation(service):
         json.loads(p.read_text(encoding="utf-8")) for p in (service.ipc / "commands").glob("*.json")
     ]
     assert commands == [{"op": "end"}]
+
+
+@pytest.mark.parametrize("reserve_turn", [False, True])
+def test_youtube_version_confirmation_preserves_song_and_save_intent(service, reserve_turn):
+    selected = {
+        "song_id": 41,
+        "title": "Chosen version",
+        "artist": "Fixture",
+        "requested_video": "abcdefghijk",
+        "match": "Por comprobar",
+    }
+    service.results = [selected]
+    service.request_result(0, reserve_turn)
+    assert service.page == "Confirmar versión"
+    rows = service.view()["rows"]
+    assert any(row["label"] == "Chosen version" and row["sub"] == "Fixture" for row in rows)
+    confirmation = next(row for row in rows if row.get("action") == "confirm-version")
+    assert confirmation["label"] == (
+        "Añadir esta versión a la cola" if reserve_turn else "Guardar esta versión"
+    )
+    assert service.store.queue() == []
+    # A search result refresh must not change which version the host confirms.
+    service.results = [{"song_id": 99, "title": "Different version", "artist": "Fixture"}]
+    service.handle({"action": "confirm-version"})
+    jobs = service.store.rows("SELECT * FROM jobs")
+    assert len(jobs) == 1
+    assert jobs[0]["source"] == "usdb:41"
+    assert json.loads(jobs[0]["payload"])["song"]["title"] == "Chosen version"
+    assert len(service.store.queue()) == int(reserve_turn)
+    assert service.page == ("Cola" if reserve_turn else "Biblioteca")
+    assert selected["requested_video"] == "abcdefghijk"
+
+
+def test_leaving_version_confirmation_invalidates_pending_action(service):
+    service.results = [{"song_id": 41, "title": "Fixture", "requested_video": "abcdefghijk"}]
+    service.request_result(0, False)
+    service.handle({"action": "page:Buscar"})
+    with pytest.raises(SongError, match="seleccionar"):
+        service.handle({"action": "confirm-version"})
+    assert service.store.rows("SELECT * FROM jobs") == []
+
+
+@pytest.mark.parametrize("late_failure", [False, True])
+def test_instrumental_selection_discards_previous_audio_and_out_of_order_completion(
+    service, package, monkeypatch, late_failure
+):
+    from concurrent.futures import Future
+    from karaoke.songs import import_package
+
+    original = import_package(package, service.library)
+    service.store.save_song(original)
+    service.detail = original["id"]
+    service.candidates = [{"url": "test:candidate-a"}, {"url": "test:candidate-b"}]
+    service.candidate_audio = {
+        "path": "old.mp3",
+        "source": "test:old",
+        "song": original["id"],
+        "listened": True,
+    }
+    pending = []
+
+    def deferred(_work):
+        future = Future()
+        pending.append(future)
+        return future
+
+    monkeypatch.setattr(service.pool, "submit", deferred)
+    service.candidate(0)
+    assert service.candidate_audio is None
+    with pytest.raises(SongError, match="Preescucha"):
+        service.confirm_instrumental()
+    service.candidate(1)
+    selected_audio = {"path": "b.mp3", "source": "test:candidate-b", "song": original["id"]}
+    pending[1].set_result(selected_audio)
+    service.tick()
+    assert service.candidate_audio == selected_audio
+    message = service.message
+    if late_failure:
+        pending[0].set_exception(SongError("Stale download failure"))
+    else:
+        pending[0].set_result(
+            {"path": "a.mp3", "source": "test:candidate-a", "song": original["id"]}
+        )
+    service.tick()
+    assert service.candidate_audio == selected_audio
+    assert service.message == message
+    assert not service.candidate_audio.get("listened")

@@ -2,7 +2,7 @@
 
 Karaoke doméstico instalado en el ordenador: UltraStar Deluxe muestra letras, notas y puntuación; un lateral permite preparar biblioteca y próximos turnos sin abrir otra ventana.
 
-**Versión de desarrollo 0.1.0.** La app empaquetada se ha probado en macOS Apple Silicon; las 50 pruebas Python pasan en Linux, macOS y Windows. La construcción nativa de Windows está automatizada. Las pruebas con señales sintéticas no sustituyen una sesión con uno o dos micrófonos por cable. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
+**Versión de desarrollo 0.1.0.** La app empaquetada se ha probado en macOS Apple Silicon. Las 55 pruebas Python pasan localmente; la revisión anterior, con 50 pruebas, también pasó en CI sobre Linux y Windows. La construcción nativa de Windows está automatizada. Las pruebas con señales sintéticas no sustituyen una sesión con uno o dos micrófonos por cable. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
 
 ## Uso
 
@@ -18,7 +18,7 @@ La voz original del paquete se conserva. **Buscar instrumental existente** obtie
 
 ## Desarrollo y ejecución local
 
-Requiere Python 3.12+, [uv](https://docs.astral.sh/uv/), FFmpeg con `ffprobe` y `ffplay`, y las dependencias de compilación de Deluxe. Para macOS con Homebrew:
+Requiere Python 3.12–3.14, [uv](https://docs.astral.sh/uv/), FFmpeg con `ffprobe` y `ffplay`, y las dependencias de compilación de Deluxe. Para macOS con Homebrew:
 
 ```sh
 brew install fpc automake autoconf pkg-config sdl2 sdl2_image portaudio ffmpeg freetype lua@5.4 sqlite

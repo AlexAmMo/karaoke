@@ -9,7 +9,6 @@ Los scripts de esta carpeta preparan **compilaciones de desarrollo**. Una compil
 ```sh
 uv sync --locked
 bash scripts/build_macos.sh
-uv run python scripts/package_macos.py
 uv run python scripts/package_sources.py
 uv run python scripts/collect_sources.py
 ```
@@ -51,6 +50,8 @@ irm https://raw.githubusercontent.com/AlexAmMo/karaoke/main/scripts/install.ps1 
 ```
 
 Estos comandos solo son utilizables después de publicar los archivos requeridos. Para una prerelease o versión concreta, establecer `KARAOKE_VERSION=v0.1.0` antes de ejecutar el instalador. El valor predeterminado consulta la última versión **estable**.
+
+La sintaxis para elegir esa versión es `export KARAOKE_VERSION=v0.1.0` en macOS y `$env:KARAOKE_VERSION='v0.1.0'` en PowerShell. Ejecutar después el comando de instalación correspondiente.
 
 La instalación es por usuario, sin permisos de administrador: `~/Applications/Karaoke.app` en macOS y `%LOCALAPPDATA%\Programs\Karaoke` en Windows. La actualización conserva la biblioteca y los ajustes, verifica SHA-256 y guarda temporalmente la versión anterior para restaurarla si falla el reemplazo. Los hashes detectan corrupción; su autenticidad depende del canal GitHub que sirve también el paquete.
 
