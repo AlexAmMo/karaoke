@@ -12,9 +12,13 @@ on:
         required: true
         default: all
         type: choice
-        options: [all, windows, macos, tests, diagnose-windows]
+        options: [all, windows, macos, tests, diagnose-windows, stage-windows-release]
       artifact_run_id:
-        description: Source run for diagnose-windows only
+        description: Source run for Windows diagnostics or draft staging
+        required: false
+        type: string
+      expected_zip_sha:
+        description: Expected package SHA256 for draft staging only
         required: false
         type: string
 
@@ -272,4 +276,47 @@ jobs:
         with:
           name: windows-desktop-diagnostic
           path: build/windows-desktop-smoke
+          if-no-files-found: warn
+
+  stage-windows-release:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'stage-windows-release' }}
+    name: Verify and stage Windows draft assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN: ${{ inputs.artifact_run_id }}
+      EXPECTED_ZIP_SHA: ${{ inputs.expected_zip_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate exact artifact reference
+        run: |
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] || exit 1
+          [[ "$EXPECTED_ZIP_SHA" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
+          test "$(gh release view v0.1.0 --repo AlexAmMo/karaoke --json isDraft --jq .isDraft)" = true
+      - uses: actions/download-artifact@v4
+        with:
+          name: karaoke-windows-x86_64
+          path: build/release-recovery
+          run-id: ${{ inputs.artifact_run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-desktop-smoke
+          path: build/release-recovery/smoke
+          run-id: ${{ inputs.artifact_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify split and stage draft assets
+        run: python3 scripts/stage_windows_release.py --input build/release-recovery --output build/release-staging --run-id "$SOURCE_RUN" --expected-zip-sha "$EXPECTED_ZIP_SHA"
+      - uses: actions/upload-artifact@v4
+        if: always() && !cancelled()
+        with:
+          name: windows-release-verification
+          path: |
+            build/release-staging/verification.json
+            build/release-staging/*.md
+            build/release-staging/*.sha256
           if-no-files-found: warn
