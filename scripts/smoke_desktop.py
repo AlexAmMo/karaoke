@@ -29,6 +29,17 @@ def main():
     process = None
     started = time.monotonic()
     try:
+        worker_response = output / 'worker-response.json'
+        worker = subprocess.run([str(args.launcher.resolve()), '--worker', 'karaoke.provider'],
+            input=json.dumps({'operation': 'smoke-unknown-operation', 'root': str(output / 'worker'), 'response': str(worker_response)}).encode('utf-8'),
+            capture_output=True, env=environment, timeout=45)
+        (output / 'worker.log').write_bytes(worker.stdout + worker.stderr)
+        if worker.returncode != 0 or not worker_response.is_file():
+            raise RuntimeError(f'Frozen provider stdin probe failed: exit {worker.returncode}')
+        response = json.loads(worker_response.read_text(encoding='utf-8'))
+        if response.get('error') != 'Operación de catálogo desconocida.':
+            raise RuntimeError('Frozen provider did not reach operation dispatch: ' + str(response))
+        report['frozen_provider_stdin'] = True
         with (output / 'launcher.log').open('w', encoding='utf-8') as log:
             process = subprocess.Popen([str(args.launcher.resolve()), '--data-dir', str(data), '--demo'], stdout=log, stderr=log, env=environment)
             deadline = time.monotonic() + 45
