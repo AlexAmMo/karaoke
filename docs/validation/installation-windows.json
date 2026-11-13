@@ -1,0 +1,20 @@
+{
+  "scope": "Public installation command, launcher --version, shortcut and existing-data preservation. No engine, graphics or physical audio test.",
+  "tag": "v0.1.0",
+  "platform": "Microsoft Windows NT 10.0.20348.0",
+  "powershell_version": "7.6.9",
+  "source_run": "https://github.com/AlexAmMo/karaoke/actions/runs/43489268529",
+  "passed": true,
+  "release_url": "https://github.com/AlexAmMo/karaoke/releases/tag/v0.1.0",
+  "release_published_at": "2026-11-13T19:07:32Z",
+  "package_asset": "Karaoke-0.1.0-windows-x86_64.zip",
+  "sentinel_sha256_before": "94D57DDF90081BB70E80A70170B13442C8FFD8FD1309E36073C930A7F929BEDA",
+  "installer_url": "https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.ps1",
+  "launcher_sha256": "C78F84045E8C3633003DB84FF15AF0457168E634A0F759E237091C5D8036D91D",
+  "shortcut_verified": true,
+  "sentinel_sha256_after": "94D57DDF90081BB70E80A70170B13442C8FFD8FD1309E36073C930A7F929BEDA",
+  "existing_data_preserved": true,
+  "version_exit_code": 0,
+  "version_stdout": "Karaoke 0.1.0",
+  "version_stderr": ""
+}
