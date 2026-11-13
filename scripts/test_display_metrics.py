@@ -26,6 +26,11 @@ def main():
     parser.add_argument("--launcher", required=True, type=Path)
     parser.add_argument("--engine", type=Path)
     parser.add_argument("--require-hidpi", action="store_true")
+    parser.add_argument(
+        "--same-display",
+        action="store_true",
+        help="Require the same physical pixel density at both sizes; use only when both windows stay on one monitor.",
+    )
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     launcher = args.launcher.resolve()
@@ -41,11 +46,13 @@ def main():
         "engine_override": environment.get("KARAOKE_ENGINE"),
         "path_environment": environment.get("PATH"),
         "require_hidpi": args.require_hidpi,
+        "same_display": args.same_display,
         "windows": [],
         "passed": False,
     }
     started = time.monotonic()
     session = None
+    reference_scale = {}
     try:
         for size in ("1280x800", "1920x1080"):
             data = Path(tempfile.mkdtemp(prefix="karaoke-display-"))
@@ -59,6 +66,21 @@ def main():
                 lambda s: s.get("drawable_width", 0) > 0
                 and s.get("drawable_height", 0) > 0
             )
+            observations = []
+            for index in range(3):
+                if index:
+                    deadline = time.monotonic() + 1
+                    state = session.wait(lambda _: time.monotonic() >= deadline)
+                observations.append(
+                    {
+                        key: state.get(key)
+                        for key in (
+                            "width", "height", "drawable_width", "drawable_height",
+                            "pixel_scale_x", "pixel_scale_y",
+                        )
+                    }
+                )
+            measurement["geometry_observations"] = observations
             # Preserve the observed state before checking anything: window
             # managers can legitimately constrain a requested 1920x1080 window.
             measurement["engine_state"] = state
@@ -86,6 +108,13 @@ def main():
                 ) <= 1
                 if args.require_hidpi:
                     checks[f"physical_pixels_exceed_logical_units_{axis}"] = scale > 1
+                if args.same_display:
+                    reference_scale.setdefault(axis, scale)
+                    # A window-size request cannot change the density of the
+                    # same screen. Allow a single drawable pixel of rounding.
+                    checks[f"same_display_density_{axis}"] = math.isclose(
+                        scale, reference_scale[axis], abs_tol=1 / logical
+                    )
             checks["synthetic_mode"] = state.get("synthetic") is True
             measurement["checks"] = checks
             if not all(checks.values()):

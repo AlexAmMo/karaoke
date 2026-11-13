@@ -122,7 +122,7 @@ index 3587a97..18acb81 100644
      HeightScale := 1;
  
 diff --git a/src/base/UGraphic.pas b/src/base/UGraphic.pas
-index 17060f5..4bbab39 100644
+index 17060f5..fe99ad9 100644
 --- a/src/base/UGraphic.pas
 +++ b/src/base/UGraphic.pas
 @@ -123,6 +123,9 @@   TRecR = record
@@ -179,18 +179,46 @@ index 17060f5..4bbab39 100644
    end;
  
    if (screen = nil) then
-@@ -971,8 +979,29 @@ procedure OnWindowResized(w,h: integer);
+@@ -793,6 +801,7 @@ procedure InitializeScreen;
+   ScreenW := ActualW;
+   ScreenH := ActualH;
+   CalculateScreenMetrics;
++  UpdateDrawableMetrics;
+ 
+ end;
+ 
+@@ -964,6 +973,7 @@ procedure OnWindowResized(w,h: integer);
+   begin
+     SDL_SetWindowSize(screen, ScreenW, ScreenH);
+   end;
++  UpdateDrawableMetrics;
+ 
+   if assigned(Display) then
+   begin
+@@ -971,6 +981,38 @@ procedure OnWindowResized(w,h: integer);
    end;
  end;
  
 +procedure UpdateDrawableMetrics();
 +var
-+  W, H: integer;
++  W, H, LogicalW, LogicalH: integer;
 +begin
 +  W := 0;
 +  H := 0;
 +  if Screen <> nil then
++  begin
++    SDL_GetWindowSize(Screen, @LogicalW, @LogicalH);
++    // The OS may constrain an oversized window without a usable resize event.
++    // Query both dimensions from SDL, never infer logical size from a DPI guess.
++    if (LogicalW > 0) and (LogicalH > 0) and
++       ((LogicalW <> ScreenW) or (LogicalH <> ScreenH)) then
++    begin
++      ScreenW := LogicalW;
++      ScreenH := LogicalH;
++      CalculateScreenMetrics;
++    end;
 +    SDL_GL_GetDrawableSize(Screen, @W, @H);
++  end;
 +  // A minimized window can temporarily have no drawable. Keep valid metrics.
 +  if (W <= 0) or (H <= 0) then
 +  begin
@@ -205,10 +233,7 @@ index 17060f5..4bbab39 100644
 +
  procedure CalculateScreenMetrics();
  begin
-+  UpdateDrawableMetrics;
    ScreenWPerScreen := ScreenW div Screens;
-   PixelW := RenderW / ScreenWPerScreen;
-   PixelH := RenderH / ScreenH;
 diff --git a/src/base/UMain.pas b/src/base/UMain.pas
 index c5514a3..cd103d9 100644
 --- a/src/base/UMain.pas
