@@ -81,7 +81,7 @@ begin
   begin PanelToggleFocused:=true; SDL_StopTextInput; LastAction:='panel:hide'; end
   else
   begin
-    PanelToggleFocused:=false; LastAction:='panel:show';
+    PanelToggleFocused:=false; StageFocused:=Focus=-12; LastAction:='panel:show';
     if EditAction<>'' then SDL_StartTextInput;
   end;
 end;
@@ -487,7 +487,12 @@ begin
   end;
   Surface(0,ScreenH-64,W,36,0.98,0.95,0.96,0.60,0.56,0.59);
   DarkLabel(28,ScreenH-53,15,'Karaoke',100);
-  if ShowingResults then DarkLabel(140,ScreenH-53,15,'El siguiente turno te espera en la cola',W-170)
+  if ShowingResults then
+  begin
+    if Assigned(View) and (View.Get('queue_count',0)>0) then
+      DarkLabel(140,ScreenH-53,15,'El siguiente turno te espera en la cola',W-170)
+    else DarkLabel(140,ScreenH-53,15,'Elige otra canción para seguir cantando',W-170);
+  end
   else if HasCarousel then DarkLabel(140,ScreenH-53,15,'Flechas: elegir     Intro: añadir a la cola',W-170)
   else DarkLabel(140,ScreenH-53,15,'Buscar · Importar · Cantar',W-170);
   if ShellSynthetic then LabelAt(28,ScreenH-22,12,'PRUEBA · Audio sintético, sin micrófono real',W-56,true);
@@ -633,6 +638,7 @@ end;
 procedure ActivateFocus;
 var Action: string;
 begin
+  if PanelCollapsed and PanelToggleFocused then begin SetPanelCollapsed(false); Exit; end;
   if Focus= -12 then
   begin
     if ShowingResults then ResultsDismissed:=true
@@ -695,7 +701,7 @@ begin
   Result:=false; W:=ScreenW-SideWidth;
   if Singing or (PX>=W) then Exit;
   if PanelCollapsed and (PX>=ScreenW-170) and (PY>=16) and (PY<=56) then Exit;
-  Result:=true; CommitEdit; Focus:=-1; StageFocused:=true; PanelToggleFocused:=false;
+  Result:=true; CommitEdit; Focus:=-12; StageFocused:=true; PanelToggleFocused:=false;
   if ShowingResults then
   begin
     if (PX>=48) and (PX<=298) and (PY>=ScreenH-164) and (PY<=ScreenH-116) then ResultsDismissed:=true;
@@ -825,7 +831,7 @@ begin
     begin
       if (Key=SDLK_LEFT) or (Key=SDLK_RIGHT) then
       begin
-        ResultsDismissed:=true; StageFocused:=true; PanelToggleFocused:=false; Focus:=-1;
+        ResultsDismissed:=true; StageFocused:=true; PanelToggleFocused:=false; Focus:=-12;
         if Key=SDLK_LEFT then Emit('carousel:previous') else Emit('carousel:next'); Exit;
       end;
       if (Key=SDLK_RETURN) and StageFocused then
