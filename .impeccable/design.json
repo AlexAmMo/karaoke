@@ -1,166 +1,238 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-13T19:58:32.636716+00:00",
+  "generatedAt": "2026-11-14T00:33:32.319232+00:00",
   "title": "Design System: Karaoke",
   "extensions": {
     "colorMeta": {
-      "focus-sage": {
+      "selection-fuchsia": {
         "role": "primary",
-        "displayName": "Salvia de foco",
+        "displayName": "Fucsia de acción",
+        "canonical": "rgb(71% 5.5% 25%)",
         "tonalRamp": [
-          "oklch(15% 0.02354 167.26)",
-          "oklch(26% 0.04372 167.26)",
-          "oklch(38% 0.05718 167.26)",
-          "oklch(49% 0.06727 167.26)",
-          "oklch(61% 0.06727 167.26)",
-          "oklch(72% 0.05718 167.26)",
-          "oklch(84% 0.04036 167.26)",
-          "oklch(95% 0.01345 167.26)"
+          "oklch(15% 0.06725 13.95)",
+          "oklch(26% 0.12490 13.95)",
+          "oklch(38% 0.16333 13.95)",
+          "oklch(49% 0.19215 13.95)",
+          "oklch(61% 0.19215 13.95)",
+          "oklch(72% 0.16333 13.95)",
+          "oklch(84% 0.11529 13.95)",
+          "oklch(95% 0.03843 13.95)"
         ]
       },
-      "selected-slate": {
+      "focus-pink": {
         "role": "primary",
-        "displayName": "Pizarra seleccionada",
+        "displayName": "Rosa de foco",
+        "canonical": "rgb(97% 25% 48%)",
         "tonalRamp": [
-          "oklch(15% 0.01005 187.47)",
-          "oklch(26% 0.01866 187.47)",
-          "oklch(38% 0.02440 187.47)",
-          "oklch(49% 0.02870 187.47)",
-          "oklch(61% 0.02870 187.47)",
-          "oklch(72% 0.02440 187.47)",
-          "oklch(84% 0.01722 187.47)",
-          "oklch(95% 0.00574 187.47)"
+          "oklch(15% 0.07718 6.89)",
+          "oklch(26% 0.14333 6.89)",
+          "oklch(38% 0.18744 6.89)",
+          "oklch(49% 0.22051 6.89)",
+          "oklch(61% 0.22051 6.89)",
+          "oklch(72% 0.18744 6.89)",
+          "oklch(84% 0.13231 6.89)",
+          "oklch(95% 0.04410 6.89)"
+        ]
+      },
+      "tab-fuchsia": {
+        "role": "primary",
+        "displayName": "Fucsia de pestaña",
+        "canonical": "rgb(64% 3.5% 22%)",
+        "tonalRamp": [
+          "oklch(15% 0.06260 13.99)",
+          "oklch(26% 0.11627 13.99)",
+          "oklch(38% 0.15204 13.99)",
+          "oklch(49% 0.17887 13.99)",
+          "oklch(61% 0.17887 13.99)",
+          "oklch(72% 0.15204 13.99)",
+          "oklch(84% 0.10732 13.99)",
+          "oklch(95% 0.03577 13.99)"
         ]
       },
       "text-selection": {
         "role": "primary",
-        "displayName": "Verde de selección de texto",
+        "displayName": "Fucsia de selección de texto",
+        "canonical": "rgb(60% 5.5% 22%)",
         "tonalRamp": [
-          "oklch(15% 0.01561 174.32)",
-          "oklch(26% 0.02899 174.32)",
-          "oklch(38% 0.03791 174.32)",
-          "oklch(49% 0.04460 174.32)",
-          "oklch(61% 0.04460 174.32)",
-          "oklch(72% 0.03791 174.32)",
-          "oklch(84% 0.02676 174.32)",
-          "oklch(95% 0.00892 174.32)"
+          "oklch(15% 0.05886 12.61)",
+          "oklch(26% 0.10931 12.61)",
+          "oklch(38% 0.14294 12.61)",
+          "oklch(49% 0.16816 12.61)",
+          "oklch(61% 0.16816 12.61)",
+          "oklch(72% 0.14294 12.61)",
+          "oklch(84% 0.10090 12.61)",
+          "oklch(95% 0.03363 12.61)"
         ]
       },
-      "stage-dark": {
-        "role": "neutral",
-        "displayName": "Escenario oscuro",
+      "stage-focus": {
+        "role": "primary",
+        "displayName": "Rosa pálido de escenario",
+        "canonical": "rgb(100% 90% 93%)",
         "tonalRamp": [
-          "oklch(15% 0.00187 241.22)",
-          "oklch(26% 0.00347 241.22)",
-          "oklch(38% 0.00454 241.22)",
-          "oklch(49% 0.00534 241.22)",
-          "oklch(61% 0.00534 241.22)",
-          "oklch(72% 0.00454 241.22)",
-          "oklch(84% 0.00320 241.22)",
-          "oklch(95% 0.00107 241.22)"
+          "oklch(15% 0.01034 357.54)",
+          "oklch(26% 0.01921 357.54)",
+          "oklch(38% 0.02512 357.54)",
+          "oklch(49% 0.02955 357.54)",
+          "oklch(61% 0.02955 357.54)",
+          "oklch(72% 0.02512 357.54)",
+          "oklch(84% 0.01773 357.54)",
+          "oklch(95% 0.00591 357.54)"
         ]
       },
-      "sidebar-dark": {
+      "stage-upper": {
         "role": "neutral",
-        "displayName": "Lateral oscuro",
+        "displayName": "Burdeos superior",
+        "canonical": "rgb(30% 2.5% 5.5%)",
         "tonalRamp": [
-          "oklch(15% 0.00270 236.98)",
-          "oklch(26% 0.00501 236.98)",
-          "oklch(38% 0.00655 236.98)",
-          "oklch(49% 0.00771 236.98)",
-          "oklch(61% 0.00771 236.98)",
-          "oklch(72% 0.00655 236.98)",
-          "oklch(84% 0.00463 236.98)",
-          "oklch(95% 0.00154 236.98)"
+          "oklch(15% 0.03497 22.16)",
+          "oklch(26% 0.06495 22.16)",
+          "oklch(38% 0.08494 22.16)",
+          "oklch(49% 0.09992 22.16)",
+          "oklch(61% 0.09992 22.16)",
+          "oklch(72% 0.08494 22.16)",
+          "oklch(84% 0.05995 22.16)",
+          "oklch(95% 0.01998 22.16)"
+        ]
+      },
+      "stage-deep": {
+        "role": "neutral",
+        "displayName": "Burdeos profundo",
+        "canonical": "rgb(5.5% 0.8% 1.8%)",
+        "tonalRamp": [
+          "oklch(15% 0.01073 3.22)",
+          "oklch(26% 0.01993 3.22)",
+          "oklch(38% 0.02606 3.22)",
+          "oklch(49% 0.03066 3.22)",
+          "oklch(61% 0.03066 3.22)",
+          "oklch(72% 0.02606 3.22)",
+          "oklch(84% 0.01840 3.22)",
+          "oklch(95% 0.00613 3.22)"
+        ]
+      },
+      "stage-lower": {
+        "role": "neutral",
+        "displayName": "Luz carmesí inferior",
+        "canonical": "rgb(42% 3.5% 6.5%)",
+        "tonalRamp": [
+          "oklch(15% 0.04517 24.87)",
+          "oklch(26% 0.08388 24.87)",
+          "oklch(38% 0.10969 24.87)",
+          "oklch(49% 0.12905 24.87)",
+          "oklch(61% 0.12905 24.87)",
+          "oklch(72% 0.10969 24.87)",
+          "oklch(84% 0.07743 24.87)",
+          "oklch(95% 0.02581 24.87)"
+        ]
+      },
+      "panel-dark": {
+        "role": "neutral",
+        "displayName": "Burdeos de panel",
+        "canonical": "rgb(10.5% 1.2% 3.5%)",
+        "tonalRamp": [
+          "oklch(15% 0.01630 5.37)",
+          "oklch(26% 0.03028 5.37)",
+          "oklch(38% 0.03959 5.37)",
+          "oklch(49% 0.04658 5.37)",
+          "oklch(61% 0.04658 5.37)",
+          "oklch(72% 0.03959 5.37)",
+          "oklch(84% 0.02795 5.37)",
+          "oklch(95% 0.00932 5.37)"
         ]
       },
       "status-dark": {
         "role": "neutral",
-        "displayName": "Estado oscuro",
+        "displayName": "Burdeos de estado",
+        "canonical": "rgb(15% 1.5% 4.5%)",
         "tonalRamp": [
-          "oklch(15% 0.00423 220.03)",
-          "oklch(26% 0.00785 220.03)",
-          "oklch(38% 0.01027 220.03)",
-          "oklch(49% 0.01208 220.03)",
-          "oklch(61% 0.01208 220.03)",
-          "oklch(72% 0.01027 220.03)",
-          "oklch(84% 0.00725 220.03)",
-          "oklch(95% 0.00242 220.03)"
+          "oklch(15% 0.02092 10.50)",
+          "oklch(26% 0.03885 10.50)",
+          "oklch(38% 0.05080 10.50)",
+          "oklch(49% 0.05976 10.50)",
+          "oklch(61% 0.05976 10.50)",
+          "oklch(72% 0.05080 10.50)",
+          "oklch(84% 0.03586 10.50)",
+          "oklch(95% 0.01195 10.50)"
         ]
       },
       "control-dark": {
         "role": "neutral",
-        "displayName": "Control oscuro",
+        "displayName": "Burdeos de control",
+        "canonical": "rgb(22% 2.5% 8%)",
         "tonalRamp": [
-          "oklch(15% 0.00503 237.26)",
-          "oklch(26% 0.00934 237.26)",
-          "oklch(38% 0.01221 237.26)",
-          "oklch(49% 0.01437 237.26)",
-          "oklch(61% 0.01437 237.26)",
-          "oklch(72% 0.01221 237.26)",
-          "oklch(84% 0.00862 237.26)",
-          "oklch(95% 0.00287 237.26)"
+          "oklch(15% 0.02717 9.34)",
+          "oklch(26% 0.05046 9.34)",
+          "oklch(38% 0.06598 9.34)",
+          "oklch(49% 0.07762 9.34)",
+          "oklch(61% 0.07762 9.34)",
+          "oklch(72% 0.06598 9.34)",
+          "oklch(84% 0.04657 9.34)",
+          "oklch(95% 0.01552 9.34)"
         ]
       },
       "control-hover": {
         "role": "neutral",
-        "displayName": "Control señalado",
+        "displayName": "Burdeos señalado",
+        "canonical": "rgb(40% 4.5% 15%)",
         "tonalRamp": [
-          "oklch(15% 0.00600 211.12)",
-          "oklch(26% 0.01114 211.12)",
-          "oklch(38% 0.01457 211.12)",
-          "oklch(49% 0.01714 211.12)",
-          "oklch(61% 0.01714 211.12)",
-          "oklch(72% 0.01457 211.12)",
-          "oklch(84% 0.01028 211.12)",
-          "oklch(95% 0.00343 211.12)"
+          "oklch(15% 0.04275 11.09)",
+          "oklch(26% 0.07939 11.09)",
+          "oklch(38% 0.10382 11.09)",
+          "oklch(49% 0.12214 11.09)",
+          "oklch(61% 0.12214 11.09)",
+          "oklch(72% 0.10382 11.09)",
+          "oklch(84% 0.07328 11.09)",
+          "oklch(95% 0.02443 11.09)"
         ]
       },
       "transport-dark": {
         "role": "neutral",
-        "displayName": "Transporte oscuro",
+        "displayName": "Burdeos de transporte",
+        "canonical": "rgb(30% 2.5% 10%)",
         "tonalRamp": [
-          "oklch(15% 0.00574 229.50)",
-          "oklch(26% 0.01065 229.50)",
-          "oklch(38% 0.01393 229.50)",
-          "oklch(49% 0.01639 229.50)",
-          "oklch(61% 0.01639 229.50)",
-          "oklch(72% 0.01393 229.50)",
-          "oklch(84% 0.00983 229.50)",
-          "oklch(95% 0.00328 229.50)"
+          "oklch(15% 0.03499 12.30)",
+          "oklch(26% 0.06498 12.30)",
+          "oklch(38% 0.08498 12.30)",
+          "oklch(49% 0.09997 12.30)",
+          "oklch(61% 0.09997 12.30)",
+          "oklch(72% 0.08498 12.30)",
+          "oklch(84% 0.05998 12.30)",
+          "oklch(95% 0.01999 12.30)"
         ]
       },
       "divider": {
         "role": "neutral",
-        "displayName": "División",
+        "displayName": "División carmesí",
+        "canonical": "rgb(37% 8% 16%)",
         "tonalRamp": [
-          "oklch(15% 0.00471 236.99)",
-          "oklch(26% 0.00875 236.99)",
-          "oklch(38% 0.01144 236.99)",
-          "oklch(49% 0.01346 236.99)",
-          "oklch(61% 0.01346 236.99)",
-          "oklch(72% 0.01144 236.99)",
-          "oklch(84% 0.00808 236.99)",
-          "oklch(95% 0.00269 236.99)"
+          "oklch(15% 0.03717 9.16)",
+          "oklch(26% 0.06902 9.16)",
+          "oklch(38% 0.09026 9.16)",
+          "oklch(49% 0.10619 9.16)",
+          "oklch(61% 0.10619 9.16)",
+          "oklch(72% 0.09026 9.16)",
+          "oklch(84% 0.06371 9.16)",
+          "oklch(95% 0.02124 9.16)"
         ]
       },
       "slider-track": {
         "role": "neutral",
-        "displayName": "Pista",
+        "displayName": "Pista de volumen",
+        "canonical": "rgb(36% 15% 21%)",
         "tonalRamp": [
-          "oklch(15% 0.00481 214.46)",
-          "oklch(26% 0.00892 214.46)",
-          "oklch(38% 0.01167 214.46)",
-          "oklch(49% 0.01373 214.46)",
-          "oklch(61% 0.01373 214.46)",
-          "oklch(72% 0.01167 214.46)",
-          "oklch(84% 0.00824 214.46)",
-          "oklch(95% 0.00275 214.46)"
+          "oklch(15% 0.02808 4.17)",
+          "oklch(26% 0.05214 4.17)",
+          "oklch(38% 0.06819 4.17)",
+          "oklch(49% 0.08022 4.17)",
+          "oklch(61% 0.08022 4.17)",
+          "oklch(72% 0.06819 4.17)",
+          "oklch(84% 0.04813 4.17)",
+          "oklch(95% 0.01604 4.17)"
         ]
       },
       "text-light": {
         "role": "neutral",
-        "displayName": "Texto claro",
+        "displayName": "Blanco suave",
+        "canonical": "rgb(95% 95% 93%)",
         "tonalRamp": [
           "oklch(15% 0.00237 106.53)",
           "oklch(26% 0.00439 106.53)",
@@ -174,63 +246,241 @@
       },
       "text-muted": {
         "role": "neutral",
-        "displayName": "Texto secundario",
+        "displayName": "Rosa secundario",
+        "canonical": "rgb(85% 72% 76%)",
         "tonalRamp": [
-          "oklch(15% 0.00549 240.01)",
-          "oklch(26% 0.01020 240.01)",
-          "oklch(38% 0.01334 240.01)",
-          "oklch(49% 0.01569 240.01)",
-          "oklch(61% 0.01569 240.01)",
-          "oklch(72% 0.01334 240.01)",
-          "oklch(84% 0.00942 240.01)",
-          "oklch(95% 0.00314 240.01)"
+          "oklch(15% 0.01410 357.56)",
+          "oklch(26% 0.02618 357.56)",
+          "oklch(38% 0.03424 357.56)",
+          "oklch(49% 0.04028 357.56)",
+          "oklch(61% 0.04028 357.56)",
+          "oklch(72% 0.03424 357.56)",
+          "oklch(84% 0.02417 357.56)",
+          "oklch(95% 0.00806 357.56)"
+        ]
+      },
+      "footer-light": {
+        "role": "neutral",
+        "displayName": "Plata clara",
+        "canonical": "rgb(98% 95% 96%)",
+        "tonalRamp": [
+          "oklch(15% 0.00309 354.85)",
+          "oklch(26% 0.00575 354.85)",
+          "oklch(38% 0.00752 354.85)",
+          "oklch(49% 0.00884 354.85)",
+          "oklch(61% 0.00884 354.85)",
+          "oklch(72% 0.00752 354.85)",
+          "oklch(84% 0.00530 354.85)",
+          "oklch(95% 0.00177 354.85)"
+        ]
+      },
+      "footer-shade": {
+        "role": "neutral",
+        "displayName": "Sombra de plata",
+        "canonical": "rgb(60% 56% 59%)",
+        "tonalRamp": [
+          "oklch(15% 0.00571 334.29)",
+          "oklch(26% 0.01060 334.29)",
+          "oklch(38% 0.01386 334.29)",
+          "oklch(49% 0.01631 334.29)",
+          "oklch(61% 0.01631 334.29)",
+          "oklch(72% 0.01386 334.29)",
+          "oklch(84% 0.00979 334.29)",
+          "oklch(95% 0.00326 334.29)"
+        ]
+      },
+      "footer-ink": {
+        "role": "neutral",
+        "displayName": "Tinta de pie",
+        "canonical": "rgb(20% 6% 10%)",
+        "tonalRamp": [
+          "oklch(15% 0.02057 5.07)",
+          "oklch(26% 0.03820 5.07)",
+          "oklch(38% 0.04995 5.07)",
+          "oklch(49% 0.05877 5.07)",
+          "oklch(61% 0.05877 5.07)",
+          "oklch(72% 0.04995 5.07)",
+          "oklch(84% 0.03526 5.07)",
+          "oklch(95% 0.01175 5.07)"
+        ]
+      },
+      "lyric-active": {
+        "role": "secondary",
+        "displayName": "Azul de sílaba activa",
+        "canonical": "rgb(0% 36% 62%)",
+        "tonalRamp": [
+          "oklch(15% 0.04538 249.37)",
+          "oklch(26% 0.08427 249.37)",
+          "oklch(38% 0.11020 249.37)",
+          "oklch(49% 0.12965 249.37)",
+          "oklch(61% 0.12965 249.37)",
+          "oklch(72% 0.11020 249.37)",
+          "oklch(84% 0.07779 249.37)",
+          "oklch(95% 0.02593 249.37)"
+        ]
+      },
+      "lyric-ready": {
+        "role": "neutral",
+        "displayName": "Letra disponible",
+        "canonical": "rgb(13% 18% 23%)",
+        "tonalRamp": [
+          "oklch(15% 0.01019 248.84)",
+          "oklch(26% 0.01892 248.84)",
+          "oklch(38% 0.02474 248.84)",
+          "oklch(49% 0.02911 248.84)",
+          "oklch(61% 0.02911 248.84)",
+          "oklch(72% 0.02474 248.84)",
+          "oklch(84% 0.01747 248.84)",
+          "oklch(95% 0.00582 248.84)"
+        ]
+      },
+      "lyric-next": {
+        "role": "neutral",
+        "displayName": "Letra siguiente",
+        "canonical": "rgb(32% 37% 42%)",
+        "tonalRamp": [
+          "oklch(15% 0.00910 248.37)",
+          "oklch(26% 0.01691 248.37)",
+          "oklch(38% 0.02211 248.37)",
+          "oklch(49% 0.02601 248.37)",
+          "oklch(61% 0.02601 248.37)",
+          "oklch(72% 0.02211 248.37)",
+          "oklch(84% 0.01561 248.37)",
+          "oklch(95% 0.00520 248.37)"
+        ]
+      },
+      "note-sung": {
+        "role": "secondary",
+        "displayName": "Cian cantado",
+        "canonical": "rgb(38 181 244)",
+        "tonalRamp": [
+          "oklch(15% 0.05054 234.12)",
+          "oklch(26% 0.09387 234.12)",
+          "oklch(38% 0.12275 234.12)",
+          "oklch(49% 0.14441 234.12)",
+          "oklch(61% 0.14441 234.12)",
+          "oklch(72% 0.12275 234.12)",
+          "oklch(84% 0.08665 234.12)",
+          "oklch(95% 0.02888 234.12)"
+        ]
+      },
+      "note-guide": {
+        "role": "secondary",
+        "displayName": "Azul guía",
+        "canonical": "rgb(35 150 224)",
+        "tonalRamp": [
+          "oklch(15% 0.05130 243.47)",
+          "oklch(26% 0.09527 243.47)",
+          "oklch(38% 0.12459 243.47)",
+          "oklch(49% 0.14657 243.47)",
+          "oklch(61% 0.14657 243.47)",
+          "oklch(72% 0.12459 243.47)",
+          "oklch(84% 0.08794 243.47)",
+          "oklch(95% 0.02931 243.47)"
+        ]
+      },
+      "lyrics-upper": {
+        "role": "neutral",
+        "displayName": "Banda superior de letra",
+        "canonical": "rgb(248 249 251 / 0.9725490196)",
+        "tonalRamp": [
+          "oklch(15% 0.00100 264.54)",
+          "oklch(26% 0.00186 264.54)",
+          "oklch(38% 0.00243 264.54)",
+          "oklch(49% 0.00286 264.54)",
+          "oklch(61% 0.00286 264.54)",
+          "oklch(72% 0.00243 264.54)",
+          "oklch(84% 0.00172 264.54)",
+          "oklch(95% 0.00057 264.54)"
+        ]
+      },
+      "lyrics-lower": {
+        "role": "neutral",
+        "displayName": "Banda inferior de letra",
+        "canonical": "rgb(228 233 238 / 0.9725490196)",
+        "tonalRamp": [
+          "oklch(15% 0.00303 247.92)",
+          "oklch(26% 0.00562 247.92)",
+          "oklch(38% 0.00735 247.92)",
+          "oklch(49% 0.00865 247.92)",
+          "oklch(61% 0.00865 247.92)",
+          "oklch(72% 0.00735 247.92)",
+          "oklch(84% 0.00519 247.92)",
+          "oklch(95% 0.00173 247.92)"
+        ]
+      },
+      "score-backing": {
+        "role": "neutral",
+        "displayName": "Respaldo de puntuación",
+        "canonical": "rgb(10 18 30 / 0.6745098039)",
+        "tonalRamp": [
+          "oklch(15% 0.00971 258.29)",
+          "oklch(26% 0.01803 258.29)",
+          "oklch(38% 0.02358 258.29)",
+          "oklch(49% 0.02774 258.29)",
+          "oklch(61% 0.02774 258.29)",
+          "oklch(72% 0.02358 258.29)",
+          "oklch(84% 0.01665 258.29)",
+          "oklch(95% 0.00555 258.29)"
         ]
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "display",
-        "purpose": "Altura del texto en coordenadas de ventana para espera/resultados."
+        "purpose": "Título de resultados."
       },
       "headline": {
         "displayName": "headline",
-        "purpose": "Altura del texto en coordenadas de ventana para espera/resultados."
+        "purpose": "Título de selección."
+      },
+      "empty-title": {
+        "displayName": "empty-title",
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      },
+      "panel-title": {
+        "displayName": "panel-title",
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      },
+      "result-name": {
+        "displayName": "result-name",
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      },
+      "result-song": {
+        "displayName": "result-song",
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
       },
       "score": {
         "displayName": "score",
-        "purpose": "Altura del texto en coordenadas de ventana para espera/resultados."
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
       },
-      "brand": {
-        "displayName": "brand",
-        "purpose": "Altura del texto en coordenadas de ventana para espera/resultados."
+      "cover-artist": {
+        "displayName": "cover-artist",
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
       },
-      "title": {
-        "displayName": "title",
-        "purpose": "Altura SDL lógica del lateral; consultar DESIGN.md para escalado y uso."
-      },
-      "result-body": {
-        "displayName": "result-body",
-        "purpose": "Altura del texto en coordenadas de ventana para espera/resultados."
-      },
-      "stage-lead": {
-        "displayName": "stage-lead",
-        "purpose": "Altura del texto en coordenadas de ventana para espera/resultados."
-      },
-      "stage-body": {
-        "displayName": "stage-body",
-        "purpose": "Altura del texto en coordenadas de ventana para espera/resultados."
+      "section": {
+        "displayName": "section",
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
       },
       "body": {
         "displayName": "body",
-        "purpose": "Altura 18: botones y valores de campos; las etiquetas persistentes de campos usan 16 y las cabeceras de sección 20."
+        "purpose": "Botones y valores de campos."
+      },
+      "count": {
+        "displayName": "count",
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
       },
       "label": {
         "displayName": "label",
-        "purpose": "Altura SDL lógica del lateral; consultar DESIGN.md para escalado y uso."
+        "purpose": "Pestañas, etiquetas y estado."
       },
       "caption": {
         "displayName": "caption",
-        "purpose": "Altura SDL lógica del lateral; consultar DESIGN.md para escalado y uso."
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      },
+      "cover-action": {
+        "displayName": "cover-action",
+        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
       }
     },
     "shadows": [],
@@ -239,95 +489,104 @@
   },
   "components": [
     {
-      "name": "Botón",
+      "name": "Acción lateral",
       "kind": "button",
       "refersTo": "button",
-      "description": "Acción simple; fondo cambia con el puntero y marco verde con foco. Traducción HTML de coordenadas lógicas SDL a escala 1:1; fuentes del navegador pueden diferir. No añade semántica nativa a SDL.",
-      "html": "<button class=\"ds-button\">Buscar mapas</button>",
-      "css": ".ds-button{border:0;border-radius:0;background:rgb(13% 16% 18%);color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:18px;text-align:left;width:368px;height:40px;padding:8px;}.ds-button:hover{background:rgb(21% 26% 27%);}.ds-button:focus-visible{outline:3px solid rgb(53% 75% 66%);outline-offset:0;}"
+      "description": "Fila simple; cambio tonal bajo el puntero y marco de foco sin transición.",
+      "html": "<button class=\"ds-action\">Importar paquete</button>",
+      "css": ".ds-action{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;width:368px;height:40px;border:0;border-radius:0;background:#380614;color:#f2f2ed;font-size:18px;text-align:left;padding:0 8px;cursor:pointer}.ds-action:hover{background:#660b26}.ds-action:focus-visible{outline:3px solid #f7407a;outline-offset:0}.ds-action:active{transform:none}"
     },
     {
-      "name": "Botón con descripción",
+      "name": "Acción con descripción",
       "kind": "button",
       "refersTo": "button-description",
-      "description": "Acción de dos líneas; descripción secundaria. Traducción HTML de coordenadas lógicas SDL a escala 1:1; fuentes del navegador pueden diferir. No añade semántica nativa a SDL.",
-      "html": "<button class=\"ds-button-description\"><span class=\"ds-button-description-label\">Elegir esta versión</span><span class=\"ds-button-description-sub\">Audio original del paquete</span></button>",
-      "css": ".ds-button-description{border:0;border-radius:0;background:rgb(13% 16% 18%);color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:18px;text-align:left;position:relative;width:368px;height:64px;padding:8px;vertical-align:top;}.ds-button-description-sub{position:absolute;left:8px;top:36px;font-size:15px;color:rgb(70% 74% 77%);}.ds-button-description:hover{background:rgb(21% 26% 27%);}.ds-button-description:focus-visible{outline:3px solid rgb(53% 75% 66%);outline-offset:0;} .ds-button-description-label{position:absolute;left:8px;top:8px;}"
+      "description": "Fila de dos líneas, 64 unidades de superficie y ocho de separación.",
+      "html": "<button class=\"ds-description\">Añadir a la cola<span class=\"ds-description-help\">Con voz original</span></button>",
+      "css": ".ds-description{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;width:368px;height:64px;border:0;border-radius:0;background:#380614;color:#f2f2ed;font-size:18px;text-align:left;padding:0 8px;cursor:pointer}.ds-description:hover{background:#660b26}.ds-description:focus-visible{outline:3px solid #f7407a;outline-offset:0}.ds-description-help{display:block;margin-top:12px;font-size:15px;color:#d9b8c2}.ds-description:active{transform:none}"
     },
     {
-      "name": "Campo",
+      "name": "Acción de escenario",
+      "kind": "button",
+      "refersTo": "button-stage",
+      "description": "Acción explícita sobre escenario; foco pálido. No hay hover distintivo implementado en el escenario.",
+      "html": "<button class=\"ds-stage-action\">Buscar canciones</button>",
+      "css": ".ds-stage-action{font-family:\"Noto Sans\",sans-serif;font-weight:400;width:218px;height:48px;padding:0 20px;border:0;border-radius:0;background:#b50e40;color:#f2f2ed;font-size:18px;text-align:left}.ds-stage-action:hover{background:#b50e40}.ds-stage-action:focus-visible{outline:3px solid #ffe6ed}.ds-stage-action:active{transform:none}"
+    },
+    {
+      "name": "Campo de texto",
       "kind": "input",
       "refersTo": "input",
-      "description": "Etiqueta secundaria de 16 unidades y valor principal de 18; selección verde. Ejemplo HTML de las coordenadas lógicas SDL, sin certificar semántica accesible nativa.",
-      "html": "<label class=\"ds-field\">Buscar en USDB<input class=\"ds-field-value\" value=\"Canción\" aria-label=\"Buscar en USDB\" /></label>",
-      "css": ".ds-field{border:0;border-radius:0;background:rgb(13% 16% 18%);color:rgb(70% 74% 77%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:16px;text-align:left;display:block;position:relative;width:368px;height:74px;}.ds-field{text-indent:8px;padding-top:8px;height:66px;}.ds-field-value{position:absolute;left:8px;top:40px;width:345px;padding:0;border:0;border-radius:0;background:transparent;color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:18px;outline:0;}.ds-field:hover{background:rgb(21% 26% 27%);}.ds-field:focus-within{outline:3px solid rgb(53% 75% 66%);outline-offset:0;}.ds-field-value::selection{background:rgb(24% 38% 34%);}"
+      "description": "Traducción de la presentación SDL; el input web no reproduce las restricciones del editor nativo.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Nombre del cantante</span><input class=\"ds-field-value\" value=\"Lucía\" aria-label=\"Nombre del cantante\"></label>",
+      "css": ".ds-field{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;width:368px;height:74px;background:#380614}.ds-field:hover{background:#660b26}.ds-field:focus-within{outline:3px solid #f7407a}.ds-field-label{display:block;padding:8px 8px 0;color:#d9b8c2;font-size:16px}.ds-field-value{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;margin:14px 8px 0;padding:0;width:345px;border:0;background:transparent;color:#f2f2ed;font-size:18px}.ds-field-value:focus-visible{outline:none}.ds-field-value::selection{background:#990e38}"
     },
     {
-      "name": "Navegación",
+      "name": "Navegación del panel",
       "kind": "nav",
       "refersTo": "navigation-selected",
-      "description": "Cuatro destinos estables; selección tonal y línea inferior salvia, foco de dos unidades. Ejemplo HTML de las coordenadas lógicas SDL.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Tu sesión\"><button class=\"ds-tab ds-tab-selected\" aria-current=\"page\">Biblioteca</button><button class=\"ds-tab\">Buscar</button><button class=\"ds-tab\">Cola</button><button class=\"ds-tab\">Ajustes</button></nav>",
-      "css": ".ds-nav{display:flex;gap:4px;padding:2px;background:rgb(8.5% 10% 11%);width:380px;}.ds-tab{border:0;border-radius:0;background:rgb(8.5% 10% 11%);color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:16px;text-align:left;padding:0 7px;width:92px;height:36px;flex-shrink:0;}.ds-tab-selected{background:rgb(20% 29% 28%);border-bottom:2px solid rgb(53% 75% 66%);box-sizing:border-box;}.ds-tab:focus-visible{outline:2px solid rgb(53% 75% 66%);outline-offset:0;}"
+      "description": "Cuatro posiciones estables; selección y foco independientes. No añade comportamiento de navegación al preview.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Sesión\"><button class=\"ds-tab\" aria-current=\"page\">Biblioteca</button><button class=\"ds-tab\">Buscar</button><button class=\"ds-tab\">Cola</button><button class=\"ds-tab\">Ajustes</button></nav>",
+      "css": ".ds-nav{display:flex;gap:4px;padding:4px;background:#1b0309}.ds-tab{font-family:\"Noto Sans\",sans-serif;font-weight:400;width:92px;height:36px;padding:0;border:0;border-radius:0;font-size:16px;background:#1b0309;color:#f2f2ed}.ds-tab[aria-current]{background:#a30938;box-shadow:inset 0 -2px #f7407a}.ds-tab:hover{color:#f2f2ed}.ds-tab:focus-visible{outline:2px solid #f7407a}.ds-tab:active{transform:none}"
+    },
+    {
+      "name": "Restaurar panel",
+      "kind": "button",
+      "refersTo": "panel-restore",
+      "description": "Acceso compacto que queda visible cuando se recupera el ancho del escenario.",
+      "html": "<button class=\"ds-restore\">Mostrar panel</button>",
+      "css": ".ds-restore{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;width:154px;height:40px;border:0;border-radius:0;background:#380614;color:#f2f2ed;font-size:16px;text-align:left;padding:0 14px;cursor:pointer}.ds-restore:hover{background:#660b26}.ds-restore:focus-visible{outline:3px solid #f7407a;outline-offset:0}.ds-restore:active{transform:none}"
     },
     {
       "name": "Volumen",
       "kind": "custom",
       "refersTo": "slider-track",
-      "description": "Muestra la pista de 290 × 8 y el porcentaje. Preview estático del valor; los cambios reales se ejecutan en SDL. Traducción HTML de coordenadas lógicas SDL a escala 1:1; fuentes del navegador pueden diferir. No añade semántica nativa a SDL.",
-      "html": "<div class=\"ds-volume\" role=\"slider\" tabindex=\"0\" aria-label=\"Música\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"65\"><span class=\"ds-volume-label\">Música</span><span class=\"ds-volume-track\"><span class=\"ds-volume-fill\"></span></span><span class=\"ds-volume-value\">65%</span></div>",
-      "css": ".ds-volume{position:relative;width:368px;height:66px;background:rgb(8.5% 10% 11%);color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;}.ds-volume-label{position:absolute;left:8px;top:8px;font-size:18px;}.ds-volume-track{position:absolute;left:8px;top:44px;width:290px;height:8px;background:rgb(27% 31% 32%);}.ds-volume-fill{display:block;width:65%;height:8px;background:rgb(53% 75% 66%);}.ds-volume-value{position:absolute;left:309px;top:36px;font-size:16px;}.ds-volume:focus-visible{outline:3px solid rgb(53% 75% 66%);outline-offset:0;background:rgb(13% 16% 18%);}.ds-volume:focus-visible:hover{background:rgb(21% 26% 27%);}"
+      "description": "Pista rectangular y porcentaje. Preview estático: no implica un deslizador web en la app SDL.",
+      "html": "<div class=\"ds-volume\" tabindex=\"0\" role=\"slider\" aria-label=\"Música\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"65\"><span class=\"ds-volume-label\">Música</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-volume-value\">65%</span></div>",
+      "css": ".ds-volume{font-family:\"Noto Sans\",sans-serif;font-weight:400;position:relative;width:368px;height:66px;color:#f2f2ed;background:#1b0309}.ds-volume-label{position:absolute;left:8px;top:8px;font-size:18px}.ds-track{position:absolute;left:8px;top:44px;width:290px;height:8px;background:#5c2636}.ds-fill{display:block;width:65%;height:8px;background:#f7407a}.ds-volume-value{position:absolute;left:309px;top:36px;font-size:16px}.ds-volume:focus-visible{outline:3px solid #f7407a;background:#380614}.ds-volume:hover{color:#f2f2ed}"
     },
     {
-      "name": "Transporte",
-      "kind": "button",
-      "refersTo": "transport",
-      "description": "Acción accesible por foco durante el canto. El hover nativo no cambia su fondo. Traducción HTML de coordenadas lógicas SDL a escala 1:1; fuentes del navegador pueden diferir. No añade semántica nativa a SDL.",
-      "html": "<button class=\"ds-transport\">Pausar / continuar</button>",
-      "css": ".ds-transport{border:0;border-radius:0;background:rgb(18% 22% 24%);color:rgb(95% 95% 93%);font-family:'Noto Sans',sans-serif;font-weight:400;font-size:16px;text-align:left;padding:0 14px;width:180px;height:36px;}.ds-transport:focus-visible{outline:3px solid rgb(53% 75% 66%);outline-offset:0;}"
-    },
-    {
-      "name": "Estado",
-      "kind": "custom",
-      "refersTo": "status",
-      "description": "Banda inferior; texto con salto por palabras y espacio acotado, sin interacción. Traducción HTML de coordenadas lógicas SDL a escala 1:1; fuentes del navegador pueden diferir. No añade semántica nativa a SDL.",
-      "html": "<div class=\"ds-status\"><p class=\"ds-status-message\">Cantando. Puedes buscar y preparar los próximos turnos.</p></div>",
-      "css": ".ds-status{position:relative;width:399px;height:94px;background:rgb(10% 13% 14%);color:rgb(70% 74% 77%);font-family:'Noto Sans',sans-serif;font-weight:400;}.ds-status-message{position:absolute;left:21px;top:14px;margin:0;width:354px;max-height:80px;overflow:hidden;font-size:16px;line-height:22px;}"
+      "name": "Portada tipográfica y pie elegido",
+      "kind": "card",
+      "refersTo": "cover-caption",
+      "description": "Funda propia sin imagen; textos de demostración, no canción incluida. Traducción estática de CoverAt a tamaño 240.",
+      "html": "<button class=\"ds-cover\"><span class=\"ds-sleeve\"><span class=\"ds-sleeve-artist\">Artista de prueba</span><span class=\"ds-sleeve-title\">Canción de prueba</span></span><span class=\"ds-cover-caption\"><span class=\"ds-cover-artist\">Artista de prueba</span><span class=\"ds-cover-title\">Canción de prueba</span><span class=\"ds-cover-action\">Añadir a la cola</span></span></button>",
+      "css": ".ds-cover{font-family:\"Noto Sans\",sans-serif;font-weight:400;width:240px;padding:0;border:0;border-radius:0;text-align:left;color:#f2f2ed;background:transparent}.ds-sleeve{display:block;position:relative;height:240px;background:linear-gradient(rgb(34% 10% 19%),rgb(12% 2% 7%))}.ds-sleeve-artist{position:absolute;left:8%;top:50%;font-size:21.6px}.ds-sleeve-title{position:absolute;left:8%;top:65%;font-size:15.6px;color:#d9b8c2}.ds-cover-caption{display:block;position:relative;height:96px;background:#b50e40}.ds-cover-artist{position:absolute;left:14px;top:14px;font-size:21px}.ds-cover-title{position:absolute;left:14px;top:43px;font-size:18px}.ds-cover-action{position:absolute;left:14px;top:73px;font-size:13px}.ds-cover:hover{color:#f2f2ed}.ds-cover:focus-visible{outline:4px solid #ffe6ed}.ds-cover:active{transform:none}"
     }
   ],
   "narrative": {
-    "northStar": "Una canción más",
-    "overview": "Una herramienta discreta para preparar una sesión de karaoke en casa, incluso con poca luz. La superficie de control utiliza fondos oscuros, texto claro, filas regulares y un verde apagado que identifica selección, foco y volumen. La personalidad procede de la calma y de la claridad de las acciones en español.\n\nEl canto conserva la representación real de UltraStar Deluxe: letras, notas, afinación, colores de cada cantante y puntuaciones. Su animación funcional y sus materiales pertenecen al motor; este documento registra el lateral y los estados de espera/resultados añadidos por Karaoke. No introduce una nueva apariencia para las barras de Deluxe ni animaciones decorativas.",
+    "northStar": "Una canción en el escenario carmesí",
+    "overview": "La identidad aprobada es una adaptación propia del SingStar clásico de PS3: escenario burdeos iluminado en carmesí, una portada protagonista con pie fucsia, vecinas subordinadas y un pie plateado. El lateral operativo usa la misma familia cálida con densidad controlada; se pliega para recuperar espacio de canto. La marca es Karaoke y los gráficos del HUD son originales.\n\nSe documenta el artefacto nativo SDL/OpenGL, no una réplica histórica certificada. La elección explícita del usuario sustituye el sistema verde anterior; conserva la ventana única, la biblioteca y cola persistentes, el inicio manual de cada turno y el canto concurrente con la preparación. Las referencias históricas y sus límites están en `docs/research/SINGSTAR-REFERENCIAS.md`; la composición vigente está en `.impeccable/surfaces/native-ukaraokeshell-pas.md`.",
     "keyCharacteristics": [
-      "Controles oscuros y planos, con un acento verde apagado.",
-      "Jerarquía por tamaño, posición y tono; tipografía regular.",
-      "Canto visible mientras se preparan los siguientes turnos.",
-      "Estados y acciones explícitos en español, sin inicio automático del siguiente turno."
+      "Escenario burdeos con luz carmesí y selección fucsia.",
+      "Una portada dominante, vecinas menores y reflejos subordinados.",
+      "Texto regular claro, pie plateado y foco explícito de teclado.",
+      "Panel operativo plegable y canto real de Deluxe en proporción 4:3."
     ],
     "rules": [
       {
-        "name": "The Functional Accent Rule",
-        "body": "El acento del lateral comunica selección, foco o volumen; no se utiliza como decoración ni sustituye los colores funcionales del canto de Deluxe.",
+        "name": "The State Before Ornament Rule",
+        "body": "El foco debe seguir identificable sobre la selección: marco rosa en el panel y pálido en el escenario, además del fondo de estado.",
         "section": "colors"
       },
       {
-        "name": "The Quiet Controls Rule",
-        "body": "Los controles no añaden animación decorativa; el movimiento funcional del canto sigue siendo responsabilidad del motor.",
-        "section": "elevation"
+        "name": "The Logical Coordinates Rule",
+        "body": "Separar siempre unidades lógicas, proyección del panel, proyección 800×600 del canto y píxeles físicos al modificar geometría o revisar capturas.",
+        "section": "typography"
       }
     ],
     "dos": [
-      "**Do** reutilizar las filas y los tokens existentes al añadir controles al lateral.",
-      "**Do** mantener visible el canto al buscar, preparar turnos y abrir ajustes.",
-      "**Do** distinguir unidades lógicas SDL, tamaño de ventana y píxeles físicos al revisar capturas.",
-      "**Do** verificar foco, texto largo y mensajes en los dos tamaños de ventana acordados.",
-      "**Do** conservar las barras, colores de jugador y animación funcional reales de Deluxe."
+      "**Do** mantener la portada elegida dominante y el foco visible sobre su estado de selección.",
+      "**Do** conservar ventana única, panel recuperable y canto continuo al preparar otros turnos.",
+      "**Do** usar contenido real de biblioteca y fundas tipográficas explícitas cuando falta portada.",
+      "**Do** verificar teclado, acentos, textos largos y geometría en 1000×640, 1280×800 y Retina 2×.",
+      "**Do** preservar proporción 4:3 y coordenadas propias del HUD al expandir el escenario."
     ],
     "donts": [
-      "**Don't** añadir animación decorativa, sombras o superficies luminosas al shell.",
-      "**Don't** introducir una segunda ventana o una vista móvil/TV dentro de esta composición V1.",
-      "**Don't** reemplazar las barras del motor con una simulación visual.",
-      "**Don't** afirmar compatibilidad instrumental, validación con micrófono o accesibilidad completa a partir de una captura sintética."
+      "**Don't** restaurar el verde anterior ni prohibir los degradados y reflejos propios del mundo aprobado.",
+      "**Don't** introducir inicio automático de turnos o una segunda ventana de canto en esta V1.",
+      "**Don't** presentar fixtures de captura como canciones incluidas o sustituir afinación real por gráficos simulados.",
+      "**Don't** atribuir a Sony los tokens, tipografía, panel lateral o resultados propios de Karaoke.",
+      "**Don't** afirmar animación temporal del carrusel, validación física Windows/micrófonos o accesibilidad AX completa sin pruebas específicas."
     ]
   }
 }

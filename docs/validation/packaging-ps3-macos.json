@@ -1,0 +1,20 @@
+{
+  "app": "/Users/ton/Desktop/Karaoke/dist/Karaoke.app",
+  "archive": "/Users/ton/Desktop/Karaoke/dist/Karaoke-0.1.0-macos-arm64.zip",
+  "bytes": 191571931,
+  "audit": {
+    "high_resolution_capable": {
+      "launcher": true,
+      "engine": true
+    },
+    "mach_o_files": 189,
+    "external_absolute_references": [],
+    "minimum_macos_from_binaries": "26.0",
+    "arch": "arm64",
+    "physical_audio_validated": false
+  },
+  "archive_sha256": "d5f9a47e15eeb4fd9dfcccafeb64930b8d0bc33daddd6133405a172f2f168831",
+  "engine_sha256": "5c24b3c387ca64081e9aacf8859f2beb9a3a2e3a25f381a12fdf8c83da87105d",
+  "runtime_commit": "6be1f3ea8b1e1a68b10267bb6219fcf74cdfac74",
+  "scope": "Local development package; public v0.1.0 release remains unchanged"
+}

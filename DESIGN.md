@@ -1,263 +1,329 @@
 ---
 name: Karaoke
-description: Una sesión doméstica tranquila, con el canto visible y los controles a mano.
+description: Escenario carmesí y selección fucsia inspirados en SingStar clásico de
+  PS3, con panel operativo plegable.
 colors:
-  focus-sage: "rgb(53% 75% 66%)"
-  selected-slate: "rgb(20% 29% 28%)"
-  text-selection: "rgb(24% 38% 34%)"
-  stage-dark: "rgb(4.5% 5.4% 6.1%)"
-  sidebar-dark: "rgb(8.5% 10% 11%)"
-  status-dark: "rgb(10% 13% 14%)"
-  control-dark: "rgb(13% 16% 18%)"
-  control-hover: "rgb(21% 26% 27%)"
-  transport-dark: "rgb(18% 22% 24%)"
-  divider: "rgb(22% 25% 27%)"
-  slider-track: "rgb(27% 31% 32%)"
-  text-light: "rgb(95% 95% 93%)"
-  text-muted: "rgb(70% 74% 77%)"
+  selection-fuchsia: '#b50e40'
+  focus-pink: '#f7407a'
+  tab-fuchsia: '#a30938'
+  text-selection: '#990e38'
+  stage-focus: '#ffe6ed'
+  stage-upper: '#4d060e'
+  stage-deep: '#0e0205'
+  stage-lower: '#6b0911'
+  panel-dark: '#1b0309'
+  status-dark: '#26040b'
+  control-dark: '#380614'
+  control-hover: '#660b26'
+  transport-dark: '#4d061a'
+  divider: '#5e1429'
+  slider-track: '#5c2636'
+  text-light: '#f2f2ed'
+  text-muted: '#d9b8c2'
+  footer-light: '#faf2f5'
+  footer-shade: '#998f96'
+  footer-ink: '#330f1a'
+  lyric-active: '#005c9e'
+  lyric-ready: '#212e3b'
+  lyric-next: '#525e6b'
+  note-sung: '#26b5f4'
+  note-guide: '#2396e0'
+  lyrics-upper: '#f8f9fbf8'
+  lyrics-lower: '#e4e9eef8'
+  score-backing: '#0a121eac'
 typography:
   display:
-    fontFamily: "Noto Sans"
-    fontSize: "40px"
+    fontFamily: Noto Sans
+    fontSize: 40px
     fontWeight: 400
   headline:
-    fontFamily: "Noto Sans"
-    fontSize: "34px"
+    fontFamily: Noto Sans
+    fontSize: 38px
+    fontWeight: 400
+  empty-title:
+    fontFamily: Noto Sans
+    fontSize: 34px
+    fontWeight: 400
+  panel-title:
+    fontFamily: Noto Sans
+    fontSize: 28px
+    fontWeight: 400
+  result-name:
+    fontFamily: Noto Sans
+    fontSize: 26px
+    fontWeight: 400
+  result-song:
+    fontFamily: Noto Sans
+    fontSize: 24px
     fontWeight: 400
   score:
-    fontFamily: "Noto Sans"
-    fontSize: "30px"
+    fontFamily: Noto Sans
+    fontSize: 38px
     fontWeight: 400
-  brand:
-    fontFamily: "Noto Sans"
-    fontSize: "28px"
+  cover-artist:
+    fontFamily: Noto Sans
+    fontSize: 21px
     fontWeight: 400
-  title:
-    fontFamily: "Noto Sans"
-    fontSize: "28px"
-    fontWeight: 400
-  result-body:
-    fontFamily: "Noto Sans"
-    fontSize: "24px"
-    fontWeight: 400
-  stage-lead:
-    fontFamily: "Noto Sans"
-    fontSize: "22px"
-    fontWeight: 400
-  stage-body:
-    fontFamily: "Noto Sans"
-    fontSize: "20px"
+  section:
+    fontFamily: Noto Sans
+    fontSize: 20px
     fontWeight: 400
   body:
-    fontFamily: "Noto Sans"
-    fontSize: "18px"
+    fontFamily: Noto Sans
+    fontSize: 18px
+    fontWeight: 400
+  count:
+    fontFamily: Noto Sans
+    fontSize: 17px
     fontWeight: 400
   label:
-    fontFamily: "Noto Sans"
-    fontSize: "16px"
+    fontFamily: Noto Sans
+    fontSize: 16px
     fontWeight: 400
   caption:
-    fontFamily: "Noto Sans"
-    fontSize: "15px"
+    fontFamily: Noto Sans
+    fontSize: 15px
+    fontWeight: 400
+  cover-action:
+    fontFamily: Noto Sans
+    fontSize: 13px
     fontWeight: 400
 rounded:
-  square: "0px"
+  square: 0px
 spacing:
-  row-gap: "8px"
-  control-inset: "16px"
-  heading-inset: "22px"
-  content-inset: "24px"
-  stage-inset: "48px"
+  row-gap: 8px
+  control-inset: 16px
+  heading-inset: 22px
+  content-inset: 24px
+  stage-inset: 48px
 components:
   button:
-    backgroundColor: "{colors.control-dark}"
-    textColor: "{colors.text-light}"
-    typography: "{typography.body}"
-    rounded: "{rounded.square}"
-    width: "368px"
-    height: "40px"
+    backgroundColor: '{colors.control-dark}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.body}'
+    rounded: '{rounded.square}'
+    width: 368px
+    height: 40px
   button-hover:
-    backgroundColor: "{colors.control-hover}"
-    textColor: "{colors.text-light}"
+    backgroundColor: '{colors.control-hover}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.body}'
+    rounded: '{rounded.square}'
   button-description:
-    backgroundColor: "{colors.control-dark}"
-    textColor: "{colors.text-light}"
-    typography: "{typography.body}"
-    rounded: "{rounded.square}"
-    width: "368px"
-    height: "64px"
+    backgroundColor: '{colors.control-dark}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.body}'
+    rounded: '{rounded.square}'
+    width: 368px
+    height: 64px
+  button-stage:
+    backgroundColor: '{colors.selection-fuchsia}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.body}'
+    rounded: '{rounded.square}'
+    height: 48px
   input:
-    backgroundColor: "{colors.control-dark}"
-    textColor: "{colors.text-light}"
-    typography: "{typography.body}"
-    rounded: "{rounded.square}"
-    width: "368px"
-    height: "74px"
+    backgroundColor: '{colors.control-dark}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.body}'
+    rounded: '{rounded.square}'
+    width: 368px
+    height: 74px
   navigation-selected:
-    backgroundColor: "{colors.selected-slate}"
-    textColor: "{colors.text-light}"
-    typography: "{typography.label}"
-    rounded: "{rounded.square}"
-    width: "92px"
-    height: "36px"
+    backgroundColor: '{colors.tab-fuchsia}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.label}'
+    rounded: '{rounded.square}'
+    width: 92px
+    height: 36px
   transport:
-    backgroundColor: "{colors.transport-dark}"
-    textColor: "{colors.text-light}"
-    typography: "{typography.label}"
-    rounded: "{rounded.square}"
-    width: "180px"
-    height: "36px"
+    backgroundColor: '{colors.transport-dark}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.label}'
+    rounded: '{rounded.square}'
+    width: 180px
+    height: 36px
+  panel-restore:
+    backgroundColor: '{colors.control-dark}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.label}'
+    rounded: '{rounded.square}'
+    width: 154px
+    height: 40px
+  cover-caption:
+    backgroundColor: '{colors.selection-fuchsia}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.body}'
+    rounded: '{rounded.square}'
+    height: 96px
   slider-track:
-    backgroundColor: "{colors.slider-track}"
-    rounded: "{rounded.square}"
-    width: "290px"
-    height: "8px"
+    backgroundColor: '{colors.slider-track}'
+    height: 8px
+    width: 290px
   slider-fill:
-    backgroundColor: "{colors.focus-sage}"
-    rounded: "{rounded.square}"
-    height: "8px"
+    backgroundColor: '{colors.focus-pink}'
+    height: 8px
   status:
-    backgroundColor: "{colors.status-dark}"
-    textColor: "{colors.text-muted}"
-    typography: "{typography.label}"
-    width: "399px"
-    height: "94px"
+    backgroundColor: '{colors.status-dark}'
+    textColor: '{colors.text-light}'
+    typography: '{typography.label}'
+    rounded: '{rounded.square}'
+    width: 399px
+    height: 94px
 ---
 
 # Design System: Karaoke
 
 ## Overview
 
-**Creative North Star: "Una canción más"**
+**Creative North Star: "Una canción en el escenario carmesí"**
 
-Una herramienta discreta para preparar una sesión de karaoke en casa, incluso con poca luz. La superficie de control utiliza fondos oscuros, texto claro, filas regulares y un verde apagado que identifica selección, foco y volumen. La personalidad procede de la calma y de la claridad de las acciones en español.
+La identidad aprobada es una adaptación propia del SingStar clásico de PS3: escenario burdeos iluminado en carmesí, una portada protagonista con pie fucsia, vecinas subordinadas y un pie plateado. El lateral operativo usa la misma familia cálida con densidad controlada; se pliega para recuperar espacio de canto. La marca es Karaoke y los gráficos del HUD son originales.
 
-El canto conserva la representación real de UltraStar Deluxe: letras, notas, afinación, colores de cada cantante y puntuaciones. Su animación funcional y sus materiales pertenecen al motor; este documento registra el lateral y los estados de espera/resultados añadidos por Karaoke. No introduce una nueva apariencia para las barras de Deluxe ni animaciones decorativas.
+Se documenta el artefacto nativo SDL/OpenGL, no una réplica histórica certificada. La elección explícita del usuario sustituye el sistema verde anterior; conserva la ventana única, la biblioteca y cola persistentes, el inicio manual de cada turno y el canto concurrente con la preparación. Las referencias históricas y sus límites están en `docs/research/SINGSTAR-REFERENCIAS.md`; la composición vigente está en `.impeccable/surfaces/native-ukaraokeshell-pas.md`.
 
 **Key Characteristics:**
 
-- Controles oscuros y planos, con un acento verde apagado.
-- Jerarquía por tamaño, posición y tono; tipografía regular.
-- Canto visible mientras se preparan los siguientes turnos.
-- Estados y acciones explícitos en español, sin inicio automático del siguiente turno.
+- Escenario burdeos con luz carmesí y selección fucsia.
+- Una portada dominante, vecinas menores y reflejos subordinados.
+- Texto regular claro, pie plateado y foco explícito de teclado.
+- Panel operativo plegable y canto real de Deluxe en proporción 4:3.
 
-Fuente normativa de los valores: `native/UKaraokeShell.pas`; contenido y estados: `src/karaoke/service.py`. Familia tipográfica contrastada con `build/engine/game/fonts/fonts.ini` y `build/engine/src/base/UText.pas`. Evidencia visual: `.impeccable/review/session-final-1280.jpg`, `selection-1280.jpg` y `settings-1000.jpg`, capturas de macOS con entrada sintética. La revisión final comprobó el estado de canto, la selección de texto y los recorridos de teclado corregidos. `installed-first-run.jpg` registra el primer arranque de la app instalada, sin entradas sintéticas ni canciones. Windows no está verificado visualmente y no se ha validado la experiencia con micrófonos físicos.
+Fuentes: `native/UKaraokeShell.pas`, `scripts/prepare_engine_theme.py`, `scripts/create_theme_assets.py`, `patches/deluxe-integration.patch` y `assets/theme/manifest.json`. La revisión visual y su alcance se registran en `docs/validation/ps3-finish-review.md`; la prueba de continuidad con entrada sintética en `docs/evidence/session-ps3-macos.json`. Las portadas, canciones y audio de las capturas de prueba son fixtures propios aislados, no repertorio distribuido. Windows físico, micrófonos físicos y semántica AX no quedan certificados por estas pruebas.
 
-La actualización Retina se registra en `retina-library-1280.jpg`, `retina-search-zoomed.jpg`, `retina-settings-1000.jpg` y `retina-singing-demo-1000.jpg`, dentro de la misma carpeta. Se revisan nitidez, ampliación/restauración nativa, clics y texto con acentos. Las dos últimas capturas usan una sesión sintética aislada; la biblioteca del usuario no incluye esas canciones de prueba. El recorte de la sílaba activa se calcula dentro del viewport del escenario, evitando que su capa resaltada se desplace hacia el lateral.
+La revisión final declara `disposition: ship` sobre el runtime `6be1f3e`: recorrido de Tab tras flechas corregido y mensaje de resultados condicionado a la cola real. El cierre verifica esas correcciones sobre el alcance macOS Retina previo; no amplía las certificaciones de hardware, plataforma o accesibilidad.
 
 ## Colors
 
-Grises oscuros ligeramente fríos, blancos suaves y un verde salvia moderado. Los valores RGB porcentuales del frontmatter preservan exactamente los canales normalizados del renderer; no son colores muestreados del JPEG. Las rampas OKLCH del sidecar son muestras derivadas para explorar el color en el panel, no tokens implementados ni autorización para añadir tonos al shell.
+Burdeos casi negro, rojo luminoso y fucsia articulan navegación y selección; el canto cambia a cápsulas cian/rojas y banda clara. Los hex del frontmatter son representaciones portables calculadas como `floor(canal_normalizado × 255 + 0.5)`. Los valores fuente exactos se conservan como CSS RGB porcentual en `extensions.colorMeta.<token>.canonical` del sidecar; para volver al renderer, dividir cada porcentaje por 100. No son colores muestreados de capturas ni valores oficiales de Sony. Las entradas del generador PNG conservan sus canales RGBA de ocho bits.
 
 ### Primary
 
-- **Salvia de foco** (`focus-sage`): marco de foco y tramo rellenado de volumen.
-- **Pizarra seleccionada** (`selected-slate`): fondo de la pestaña activa.
-- **Verde de selección de texto** (`text-selection`): fondo del valor cuando se selecciona todo el campo.
+- **Fucsia de acción** (`selection-fuchsia`): pie de portada seleccionada, búsqueda vacía y regreso al repertorio.
+- **Rosa de foco** (`focus-pink`): marco de foco del lateral, subrayado activo y volumen.
+- **Fucsia de pestaña / selección de texto** (`tab-fuchsia`, `text-selection`): estados persistentes de navegación y edición.
+- **Rosa pálido de escenario** (`stage-focus`): marco de foco de portada y acciones del escenario.
+
+### Secondary
+
+- **Cian cantado / azul guía** (`note-sung`, `note-guide`): geometría PNG propia de cápsulas, combinada con los colores de jugador del motor. No usar como sustitución del fucsia de navegación.
+- **Azul de sílaba activa** (`lyric-active`): avance de letra sobre la banda clara; letra disponible y siguiente línea usan `lyric-ready` y `lyric-next`.
 
 ### Neutral
 
-- **Escenario oscuro** (`stage-dark`): espera y resultados a la izquierda.
-- **Lateral oscuro** (`sidebar-dark`): base de la sesión.
-- **Estado oscuro** (`status-dark`): banda fija inferior de mensajes.
-- **Control oscuro / control señalado** (`control-dark`, `control-hover`): botones y campos; el segundo indica el puntero sobre una fila.
-- **Transporte oscuro** (`transport-dark`): controles de interpretación.
-- **División / pista** (`divider`, `slider-track`): separación entre regiones y recorrido de volumen.
-- **Texto claro / secundario** (`text-light`, `text-muted`): etiquetas principales frente a ayuda, valores de campos y mensajes.
+- **Burdeos de escenario** (`stage-upper`, `stage-deep`, `stage-lower`): extremos del degradado vertical y unión oscura.
+- **Burdeos de panel / estado** (`panel-dark`, `status-dark`): zonas operativas fijas.
+- **Control / hover / transporte** (`control-dark`, `control-hover`, `transport-dark`): superficies funcionales en reposo y bajo el puntero.
+- **División / pista** (`divider`, `slider-track`): separación y recorrido de volumen.
+- **Blanco suave / rosa secundario** (`text-light`, `text-muted`): texto principal y ayuda.
+- **Plata clara / sombra de plata / tinta** (`footer-light`, `footer-shade`, `footer-ink`): pie del escenario.
+- **Bandas de letra / puntuación** (`lyrics-upper`, `lyrics-lower`, `score-backing`): materiales translúcidos generados para el HUD.
 
-**The Functional Accent Rule.** El acento del lateral comunica selección, foco o volumen; no se utiliza como decoración ni sustituye los colores funcionales del canto de Deluxe.
+**The State Before Ornament Rule.** El foco debe seguir identificable sobre la selección: marco rosa en el panel y pálido en el escenario, además del fondo de estado.
+
+Las rampas OKLCH del sidecar son muestras derivadas para el panel de diseño, no nuevos colores implementados. Los tonos auxiliares de reflejo y fundas sin portada permanecen definidos en `CoverAt`; no forman una escala cromática general.
 
 ## Typography
 
-**Display Font / Body Font:** Noto Sans, familia 0 de Deluxe, estilo regular, sin cursiva. La distribución inspeccionada carga `GoNotoKurrent-Regular.ttf`, con `GoNotoCurrent-Regular.ttf` como fallback de glifos. No hay familia monoespaciada ni peso especial en el shell.
+**Display Font / Body Font:** Noto Sans, familia 0 del motor, estilo regular. `build/engine/game/fonts/fonts.ini` carga `GoNotoKurrent-Regular.ttf` y usa `GoNotoCurrent-Regular.ttf` como fallback de glifos. No se ha identificado ni incorporado una fuente propietaria de Sony.
 
-El tamaño en el frontmatter representa la altura solicitada a `SetFontSize`, expresada con `px` para intercambio del documento. En el lateral, **1 px del documento equivale a una unidad lógica SDL**, escalada por `SideWidth / 400`; no equivale a un píxel físico de una pantalla Retina. En espera/resultados se usa directamente el sistema de coordenadas de la ventana. No se prescribe una escala tipográfica proporcional ni un interlineado global inexistente.
+Los tamaños `px` del frontmatter representan unidades solicitadas a `SetFontSize`, no píxeles físicos. El lateral escala su proyección de 400 unidades según el ancho disponible; el escenario usa coordenadas lógicas de ventana. No hay interlineado, tracking ni escala proporcional global declarados en el shell.
+
+**The Logical Coordinates Rule.** Separar siempre unidades lógicas, proyección del panel, proyección 800×600 del canto y píxeles físicos al modificar geometría o revisar capturas.
 
 ### Hierarchy
 
-- **Display / headline:** frase de bienvenida y título de resultados.
-- **Score / brand / title:** puntuación, nombre Karaoke y cabecera «Tu sesión».
-- **Result-body / stage-lead / stage-body:** canción y cantantes de resultados, orientación de espera.
-- **Body:** etiquetas de botones y valores de campos; aviso inferior del escenario. Las cabeceras de sección usan 20 unidades.
-- **Label:** pestañas, transporte, contador, porcentajes, mensajes y etiquetas persistentes de campos.
-- **Caption:** segunda línea descriptiva de una fila.
-- Los indicadores de contenido fuera de la vista son triángulos vectoriales, sin glifos tipográficos.
+- **Display / headline:** «Tu interpretación» y «Elige tu canción»; el estado vacío usa `empty-title`.
+- **Panel-title / result-name / result-song / score:** cabecera lateral, cantante, canción y puntuación.
+- **Cover-artist / body / cover-action:** artista, título y acción del pie de portada.
+- **Section / label / caption / count:** cabeceras de sección, pestañas y campos, ayudas de fila y contador de canciones.
+- El artista y título de una funda sin imagen escalan respectivamente con `S × 0.09` y `S × 0.065`; no son tamaños fijos de interfaz.
+- El HUD configura nombres a 18, puntuación a 32 y tiempo a 14 en su proyección 800×600; las letras se ajustan dentro de sus bandas por el motor.
 
-El texto de fila empieza en `(24, Y + 8)`; la segunda línea descriptiva en `Y + 36` y el valor de un campo en `Y + 40`. Las etiquetas largas se acortan por ancho con `...`, retirando caracteres UTF-8 completos. No presentar este recorte como ajuste automático en varias líneas.
+`LabelAt` recorta por ancho con `...`, retirando caracteres UTF-8 completos. Los campos mantienen el contenido completo para edición/almacenamiento. El pie usa texto breve: `DarkLabel` no implementa el mismo truncado y no debe heredarse como patrón para contenidos arbitrarios.
 
 ## Layout
 
-La composición de esta sesión está fijada en `.impeccable/surfaces/session.md`: escenario a la izquierda y lateral a la derecha, en una sola ventana. El lateral mide `round(clamp(ScreenW × 0.34, 340, 440))` unidades de ventana. A 1000 de ancho ocupa 340; a 1280 ocupa 435. Su proyección tiene ancho lógico 400 y alto `ScreenH × 400 / SideWidth`. No hay breakpoint móvil ni cambio a panel superpuesto.
+Una ventana, escenario izquierdo y panel derecho plegable. El ancho expandido es `round(clamp(ScreenW × 0.34, 340, 440))`: 340 a 1000 de ventana y 435 a 1280. El lateral proyecta 400 unidades de ancho y `ScreenH × 400 / ExpandedSideWidth` de alto. Plegarlo reduce su ancho a cero, sin dejar un carril vacío, y muestra «Mostrar panel» en un control de 154×40, a 16 unidades de los bordes superior y derecho. Este control no muestra contador de turnos.
 
-El escenario de canto conserva proporción 4:3: `W = min(ScreenW − SideWidth, round(ScreenH × 4/3))`, `H = min(ScreenH, round(W × 0.75))`, centrado en la región izquierda. El fondo de espera y resultados ocupa toda esa región.
+El canto mantiene 4:3: `W = min(ScreenW − SideWidth, round(ScreenH × 4/3))`, `H = min(ScreenH, round(W × 0.75))`, centrado en la región disponible. La selección y resultados ocupan toda la región izquierda. No estirar el HUD al ancho panorámico. El tamaño mínimo de ventana es 1000×640; las verificaciones usan además 1280×800 y la ampliación disponible del monitor. No hay breakpoint móvil.
 
-En coordenadas del lateral: cabecera en `(22, 22)`; cuatro pestañas desde `(12, 68)` con paso 96 y rectángulo 92 × 36; contexto o transporte desde `Y = 116`; filas desde `Y = 174 − Scroll`. Cada fila ocupa 48 unidades sin descripción, 72 con descripción, 82 para campo y 74 para volumen. Los fondos de controles miden el alto de fila menos 8. Solo se dibujan filas enteras dentro de los límites del área desplazable; el desplazamiento del ratón avanza por filas.
+En el escenario, los títulos comienzan en `(48,48)` y reservan 48 a cada lado. La portada central mide `S = min(280, W × 0.32, ScreenH × 0.38)`, se centra en X y comienza en `Y = max(156, ScreenH × 0.24)`. Las vecinas de primer y segundo grado miden 0.72S y 0.60S; se dibujan desde la más lejana a la central. El pie seleccionado añade 96 de alto; el pie plateado ocupa 36 de alto desde `ScreenH − 64`.
 
-La banda de estado está anclada al fondo. El escenario usa margen lateral 48, ancho de texto `W − 96` y mantiene el aviso de preparación o prueba sintética cerca del borde inferior. Verificar la composición a 1280 × 800, al mínimo acordado de 1000 × 640 y con la opción 1920 × 1080; estas medidas son tamaños lógicos de ventana, no resoluciones de archivo JPEG ni de framebuffer Retina.
+El panel sitúa cabecera en `(22,22)`, cuatro pestañas desde `(12,68)` con paso 96 y tamaño 92×36, contexto/transporte desde Y=116, y filas desde `174 − Scroll`. Alturas: 48 simple, 72 con descripción, 82 campo, 74 volumen. El fondo interior mide 368 de ancho y altura de fila menos 8. Solo se dibujan filas completas entre 168 y `Height − 98`; scroll y foco mantienen esa unidad de fila. La banda de estado ocupa las últimas 94 unidades.
 
 ### Densidad de pantalla
 
-El layout y los eventos SDL conservan unidades lógicas. El renderer consulta el drawable real y convierte los límites del viewport y scissor a píxeles físicos, redondeando ambos bordes para evitar juntas. Las fuentes eligen su rasterización según el viewport y la proyección activos, con resolución base mínima de 128 píxeles. El launcher y el motor declaran soporte Retina. En una pantalla de escala 2, una ventana lógica 1280 × 800 dibuja a 2560 × 1600; el tamaño de controles y el mapa de clics permanecen expresados en unidades lógicas.
+Retina conserva layout y eventos SDL en unidades lógicas. Viewport/scissor se convierten al drawable físico redondeando ambos bordes; las fuentes eligen rasterización según viewport y proyección, con resolución base mínima 128. Una ventana lógica 1280×800 a escala 2 usa 2560×1600 píxeles físicos sin duplicar el tamaño de los controles. El clipping de sílaba activa permanece dentro del viewport del canto.
 
 ## Elevation & Depth
 
-El shell es plano: sin sombras, degradados, desenfoque ni elevación animada. Los distintos grises separan escenario, lateral, controles y estado. Una línea vertical de una unidad lógica divide las regiones. El marco verde identifica el foco; no representa elevación. Las barras brillantes y efectos de afinación visibles en el canto pertenecen a Deluxe y se conservan.
+La profundidad procede de tamaño, superposición, sombreado y reflejos; no de sombras de caja. El escenario encadena dos degradados verticales con unión oscura al 55% de su altura. El pie plateado tiene su propio degradado. Los controles laterales son planos.
 
-**The Quiet Controls Rule.** Los controles no añaden animación decorativa; el movimiento funcional del canto sigue siendo responsabilidad del motor.
+Las portadas vecinas se dibujan al 75% de intensidad; sus texturas usan reflexión separada 5 unidades, altura relativa 0.30 y `ReflectionAlphaDiff = 0.65`. Las fundas tipográficas sin portada tienen un reflejo geométrico propio de 0.25S; el pie central proyecta una franja de 35 de alto. No imponer la antigua prohibición de degradados: forman parte de la identidad aprobada.
+
+La selección del carrusel y el plegado cambian geometría inmediatamente. No hay interpolación, easing ni duración de carrusel implementados; el movimiento funcional de notas, letras y puntuación pertenece al motor. Las observaciones temporales del SingStar de referencia no certifican movimiento equivalente en Karaoke.
 
 ## Shapes
 
-Rectángulos de esquinas cuadradas, sin borde permanente en los controles. El radio del frontmatter es cero. El redondeo y los botones de la ventana macOS pertenecen al sistema operativo y no definen el estilo de las filas.
-
-El foco de fila se dibuja detrás del control: rectángulo en `(13, Y − 3)`, ancho 374 y alto `RowHeight − 2`, frente al fondo interior en `(16, Y)`, ancho 368 y alto `RowHeight − 8`. Esto deja un marco visible de tres unidades lógicas. Las pestañas enfocadas tienen un marco de dos unidades (96 × 40 detrás de 92 × 36); el transporte usa tres (186 × 42 detrás de 180 × 36). Las barras de volumen son rectángulos de altura 8, sin tirador circular añadido.
+Panel, pestañas, filas, portadas y acciones del escenario usan esquinas cuadradas. Las cápsulas del canto tienen extremos circulares generados; no extender esa forma a los controles administrativos. El foco de fila deja un marco de tres unidades: fondo de foco `(13,Y−3,374,RowHeight−2)` frente al control `(16,Y,368,RowHeight−8)`. Pestañas: marco de dos unidades; transporte: tres; portada: cuatro. El radio de la ventana macOS pertenece al sistema operativo.
 
 ## Components
 
 ### Buttons
 
-Acciones de texto alineadas a la izquierda, con fondo oscuro y separación regular. El botón simple usa la fila sin descripción; una acción con ayuda usa la fila de dos líneas. Hover cambia el fondo al token `control-hover`; foco añade el marco salvia. No hay estilo destacado adicional para acciones primarias, animación de pulsación ni color de peligro definido. Las confirmaciones se expresan con contenido y acciones explícitas.
+Acciones laterales de texto a la izquierda: 368×40 o 368×64 con descripción. El hover cambia a `control-hover`, foco añade `focus-pink`; no existe animación de pulsación ni color de peligro general. Las acciones principales del escenario usan `selection-fuchsia`, altura 48 y texto de 18. El control de plegado usa un chevrón vectorial, no un glifo tipográfico.
 
 ### Inputs / Fields
 
-Etiqueta persistente secundaria de 16 unidades arriba y valor de 18 unidades en color principal debajo, dentro de la misma superficie. Campo vacío muestra «Clic para escribir» en color secundario; foco de edición añade `|` al final. Seleccionar todo preserva el valor y añade un fondo `text-selection` de 350 × 29 en `(22, Y + 35)`; escribir, pegar o borrar sustituye la selección. Contraseñas se ocultan con asteriscos. El marco verde es el mismo que en los botones; hover comparte el cambio tonal. Los textos visibles se recortan al ancho disponible; la edición y el almacenamiento no deben confundirse con ese recorte visual.
+Etiqueta persistente de 16 y valor de 18 en dos líneas, dentro de 368×74. Vacío: «Clic para escribir». Edición al final mediante SDL, con `|` como cursor; selección total en rectángulo 350×29 desde `(22,Y+35)`. Cmd/Ctrl+A selecciona sin borrar; pegar o escribir sustituye la selección. Enter confirma, Escape descarta; contraseñas usan asteriscos. No documentar selección parcial ni cursor arbitrario como funciones disponibles.
 
 ### Navigation
 
-Biblioteca, Buscar, Cola y Ajustes mantienen orden y posición. La pestaña activa tiene fondo pizarra y una línea inferior salvia de dos unidades; no hay iconos ni navegación móvil alternativa. El contador de turnos queda a la derecha de «Tu sesión». Cambiar de página reinicia el desplazamiento; conserva el foco si ya estaba en una pestaña y descarta el foco de un control de la página anterior. Cuando una actualización asíncrona cambia las filas de la misma página, se conserva la acción enfocada por su identificador, no por su antiguo índice.
+Biblioteca, Buscar, Cola y Ajustes mantienen orden y posición. Activa: fucsia con línea inferior rosa de dos unidades. Cambiar página reinicia scroll; las actualizaciones de la misma página conservan foco por identificador de acción. Cmd/Ctrl+1–4 abre cada página y recupera el panel si estaba oculto.
+
+### Carousel
+
+Biblioteca real, con hasta cinco elementos visibles; flechas eligen y Enter sobre la selección añade a cola. Clic en portada central añade; clic en vecina selecciona. La portada ausente se representa con una funda tipográfica propia de artista/título, nunca con arte de álbum inventado. Biblioteca vacía conserva escenario y acción «Buscar canciones». No confundir selección con comienzo de canto: iniciar un turno sigue siendo explícito.
 
 ### Volume
 
-Etiqueta, pista horizontal y porcentaje visible. El relleno mide `290 × valor / 100`; la pista parte de `(24, Y + 44)` y el porcentaje de `(325, Y + 36)`. El volumen de música parte de 65%; el retorno de cada cantante parte de cero. Foco usa el marco compartido, y las flechas ajustan el valor en pasos de cinco puntos, limitados a 0–100.
+Etiqueta de 18, pista 290×8, relleno proporcional y porcentaje de 16. Flechas ajustan cinco puntos dentro de 0–100. El volumen de música parte de 65%; el retorno de cada cantante parte de cero. El foco usa el marco de fila compartido.
 
-### Transport and status
+### Panel, transport and status
 
-Durante el canto aparecen «Pausar / continuar» y «Terminar canción» en dos rectángulos del mismo tamaño. Finalizar abre una confirmación en el lateral. La banda inferior muestra mensajes de servicio o error del motor, con prioridad para este último. El mensaje ocupa hasta cuatro líneas con paso 22, desde `(22, Height − 80)`, con ancho de texto 354 y corte por palabras a 350. No hay área de mensajes expandible: textos excesivos o palabras indivisibles aún pueden quedar recortados. Al recibir la confirmación del motor, «Preparando micrófonos e interpretación…» cambia a «Cantando. Puedes buscar y preparar los próximos turnos.»; ese cambio no sobrescribe otro mensaje posterior.
+Cmd/Ctrl+B o el control visible pliega/restaura el panel. Plegar suspende entrada SDL y conserva edición pendiente, foco por acción, cola, audio e interpretación; no envía ni descarta el texto. Durante canto, «Pausar / continuar» y «Terminar canción» miden 180×36. Cmd/Ctrl+P pausa; Cmd/Ctrl+E muestra el panel y pide terminar. Finalizar requiere confirmación.
 
-### Singing stage
+El estado inferior muestra hasta cuatro líneas con paso 22, ancho de corte por palabras 350 y tamaño 16; los errores del motor tienen prioridad. Los mensajes extensos y palabras indivisibles siguen limitados por esa región: no convertir su recorte en una pauta de contenido. No comienza otra canción automáticamente.
 
-Se reutilizan las letras, notas, afinación, tiempo y puntuaciones de Deluxe dentro de su viewport. Las vistas de espera y resultados propias utilizan texto regular y el fondo oscuro del shell. Los previews HTML del sidecar representan solamente controles del shell; no recrean ni sustituyen el canto.
+### Singing HUD and results
+
+`scripts/prepare_engine_theme.py` adapta el tema fijado de Deluxe de forma reproducible. Coordenadas del HUD 800×600: banda de letra `(0,484,800,94)`, primera línea `(38,492,724,34)`, siguiente `(38,539,724,28)`, tiempo `(0,578,800,22)` y progreso `(90,589,620,2)`. Puntuación de un cantante: fondo `(648,278,130,44)` y texto desde `(658,282)`; en dos cantantes la primera se sitúa a Y=98/102 y la segunda a Y=278/282. Cápsulas guía/cantadas y puntuaciones corresponden a la afinación real del motor; no son una simulación de interfaz.
+
+Las texturas propias, licencia y hashes están en `assets/theme/manifest.json`; no incorporan imágenes de terceros. La paleta final de las notas combina esos mapas con los colores de jugador del motor; no inferir un color final único del PNG. El vídeo depende del paquete: una prueba sin vídeo puede tener escenario negro.
+
+Resultados usa el escenario carmesí, hasta dos filas de 88 de alto con paso 108 y «Volver al repertorio». El pie distingue cola con turnos pendientes de cola vacía. Es adaptación propia, no una reconstrucción histórica certificada de SingStar.
 
 ### Keyboard and accessibility
 
-Tab recorre las cuatro pestañas, los dos controles de transporte cuando se canta y las filas accionables; Shift + Tab invierte el recorrido. Ambos envuelven al llegar al extremo y omiten filas informativas. El foco de fila fuera de vista ajusta el desplazamiento para mostrarla entera. Enter o Espacio activan la pestaña, botón o transporte enfocados; Enter sobre volumen conserva el valor y las flechas lo ajustan.
+Tab y Shift+Tab recorren escenario, plegado, pestañas y filas accionables; durante canto, escenario sale del recorrido y aparecen los dos controles de transporte. El recorrido envuelve y omite filas informativas. Con panel plegado, Tab alterna escenario/control de restauración entre canciones; durante canto enfoca restauración. Enter/Espacio activa el control; Espacio sin foco durante canto pausa. Después de flechas en el carrusel el foco sigue siendo el escenario, por lo que el siguiente Tab avanza al control de plegado.
 
-Los campos reciben entrada de texto SDL; Enter confirma y Escape descarta la edición. Cmd/Ctrl + A selecciona el valor completo sin borrarlo; Cmd/Ctrl + V pega, sustituyendo la selección si existe. Cmd/Ctrl + 1–4 abre las páginas; durante el canto, Cmd/Ctrl + P pausa/continúa y Cmd/Ctrl + E abre la confirmación para terminar. Espacio sin foco pausa el canto. No inferir edición completa de texto, posición arbitraria del cursor o selección parcial: el editor SDL actual trabaja al final del valor.
-
-La representación SDL no expone actualmente semántica nativa a lectores de pantalla. El marcado semántico de los previews HTML del sidecar es únicamente una ayuda para revisar los componentes y no constituye accesibilidad implementada en la aplicación. No afirmar cumplimiento completo por tener contraste o navegación de teclado.
+SDL no expone actualmente semántica nativa completa para lectores de pantalla. Los previews HTML del sidecar son traducciones aisladas para revisar materiales y estados; sus botones, inputs y atributos accesibles no representan accesibilidad implementada en la app. No sustituyen la revisión nativa.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** reutilizar las filas y los tokens existentes al añadir controles al lateral.
-- **Do** mantener visible el canto al buscar, preparar turnos y abrir ajustes.
-- **Do** distinguir unidades lógicas SDL, tamaño de ventana y píxeles físicos al revisar capturas.
-- **Do** verificar foco, texto largo y mensajes en los dos tamaños de ventana acordados.
-- **Do** conservar las barras, colores de jugador y animación funcional reales de Deluxe.
+- **Do** mantener la portada elegida dominante y el foco visible sobre su estado de selección.
+- **Do** conservar ventana única, panel recuperable y canto continuo al preparar otros turnos.
+- **Do** usar contenido real de biblioteca y fundas tipográficas explícitas cuando falta portada.
+- **Do** verificar teclado, acentos, textos largos y geometría en 1000×640, 1280×800 y Retina 2×.
+- **Do** preservar proporción 4:3 y coordenadas propias del HUD al expandir el escenario.
 
 ### Don't:
 
-- **Don't** añadir animación decorativa, sombras o superficies luminosas al shell.
-- **Don't** introducir una segunda ventana o una vista móvil/TV dentro de esta composición V1.
-- **Don't** reemplazar las barras del motor con una simulación visual.
-- **Don't** afirmar compatibilidad instrumental, validación con micrófono o accesibilidad completa a partir de una captura sintética.
+- **Don't** restaurar el verde anterior ni prohibir los degradados y reflejos propios del mundo aprobado.
+- **Don't** introducir inicio automático de turnos o una segunda ventana de canto en esta V1.
+- **Don't** presentar fixtures de captura como canciones incluidas o sustituir afinación real por gráficos simulados.
+- **Don't** atribuir a Sony los tokens, tipografía, panel lateral o resultados propios de Karaoke.
+- **Don't** afirmar animación temporal del carrusel, validación física Windows/micrófonos o accesibilidad AX completa sin pruebas específicas.

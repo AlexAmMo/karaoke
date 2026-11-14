@@ -1,0 +1,13 @@
+{
+  "sequence": "Cmd+1, Shift+Tab twice, Right, Tab \u2192 panel; Shift+Tab, Cmd+B, Enter, Tab \u2192 panel",
+  "observed": {
+    "state": "idle",
+    "focus_action": "panel",
+    "panel_collapsed": false,
+    "last_action": "panel:show",
+    "width": 1000,
+    "height": 640,
+    "drawable_width": 2000,
+    "drawable_height": 1280
+  }
+}

@@ -89,3 +89,21 @@ Cuando se disponga de acceso a USDB, se seguirá el mismo recorrido para cada fi
 5. Anotar en `resultado` fecha, edición/enlace del medio, presencia de voz original, resultado de la preparación automática, revisión de instrumental, incidencias y referencia a la evidencia. Marcar `validado` solo después de una sesión real; usar `bloqueado` para problemas de acceso o recursos y `sin_mapa_en_USDB` únicamente tras una búsqueda completada sin coincidencias.
 
 Los errores de autenticación o de conexión no cuentan como ausencia de mapas. Los resultados se resumirán por separado para cada idioma: canciones comprobadas sobre 20 y canciones listas sobre 20, acompañadas de los fallos observados. No se extrapolarán estos resultados a todas las canciones del catálogo.
+
+
+## Interfaz clásica y panel plegable — 14 de noviembre de 2026
+
+Runtime `6be1f3e`, paquete local de desarrollo (el release público v0.1.0 no se ha reemplazado). Interfaz basada en referencias PS3 clásicas: [investigación](research/SINGSTAR-REFERENCIAS.md). Biblioteca en carrusel con metadatos/portadas locales; lateral plegable y navegación por teclado; HUD propio sobre Deluxe. El escenario de canto conserva 4:3 y el render Retina sigue a escala física 2×.
+
+- 65 pruebas Python superadas, incluidas navegación completa por biblioteca, selección estable, cola y portadas válidas/contenidas en el paquete.
+- 20 comprobaciones integradas con motor final: [evidencia](evidence/session-ps3-macos.json), 33,08 s. Plegar continúa audio/puntuación/cola; desplegar restaura geometría; reiniciar vuelve a abrir el panel. Entrada sintética, no micrófono físico.
+- Paquete congelado ejecutado con biblioteca de prueba separada: selección y cola por teclado, canto hasta resultados, ganador A4 y B4 fuera de tono. [Auditoría del paquete](validation/packaging-ps3-macos.json): firma ad hoc válida, 189 Mach-O, sin referencias absolutas a dependencias externas, ambos bundles con alta resolución habilitada.
+- [Foco del teclado](evidence/ps3-keyboard-focus.json): desde el carrusel, Tab avanza al control de plegado y el foco se conserva al volver a abrir.
+- CUA inspeccionó capturas a 1000×640, 1280×800 y ventana ampliada 1512×831. Los archivos incluyen la barra de título y están a 2×. Los gráficos y audio de demostración son originales y viven en datos de prueba; no se importaron a la biblioteca personal.
+- Límite de automatización de ratón: SDL3 en macOS 26 consulta la posición global real, mientras los eventos sintéticos de CUA pueden conservar coordenadas anteriores. No se certifica clic físico a partir de esas pruebas. Se conserva el manejo estándar de eventos SDL, sin compensaciones específicas para la herramienta. Tampoco se certifican AX completo ni micrófono/latencia física.
+
+La revisión visual independiente y su veredicto se registran en [ps3-finish-review.md](validation/ps3-finish-review.md).
+
+La compilación final está instalada en `/Users/ton/Applications/Karaoke.app` y se ha abierto en modo normal a 1280×800. Motor SHA-256 `5c24b3c387ca64081e9aacf8859f2beb9a3a2e3a25f381a12fdf8c83da87105d`. Los dos archivos SQLite conservan sus hashes al sustituir el bundle. La copia previa a este rediseño se conserva en `build/before-ps3-install/Karaoke.app`; el paquete intermedio en `build/before-ps3-final-install/Karaoke.app`.
+
+Windows supera compilación, empaquetado, arranque/cierre y proveedor congelado en la [ejecución 43534469382](https://github.com/AlexAmMo/karaoke/actions/runs/43534469382), mismo runtime `6be1f3e`. El [informe de Windows PS3](validation/display-ps3-windows-ci.json) registra 1280×800 a escala 1×, lateral abierto de 435 y escenario de 845. Usa Mesa llvmpipe y SDL dummy en una copia desechable de CI. No acredita aspecto visual, monitor HiDPI, hardware de audio ni una sesión completa de canto en Windows.

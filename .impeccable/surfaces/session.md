@@ -1,7 +1,7 @@
-# Sesión de karaoke
+# Sesión de karaoke — contrato vigente
 
-Mode: Operate en controles; Experience en el canto. Composición fijada por el usuario: zona principal y lateral en una sola ventana; no hace falta una nueva elección de composición. La pantalla de prueba previa es evidencia técnica, no la interfaz de producto.
+El contrato vigente de esta superficie es [Sesión de karaoke — PS3 clásico](native-ukaraokeshell-pas.md). Este archivo conserva el enlace histórico; no define una segunda dirección visual.
 
-Contexto de uso: reunión en casa, posiblemente poca luz, una persona gestiona próximos turnos sin tapar a quien canta. Superficies oscuras neutras, texto claro y acento verde apagado exclusivamente para selección, foco y volumen. Sin animaciones decorativas. El canto conserva las barras y animación funcional de Deluxe. El lateral tiene ancho acotado, filas regulares y navegación estable. Estado vacío orientado a importar o conectar USDB; errores con recuperación. No se confunden candidatos con compatibilidad certificada.
+El usuario autorizó sustituir la estética verde por la adaptación de SingStar clásico de PS3: escenario burdeos/carmesí, selección fucsia, portadas vecinas y panel derecho plegable. Se mantienen una sola ventana, canto real de Deluxe, preparación concurrente de turnos y comienzo manual de cada interpretación.
 
-Contrato de verificación: tamaños lógicos 1280×800, mínimo 1000×640 y opción 1920×1080, respetando el límite real del monitor. En Retina verificar que el drawable corresponde a los píxeles físicos, sin confundirlos con el tamaño lógico; el texto se rasteriza según el viewport y la proyección de cada zona. Comprobar biblioteca vacía, datos largos/acentos, entrada de texto, foco/Tab, desplazamiento, cola, canto concurrente y ajustes. El dibujo SDL todavía no ofrece semántica nativa a lectores de pantalla: registrar esta limitación sin afirmar accesibilidad completa.
+Consultar `../../DESIGN.md` y `../design.json` para los tokens extraídos del artefacto. El contrato vigente conserva las verificaciones 1000×640, 1280×800 y Retina 2×, la separación entre coordenadas lógicas y drawable físico, y los límites de verificación Windows, micrófonos físicos y accesibilidad AX. Las capturas de prueba usan fixtures propios aislados, no canciones distribuidas.
