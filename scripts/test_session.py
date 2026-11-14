@@ -122,8 +122,11 @@ class Session:
             {"action": action, "value": str(value)},
         )
 
-    def native(self, operation: str):
-        atomic_json(self.ipc / "commands" / (str(time.time_ns()) + ".json"), {"op": operation})
+    def native(self, operation: str, **parameters):
+        atomic_json(
+            self.ipc / "commands" / (str(time.time_ns()) + ".json"),
+            {"op": operation, **parameters},
+        )
 
     def enqueue(self, song_id: str):
         previous = {turn["id"] for turn in self.queue()}
@@ -163,6 +166,11 @@ def main():
         "--engine", type=Path, help="Override the native engine executable for a source run"
     )
     parser.add_argument("--output", type=Path, default=ROOT / "docs/evidence/session-macos.json")
+    parser.add_argument(
+        "--check-panel",
+        action="store_true",
+        help="Also verify sidebar collapse/restore while singing and visible state after restart",
+    )
     args = parser.parse_args()
     data = Path(tempfile.mkdtemp(prefix="karaoke-session-"))
     environment = dict(os.environ)
@@ -189,6 +197,7 @@ def main():
         "engine_override": environment.get("KARAOKE_ENGINE"),
         "path_environment": environment.get("PATH", ""),
         "checks": checks,
+        "panel_checks": args.check_panel,
     }
 
     def check(name: str, condition: bool, evidence=None):
@@ -257,6 +266,50 @@ def main():
             3500 <= state["monitor_peaks"][0] <= 4100 and 600 <= state["monitor_peaks"][1] <= 900,
             {"peaks": state["monitor_peaks"]},
         )
+        if args.check_panel:
+            expanded = state
+            queue_before = [
+                (turn["id"], turn["state"], turn["position"]) for turn in session.queue()
+            ]
+            page_before = read_json(session.ipc / "view.json").get("page")
+            session.native("panel", collapsed=True)
+            collapsed = session.wait(
+                lambda s: s.get("panel_collapsed") is True
+                and s.get("position", 0) > expanded["position"] + 0.4
+                and s.get("scores", [0])[0] > expanded["scores"][0]
+            )
+            check(
+                "Collapsing the panel expands the stage without interrupting song, score, audio or queue",
+                expanded.get("panel_collapsed") is False
+                and collapsed["panel_width"] == 0
+                and collapsed["stage_width"] == collapsed["width"]
+                and collapsed["stage_width"] > expanded["stage_width"]
+                and collapsed["state"] == "singing"
+                and collapsed["token"] == turn_a
+                and [tone % 12 for tone in collapsed["tones"][:2]] == [9, 11]
+                and collapsed["levels"][0] > 0.2
+                and 3500 <= collapsed["monitor_peaks"][0] <= 4100
+                and 600 <= collapsed["monitor_peaks"][1] <= 900
+                and [(t["id"], t["state"], t["position"]) for t in session.queue()] == queue_before
+                and read_json(session.ipc / "view.json").get("page") == page_before,
+                {"before": expanded, "collapsed": collapsed, "queue": queue_before},
+            )
+            session.native("panel", collapsed=False)
+            restored_panel = session.wait(
+                lambda s: s.get("panel_collapsed") is False
+                and s.get("position", 0) > collapsed["position"] + 0.3
+            )
+            check(
+                "Restoring the panel restores geometry and keeps the active turn and score",
+                restored_panel["panel_width"] == expanded["panel_width"]
+                and restored_panel["stage_width"] == expanded["stage_width"]
+                and restored_panel["state"] == "singing"
+                and restored_panel["token"] == turn_a
+                and restored_panel["scores"][0] >= collapsed["scores"][0]
+                and [(t["id"], t["state"], t["position"]) for t in session.queue()] == queue_before
+                and read_json(session.ipc / "view.json").get("page") == page_before,
+                {"restored": restored_panel},
+            )
         session.event("gain:0", "0")
         muted = session.wait(
             lambda s: (
@@ -329,6 +382,9 @@ def main():
             "Newly selected song starts without restarting the engine launcher",
             session.launch_count == 1,
         )
+        if args.check_panel:
+            session.native("panel", collapsed=True)
+            session.wait(lambda s: s.get("panel_collapsed") is True)
         exit_code = session.close()
         check(
             "Closing native game shuts down the main app", exit_code == 0, {"exit_code": exit_code}
@@ -341,6 +397,12 @@ def main():
         session.wait(
             lambda s: s.get("state") == "idle" and len(session.rows("SELECT * FROM songs")) == 3
         )
+        if args.check_panel:
+            restarted = session.state()
+            check(
+                "Restarting restores the visible panel for session setup",
+                restarted.get("panel_collapsed") is False and restarted.get("panel_width", 0) > 0,
+            )
         restored = session.queue()
         check(
             "Interrupted turn and pending queue recover in original order",

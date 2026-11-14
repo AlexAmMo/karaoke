@@ -590,6 +590,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "more-itertools" },
+    { name = "pillow" },
     { name = "usdb-syncer" },
 ]
 
@@ -603,6 +604,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "more-itertools", specifier = ">=10,<12" },
+    { name = "pillow", specifier = ">=13,<14" },
     { name = "usdb-syncer", git = "https://github.com/bohning/usdb_syncer.git?rev=1690c6d7505701047b245a3470867c0b3ddae01d" },
 ]
 

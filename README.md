@@ -38,6 +38,12 @@ La búsqueda acepta `artista - título` y enlaces de YouTube. Un enlace ofrece c
 
 La voz original del paquete se conserva. **Buscar instrumental existente** obtiene candidatos; permite preescucha al principio, centro y final y exige confirmar la correspondencia. Ni el título ni una duración parecida certifican la afinación o la sincronía. No se generan notas ni se separa voz con IA.
 
+## Interfaz y controles
+
+La versión de desarrollo adapta la estética clásica de SingStar para PS3: escenario burdeos, selección fucsia, carrusel de portadas y letras sobre una banda clara. Las portadas proceden de tus paquetes; cuando faltan se muestran artista y título. Las [referencias visuales](docs/research/SINGSTAR-REFERENCIAS.md) distinguen lo observado de las adaptaciones propias.
+
+Puedes plegar el lateral con la flecha de su encabezado o **Cmd/Ctrl+B**, y recuperarlo con **Mostrar panel**. La canción, la cola y los ajustes siguen activos. **Cmd/Ctrl+1–4** abre Biblioteca, Buscar, Cola o Ajustes. **Tab/Mayús+Tab** recorre el carrusel y los controles; con el carrusel enfocado, las flechas eligen canción e **Intro** la añade a la cola. El canto conserva su proporción 4:3 al ampliar el escenario.
+
 ## Desarrollo y ejecución local
 
 Requiere Python 3.12–3.14, [uv](https://docs.astral.sh/uv/), FFmpeg con `ffprobe` y `ffplay`, y las dependencias de compilación de Deluxe. Para macOS con Homebrew:

@@ -91,6 +91,34 @@ index 6a395ce..a7e2599 100644
  	echo
  
  	touch "$PREFIX/built_libs"
+diff --git a/src/base/UDraw.pas b/src/base/UDraw.pas
+index f52e478..252c00b 100644
+--- a/src/base/UDraw.pas
++++ b/src/base/UDraw.pas
+@@ -542,6 +542,9 @@ procedure SingDrawNoteLines(Left, Top, Right: real; LineSpacing: integer; LineTh
+   for Count := 0 to 9 do
+   begin
+     Y := Top + Count * LineSpacing;
++    if GetEnvironmentVariable('KARAOKE_IPC') <> '' then
++      Renderer.DrawLine(Left, Y, Right, Y, 0, 0.6, 0.82, 0.90, 0.96, 0.2)
++    else
+     Renderer.DrawLine(Left, Y, Right, Y, 0, LineThickness, Skin_P1_LinesR, Skin_P1_LinesG, Skin_P1_LinesB, 0.4);
+   end;
+ end;
+@@ -1380,6 +1383,13 @@ procedure SingDraw;
+         end;
+     end;
+ 
++    // Presentation only: pitch tolerance and score calculation stay unchanged.
++    if GetEnvironmentVariable('KARAOKE_IPC') <> '' then
++    begin
++      NotesH[I - 1] := 4;
++      NotesW[I - 1] := 4;
++    end;
++
+     if PlayersPlay = 3 then
+     begin
+       NotesW[I - 1] := NotesW[I - 1] * 0.8;
 diff --git a/src/base/UFont.pas b/src/base/UFont.pas
 index 3587a97..18acb81 100644
 --- a/src/base/UFont.pas
@@ -234,6 +262,37 @@ index 17060f5..fe99ad9 100644
  procedure CalculateScreenMetrics();
  begin
    ScreenWPerScreen := ScreenW div Screens;
+diff --git a/src/base/UIni.pas b/src/base/UIni.pas
+index 3b45ebf..a1a7757 100644
+--- a/src/base/UIni.pas
++++ b/src/base/UIni.pas
+@@ -1264,6 +1264,18 @@ procedure TIni.LoadThemes(IniFile: TCustomIniFile);
+     Log.CriticalError('Could not find any valid Themes.');
+   end;
+ 
++  if GetEnvironmentVariable('KARAOKE_IPC') <> '' then
++  begin
++    Theme := GetArrayIndex(ITheme, 'Karaoke', true);
++    LyricsFont := 0;
++    LyricsStyle := 0;
++    LyricsEffect := 2;
++    PlayerColor[0] := 1;
++    PlayerColor[1] := 2;
++    SingColor[0] := 1;
++    SingColor[1] := 2;
++  end
++  else
+   Theme := ReadArrayIndex(ITheme, IniFile, 'Themes', 'Theme', IGNORE_INDEX, DEFAULT_THEME, true);
+   if (Theme = -1) then
+     Theme := 0;
+@@ -1694,6 +1706,7 @@ procedure TIni.Load();
+ 
+   // EffectSing
+   EffectSing := ReadArrayIndex(IEffectSing, IniFile, 'Advanced', 'EffectSing', IGNORE_INDEX, 'On');
++  if GetEnvironmentVariable('KARAOKE_IPC') <> '' then EffectSing := 0;
+ 
+   // AskbeforeDel
+   AskBeforeDel := ReadArrayIndex(IAskbeforeDel, IniFile, 'Advanced', 'AskbeforeDel', IGNORE_INDEX, 'On');
 diff --git a/src/base/UMain.pas b/src/base/UMain.pas
 index c5514a3..cd103d9 100644
 --- a/src/base/UMain.pas
@@ -750,7 +809,7 @@ index 93e1eef..844e7bd 100644
  
     Success := WriteJPGImage(FileName, Surface, 95);
 diff --git a/src/screens/controllers/UScreenSingController.pas b/src/screens/controllers/UScreenSingController.pas
-index a682bbb..ea068d1 100644
+index a682bbb..c42a339 100644
 --- a/src/screens/controllers/UScreenSingController.pas
 +++ b/src/screens/controllers/UScreenSingController.pas
 @@ -198,7 +198,7 @@   TScreenSingController = class(TMenu)
@@ -762,7 +821,28 @@ index a682bbb..ea068d1 100644
    UDatabase,
    UDisplay,
    UDLLManager,
-@@ -1248,7 +1248,7 @@ procedure TScreenSingController.LoadNextSong();
+@@ -844,6 +844,20 @@ procedure TScreenSingController.OnShow;
+     Lyrics.LineColor_dis.A := 1;
+   end;
+ 
++  // Karaoke's light lyric band uses a dark, clean lyric face with blue progress.
++  if ShellEnabled then
++  begin
++    Lyrics.LineColor_act.R := 0;
++    Lyrics.LineColor_act.G := 0.36;
++    Lyrics.LineColor_act.B := 0.62;
++    Lyrics.LineColor_en.R := 0.13;
++    Lyrics.LineColor_en.G := 0.18;
++    Lyrics.LineColor_en.B := 0.23;
++    Lyrics.LineColor_dis.R := 0.32;
++    Lyrics.LineColor_dis.G := 0.37;
++    Lyrics.LineColor_dis.B := 0.42;
++  end;
++
+   // deactivate pause
+   Paused := false;
+ 
+@@ -1248,7 +1262,7 @@ procedure TScreenSingController.LoadNextSong();
    LyricsState.UpdateBeats();
  
    // prepare and start voice-capture
@@ -771,7 +851,7 @@ index a682bbb..ea068d1 100644
  
    // main text
    ClearLyricEngines;
-@@ -1600,7 +1600,7 @@ procedure TScreenSingController.Finish;
+@@ -1600,7 +1614,7 @@ procedure TScreenSingController.Finish;
  
  begin
    Log.LogStatus('TScreenSingController.Finish', 'TScreenSingController.Finish');
@@ -780,7 +860,7 @@ index a682bbb..ea068d1 100644
    AudioPlayback.Stop;
    AudioPlayback.SetSyncSource(nil);
  
-@@ -1608,7 +1608,7 @@ procedure TScreenSingController.Finish;
+@@ -1608,7 +1622,7 @@ procedure TScreenSingController.Finish;
    begin
      SaveLocalScores;
  

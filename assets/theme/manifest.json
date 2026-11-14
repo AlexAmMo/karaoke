@@ -1,0 +1,63 @@
+{
+  "generator": "scripts/create_theme_assets.py",
+  "generator_sha256": "ab6873702e401a92a60b698072065f41effa6c87f8dcd74dacf27b09668b31c7",
+  "license": "GPL-3.0-only",
+  "provenance": "Original geometry authored for Karaoke: circle/rectangle capsule segments, two-tone lyric band, flat translucent score backing and pause bars. No third-party image input.",
+  "assets": [
+    {
+      "filename": "Karaoke/clear.png",
+      "sha256": "67798d969f6f7ed4d64bfdb24e16b103c73e1588e1f1560c22a8129667785839",
+      "bytes": 74
+    },
+    {
+      "filename": "Karaoke/guide-left.png",
+      "sha256": "f41aef7c480e8f4c1cede0705abe4aaa8b90fea9c7550b9cfda47afbd23ff880",
+      "bytes": 684
+    },
+    {
+      "filename": "Karaoke/guide-mid.png",
+      "sha256": "56341ad88a4ddadf45cdb2c865e759895a24ffe2972ec51a1ccc547fe78950ed",
+      "bytes": 103
+    },
+    {
+      "filename": "Karaoke/guide-right.png",
+      "sha256": "32869db6ace01b68ddb72b5108602655b358bf6a54ec278189ede727caf90e4a",
+      "bytes": 691
+    },
+    {
+      "filename": "Karaoke/lyrics.png",
+      "sha256": "b1c3dbf6ed8fab37314eb246585f52005f2dd14dcec86d4287daef3d2da58812",
+      "bytes": 99
+    },
+    {
+      "filename": "Karaoke/pause.png",
+      "sha256": "c8471887eeef094082e8f94f1eece72b4cf8b3440772c7755e05c216040b2908",
+      "bytes": 2933
+    },
+    {
+      "filename": "Karaoke/score.png",
+      "sha256": "35edb086fb731aa95402a451d4b495c351b39cd18554c979ddd072eda54f948d",
+      "bytes": 75
+    },
+    {
+      "filename": "Karaoke/sung-left.png",
+      "sha256": "fff64a8fb0889d1f2c4954d5477685669edb25ebe240dcbe522e0e4d8aa848d0",
+      "bytes": 655
+    },
+    {
+      "filename": "Karaoke/sung-mid.png",
+      "sha256": "5bfbb0bbed59ff0ca55753cd9b57ad1daf01350aa5bf77a27ce2f39947a49dd2",
+      "bytes": 98
+    },
+    {
+      "filename": "Karaoke/sung-right.png",
+      "sha256": "11c164c024b2a6579f96fa4e079e2cf8659c7164a526416c645456fbe9f8aa12",
+      "bytes": 634
+    },
+    {
+      "filename": "Karaoke/white.png",
+      "sha256": "60ffd2c283635d9875ee649d4dd294fb97af2443ff05508d968c858b011dbea0",
+      "bytes": 71
+    }
+  ]
+}

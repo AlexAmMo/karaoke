@@ -36,4 +36,6 @@ if lua_source.exists():
     source_cache.mkdir(parents=True, exist_ok=True)
     shutil.copy2(lua_source, source_cache / lua_source.name)
 # With no local archive, the native recipe uses its verified network downloader.
+from prepare_engine_theme import prepare_theme
+prepare_theme(target)
 print(target)

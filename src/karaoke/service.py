@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import concurrent.futures
+import functools
 import json
 import os
 import re
@@ -12,8 +13,10 @@ import tempfile
 import threading
 import time
 import uuid
+import warnings
 from pathlib import Path
-from .songs import SongError, duration, import_package, normalize, read_chart, validate
+from PIL import Image
+from .songs import SongError, duration, import_package, normalize, read_chart, resource, validate
 from .store import Store
 
 
@@ -27,6 +30,48 @@ def child_command(module):
     if getattr(sys, "frozen", False):
         return [sys.executable, "--worker", module]
     return [sys.executable, "-m", module]
+
+
+@functools.lru_cache(maxsize=256)
+def _cover_name(chart: str, modified_ns: int, size: int) -> str:
+    # Fingerprints invalidate metadata after local edits; do not parse every
+    # chart or decode every image on each IPC refresh.
+    return read_chart(Path(chart))[1].get("COVER", "")
+
+
+@functools.lru_cache(maxsize=256)
+def _valid_cover(path: str, modified_ns: int, size: int) -> bool:
+    if size > 16 * 1024 * 1024:
+        return False
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(path) as image:
+                if image.format not in {"PNG", "JPEG", "BMP"}:
+                    return False
+                if not (0 < image.width <= 4096 and 0 < image.height <= 4096):
+                    return False
+                image.load()
+                return True
+    except (OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        return False
+
+
+def cover_path(song: dict) -> str:
+    """Expose only a decodable local cover still contained in its song package."""
+    try:
+        chart = Path(song["chart"])
+        stat = chart.stat()
+        name = _cover_name(str(chart), stat.st_mtime_ns, stat.st_size)
+        if not name:
+            return ""
+        image = resource(chart.parent, name)
+        stat = image.stat()
+        if _valid_cover(str(image), stat.st_mtime_ns, stat.st_size):
+            return str(image)
+    except (OSError, ValueError):
+        pass
+    return ""
 
 
 class Service:
@@ -79,6 +124,56 @@ class Service:
         self.pending_start = None
         self.sent_audio = None
         self.command_sequence = 0
+        self.carousel_selected = None
+        self.library_cache_key = None
+        self.library_cache = []
+        self.library_count = 0
+
+    def library_entries(self):
+        query = normalize(self.fields.get("local", ""))
+        with self.store.lock:
+            key = (self.store.db.total_changes, query)
+            if self.library_cache_key != key:
+                songs = self.store.rows(
+                    "SELECT id,title,artist,variant,chart FROM songs ORDER BY artist,title,variant,id"
+                )
+                self.library_count = len(songs)
+                self.library_cache = [
+                    song for song in songs
+                    if query in normalize(song["artist"] + " " + song["title"])
+                ]
+                self.library_cache_key = key
+        return self.library_cache
+
+    def library_window(self):
+        songs = self.library_entries()
+        selected = next(
+            (index for index, song in enumerate(songs) if song["id"] == self.carousel_selected),
+            0,
+        )
+        self.carousel_selected = songs[selected]["id"] if songs else None
+        start = max(0, min(selected - 2, len(songs) - 5))
+        return songs[start:start + 5], selected - start if songs else 0, len(songs)
+
+    def carousel_view(self):
+        window, index, total = self.library_window()
+        songs = self.library_entries()
+        return {
+            "songs": [
+                {"id": song["id"], "title": song["title"], "artist": song["artist"],
+                 "cover": cover_path(song)}
+                for song in window
+            ],
+            "index": index,
+            "total": total,
+            "has_previous": bool(window and window[index]["id"] != songs[0]["id"]),
+            "has_next": bool(window and window[index]["id"] != songs[-1]["id"]),
+        }
+
+    def enqueue_song(self, song_id):
+        self.song(song_id)  # A stale carousel selection must not create a preparation job.
+        self.store.request(song_id, {}, self.names())
+        self.message = "Turno añadido a la cola."
 
     def command(self, op, **kwargs):
         self.command_sequence += 1
@@ -501,6 +596,24 @@ class Service:
             self.pending_result = None
             self.page = action[5:]
             return
+        if action == "carousel:enqueue":
+            if not self.carousel_selected:
+                raise SongError("Selecciona una canción de tu biblioteca.")
+            self.enqueue_song(self.carousel_selected)
+            return
+        if action.startswith("carousel:"):
+            window, index, _ = self.library_window()
+            songs = self.library_entries()
+            if action.startswith("carousel:select:"):
+                selected = action[len("carousel:select:"):]
+                if not any(song["id"] == selected for song in songs):
+                    raise SongError("La canción ya no está en esta selección de la biblioteca.")
+                self.carousel_selected = selected
+            elif window and action in ("carousel:next", "carousel:previous"):
+                selected = next(i for i, song in enumerate(songs) if song["id"] == window[index]["id"])
+                direction = 1 if action == "carousel:next" else -1
+                self.carousel_selected = songs[max(0, min(len(songs) - 1, selected + direction))]["id"]
+            return
         if action == "search":
             self.search(self.fields.get("query", ""))
             return
@@ -611,15 +724,16 @@ class Service:
             self.page = "Cola" if selection["queue"] else "Biblioteca"
             return
         if action.startswith("song:"):
+            self.song(action[5:])
             self.detail = action[5:]
+            self.carousel_selected = self.detail
             self.page = "Canción"
             self.confirm_delete = None
             self.candidate_audio = None
             self.candidate_generation += 1
             return
         if action == "enqueue":
-            self.store.request(self.detail, {}, self.names())
-            self.message = "Turno añadido a la cola."
+            self.enqueue_song(self.detail)
             return
         if action == "instrumental":
             self.instrumental_search()
@@ -850,25 +964,28 @@ class Service:
             button("Continuar cantando", "page:Cola")
             button("Terminar y ver resultados", "confirm-end")
         elif self.page == "Biblioteca":
-            songs = self.store.rows("SELECT * FROM songs ORDER BY artist,title,variant")
-            text("Tu repertorio", f"{len(songs)} versiones guardadas · disponibles sin conexión")
+            songs, _, total = self.library_window()
+            text("Tu repertorio", f"{self.library_count} versiones guardadas · disponibles sin conexión")
             field("Filtrar biblioteca", "local")
-            query = normalize(self.fields.get("local", ""))
             for song in songs:
-                if query in normalize(song["artist"] + " " + song["title"]):
-                    button(
-                        song["title"],
-                        "song:" + song["id"],
-                        song["artist"]
-                        + " · "
-                        + (
-                            "Instrumental confirmada"
-                            if song["variant"] == "instrumental"
-                            else "Audio original del paquete"
-                        ),
-                    )
-            if not songs:
+                button(
+                    song["title"],
+                    "song:" + song["id"],
+                    song["artist"]
+                    + " · "
+                    + (
+                        "Instrumental confirmada"
+                        if song["variant"] == "instrumental"
+                        else "Audio original del paquete"
+                    ),
+                )
+            if total > 5:
+                button("Canción anterior", "carousel:previous")
+                button("Canción siguiente", "carousel:next")
+            if not self.library_count:
                 text("Tu primera canción", "Importa un paquete o busca un mapa existente en USDB.")
+            elif not songs:
+                text("Sin coincidencias", "Prueba otro título o artista.")
             button("Elegir carpeta para importar", "choose-import")
             field("O pega una carpeta o archivo TXT", "import")
             button("Importar canciones", "import")
@@ -1064,6 +1181,7 @@ class Service:
         queue = self.store.queue()
         next_turn = next((turn for turn in queue if turn["state"] == "queued"), None)
         return {
+            "carousel": self.carousel_view(),
             "next": ("Después: " + (next_turn["title"] or "Preparando canción"))
             if next_turn
             else "Sin próximos turnos",
