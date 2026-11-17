@@ -46,14 +46,19 @@ try {
 
 
 def check_singing_cursor(data, process):
-    from test_session import ROOT, Session
+    from test_session import ROOT, Session, read_json
 
     subprocess.run([sys.executable, str(ROOT / 'technical-spike/scripts/generate_fixtures.py')],
                    check=True, capture_output=True, timeout=30)
     session = Session(data, [], {})
     session.process = process
     chart = ROOT / 'technical-spike/fixtures/initial/A/song.txt'
+    session.event('import:open')
+    view = data / 'ipc/view.json'
+    session.wait(lambda _: read_json(view).get('page') == 'Importar paquete')
     session.event('field:import', str(chart))
+    session.wait(lambda _: any(row.get('action') == 'field:import' and row.get('value') == str(chart)
+                               for row in read_json(view).get('rows', [])))
     session.event('import')
     session.wait(lambda _: bool(session.rows("SELECT id FROM songs WHERE title='Probe A'")), timeout=45)
     song = session.rows("SELECT id FROM songs WHERE title='Probe A'")[0]

@@ -64,6 +64,7 @@ class Session:
         self.process = None
         self.log = None
         self.launch_count = 0
+        self.last_event_timestamp = 0
         self.samples = []
 
     def launch(self):
@@ -117,8 +118,9 @@ class Session:
         )
 
     def event(self, action: str, value=""):
+        self.last_event_timestamp = max(time.time_ns(), self.last_event_timestamp + 1)
         atomic_json(
-            self.ipc / "events" / (str(time.time_ns()) + "-" + uuid.uuid4().hex + ".json"),
+            self.ipc / "events" / (str(self.last_event_timestamp) + "-" + uuid.uuid4().hex + ".json"),
             {"action": action, "value": str(value)},
         )
 
