@@ -10,9 +10,18 @@ def main():
 
     request = json.load(sys.stdin)
     app = QApplication([])
-    folder = QFileDialog.getExistingDirectory(
-        None, "Importar canciones UltraStar", str(Path.home())
-    )
+    mode = request.get("mode", "folder")
+    if mode == "folder":
+        folder = QFileDialog.getExistingDirectory(
+            None, "Importar canciones UltraStar", str(Path.home())
+        )
+    else:
+        title, pattern = (
+            ("Elegir grabación", "Audio (*.mp3 *.ogg *.opus *.m4a *.flac *.wav *.aac);;Todos (*)")
+            if mode == "audio"
+            else ("Elegir paquete o mapa", "UltraStar (*.txt *.zip);;Todos (*)")
+        )
+        folder, _ = QFileDialog.getOpenFileName(None, title, str(Path.home()), pattern)
     Path(request["response"]).write_text(json.dumps({"folder": folder}), encoding="utf-8")
     app.quit()
 

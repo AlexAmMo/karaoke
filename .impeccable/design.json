@@ -1,27 +1,27 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-14T00:33:32.319232+00:00",
+  "generatedAt": "2026-11-17T21:16:10.355836+00:00",
   "title": "Design System: Karaoke",
   "extensions": {
     "colorMeta": {
-      "selection-fuchsia": {
+      "raspberry": {
         "role": "primary",
-        "displayName": "Fucsia de acción",
-        "canonical": "rgb(71% 5.5% 25%)",
+        "displayName": "Raspberry",
+        "canonical": "rgb(64% 8% 28%)",
         "tonalRamp": [
-          "oklch(15% 0.06725 13.95)",
-          "oklch(26% 0.12490 13.95)",
-          "oklch(38% 0.16333 13.95)",
-          "oklch(49% 0.19215 13.95)",
-          "oklch(61% 0.19215 13.95)",
-          "oklch(72% 0.16333 13.95)",
-          "oklch(84% 0.11529 13.95)",
-          "oklch(95% 0.03843 13.95)"
+          "oklch(15% 0.06133 7.81)",
+          "oklch(26% 0.11391 7.81)",
+          "oklch(38% 0.14895 7.81)",
+          "oklch(49% 0.17524 7.81)",
+          "oklch(61% 0.17524 7.81)",
+          "oklch(72% 0.14895 7.81)",
+          "oklch(84% 0.10514 7.81)",
+          "oklch(95% 0.03505 7.81)"
         ]
       },
       "focus-pink": {
         "role": "primary",
-        "displayName": "Rosa de foco",
+        "displayName": "Focus pink",
         "canonical": "rgb(97% 25% 48%)",
         "tonalRamp": [
           "oklch(15% 0.07718 6.89)",
@@ -34,24 +34,219 @@
           "oklch(95% 0.04410 6.89)"
         ]
       },
-      "tab-fuchsia": {
+      "row-focus": {
         "role": "primary",
-        "displayName": "Fucsia de pestaña",
-        "canonical": "rgb(64% 3.5% 22%)",
+        "displayName": "Row focus",
+        "canonical": "rgb(99% 57% 72%)",
         "tonalRamp": [
-          "oklch(15% 0.06260 13.99)",
-          "oklch(26% 0.11627 13.99)",
-          "oklch(38% 0.15204 13.99)",
-          "oklch(49% 0.17887 13.99)",
-          "oklch(61% 0.17887 13.99)",
-          "oklch(72% 0.15204 13.99)",
-          "oklch(84% 0.10732 13.99)",
-          "oklch(95% 0.03577 13.99)"
+          "oklch(15% 0.04739 357.88)",
+          "oklch(26% 0.08801 357.88)",
+          "oklch(38% 0.11509 357.88)",
+          "oklch(49% 0.13540 357.88)",
+          "oklch(61% 0.13540 357.88)",
+          "oklch(72% 0.11509 357.88)",
+          "oklch(84% 0.08124 357.88)",
+          "oklch(95% 0.02708 357.88)"
+        ]
+      },
+      "add-focus": {
+        "role": "primary",
+        "displayName": "Add focus",
+        "canonical": "rgb(100% 66% 78%)",
+        "tonalRamp": [
+          "oklch(15% 0.03785 356.96)",
+          "oklch(26% 0.07030 356.96)",
+          "oklch(38% 0.09193 356.96)",
+          "oklch(49% 0.10815 356.96)",
+          "oklch(61% 0.10815 356.96)",
+          "oklch(72% 0.09193 356.96)",
+          "oklch(84% 0.06489 356.96)",
+          "oklch(95% 0.02163 356.96)"
+        ]
+      },
+      "stage-focus": {
+        "role": "primary",
+        "displayName": "Stage focus",
+        "canonical": "rgb(100% 72% 82%)",
+        "tonalRamp": [
+          "oklch(15% 0.03089 355.96)",
+          "oklch(26% 0.05736 355.96)",
+          "oklch(38% 0.07501 355.96)",
+          "oklch(49% 0.08825 355.96)",
+          "oklch(61% 0.08825 355.96)",
+          "oklch(72% 0.07501 355.96)",
+          "oklch(84% 0.05295 355.96)",
+          "oklch(95% 0.01765 355.96)"
+        ]
+      },
+      "sleeve-selection": {
+        "role": "primary",
+        "displayName": "Sleeve selection",
+        "canonical": "rgb(98% 30% 52%)",
+        "tonalRamp": [
+          "oklch(15% 0.07416 5.30)",
+          "oklch(26% 0.13773 5.30)",
+          "oklch(38% 0.18011 5.30)",
+          "oklch(49% 0.21190 5.30)",
+          "oklch(61% 0.21190 5.30)",
+          "oklch(72% 0.18011 5.30)",
+          "oklch(84% 0.12714 5.30)",
+          "oklch(95% 0.04238 5.30)"
+        ]
+      },
+      "stage-graphite": {
+        "role": "neutral",
+        "displayName": "Stage graphite",
+        "canonical": "rgb(8% 8% 9.1%)",
+        "tonalRamp": [
+          "oklch(15% 0.00196 285.87)",
+          "oklch(26% 0.00363 285.87)",
+          "oklch(38% 0.00475 285.87)",
+          "oklch(49% 0.00559 285.87)",
+          "oklch(61% 0.00559 285.87)",
+          "oklch(72% 0.00475 285.87)",
+          "oklch(84% 0.00335 285.87)",
+          "oklch(95% 0.00112 285.87)"
+        ]
+      },
+      "panel-graphite": {
+        "role": "neutral",
+        "displayName": "Panel graphite",
+        "canonical": "rgb(10.5% 10.6% 11.9%)",
+        "tonalRamp": [
+          "oklch(15% 0.00224 282.36)",
+          "oklch(26% 0.00416 282.36)",
+          "oklch(38% 0.00544 282.36)",
+          "oklch(49% 0.00640 282.36)",
+          "oklch(61% 0.00640 282.36)",
+          "oklch(72% 0.00544 282.36)",
+          "oklch(84% 0.00384 282.36)",
+          "oklch(95% 0.00128 282.36)"
+        ]
+      },
+      "control-dark": {
+        "role": "neutral",
+        "displayName": "Control dark",
+        "canonical": "rgb(15.3% 15.4% 17.2%)",
+        "tonalRamp": [
+          "oklch(15% 0.00294 283.30)",
+          "oklch(26% 0.00546 283.30)",
+          "oklch(38% 0.00714 283.30)",
+          "oklch(49% 0.00840 283.30)",
+          "oklch(61% 0.00840 283.30)",
+          "oklch(72% 0.00714 283.30)",
+          "oklch(84% 0.00504 283.30)",
+          "oklch(95% 0.00168 283.30)"
+        ]
+      },
+      "control-hover": {
+        "role": "neutral",
+        "displayName": "Control hover",
+        "canonical": "rgb(21% 21% 24%)",
+        "tonalRamp": [
+          "oklch(15% 0.00467 285.66)",
+          "oklch(26% 0.00867 285.66)",
+          "oklch(38% 0.01134 285.66)",
+          "oklch(49% 0.01334 285.66)",
+          "oklch(61% 0.01334 285.66)",
+          "oklch(72% 0.01134 285.66)",
+          "oklch(84% 0.00800 285.66)",
+          "oklch(95% 0.00267 285.66)"
+        ]
+      },
+      "tab-selected": {
+        "role": "neutral",
+        "displayName": "Tab selected",
+        "canonical": "rgb(18% 16% 19%)",
+        "tonalRamp": [
+          "oklch(15% 0.00542 314.57)",
+          "oklch(26% 0.01006 314.57)",
+          "oklch(38% 0.01315 314.57)",
+          "oklch(49% 0.01547 314.57)",
+          "oklch(61% 0.01547 314.57)",
+          "oklch(72% 0.01315 314.57)",
+          "oklch(84% 0.00928 314.57)",
+          "oklch(95% 0.00309 314.57)"
+        ]
+      },
+      "transport-dark": {
+        "role": "neutral",
+        "displayName": "Transport dark",
+        "canonical": "rgb(19% 18% 20%)",
+        "tonalRamp": [
+          "oklch(15% 0.00339 308.11)",
+          "oklch(26% 0.00630 308.11)",
+          "oklch(38% 0.00823 308.11)",
+          "oklch(49% 0.00969 308.11)",
+          "oklch(61% 0.00969 308.11)",
+          "oklch(72% 0.00823 308.11)",
+          "oklch(84% 0.00581 308.11)",
+          "oklch(95% 0.00194 308.11)"
+        ]
+      },
+      "status-dark": {
+        "role": "neutral",
+        "displayName": "Status dark",
+        "canonical": "rgb(12.6% 12.5% 14%)",
+        "tonalRamp": [
+          "oklch(15% 0.00252 288.92)",
+          "oklch(26% 0.00468 288.92)",
+          "oklch(38% 0.00612 288.92)",
+          "oklch(49% 0.00719 288.92)",
+          "oklch(61% 0.00719 288.92)",
+          "oklch(72% 0.00612 288.92)",
+          "oklch(84% 0.00432 288.92)",
+          "oklch(95% 0.00144 288.92)"
+        ]
+      },
+      "add-background": {
+        "role": "neutral",
+        "displayName": "Add background",
+        "canonical": "rgb(22% 18% 22%)",
+        "tonalRamp": [
+          "oklch(15% 0.00798 326.10)",
+          "oklch(26% 0.01482 326.10)",
+          "oklch(38% 0.01938 326.10)",
+          "oklch(49% 0.02280 326.10)",
+          "oklch(61% 0.02280 326.10)",
+          "oklch(72% 0.01938 326.10)",
+          "oklch(84% 0.01368 326.10)",
+          "oklch(95% 0.00456 326.10)"
+        ]
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Divider",
+        "canonical": "rgb(22% 22% 24%)",
+        "tonalRamp": [
+          "oklch(15% 0.00308 285.93)",
+          "oklch(26% 0.00573 285.93)",
+          "oklch(38% 0.00749 285.93)",
+          "oklch(49% 0.00881 285.93)",
+          "oklch(61% 0.00881 285.93)",
+          "oklch(72% 0.00749 285.93)",
+          "oklch(84% 0.00529 285.93)",
+          "oklch(95% 0.00176 285.93)"
+        ]
+      },
+      "slider-track": {
+        "role": "neutral",
+        "displayName": "Slider track",
+        "canonical": "rgb(28% 26% 29%)",
+        "tonalRamp": [
+          "oklch(15% 0.00503 314.65)",
+          "oklch(26% 0.00935 314.65)",
+          "oklch(38% 0.01223 314.65)",
+          "oklch(49% 0.01438 314.65)",
+          "oklch(61% 0.01438 314.65)",
+          "oklch(72% 0.01223 314.65)",
+          "oklch(84% 0.00863 314.65)",
+          "oklch(95% 0.00288 314.65)"
         ]
       },
       "text-selection": {
         "role": "primary",
-        "displayName": "Fucsia de selección de texto",
+        "displayName": "Text selection",
         "canonical": "rgb(60% 5.5% 22%)",
         "tonalRamp": [
           "oklch(15% 0.05886 12.61)",
@@ -64,244 +259,124 @@
           "oklch(95% 0.03363 12.61)"
         ]
       },
-      "stage-focus": {
-        "role": "primary",
-        "displayName": "Rosa pálido de escenario",
-        "canonical": "rgb(100% 90% 93%)",
-        "tonalRamp": [
-          "oklch(15% 0.01034 357.54)",
-          "oklch(26% 0.01921 357.54)",
-          "oklch(38% 0.02512 357.54)",
-          "oklch(49% 0.02955 357.54)",
-          "oklch(61% 0.02955 357.54)",
-          "oklch(72% 0.02512 357.54)",
-          "oklch(84% 0.01773 357.54)",
-          "oklch(95% 0.00591 357.54)"
-        ]
-      },
-      "stage-upper": {
-        "role": "neutral",
-        "displayName": "Burdeos superior",
-        "canonical": "rgb(30% 2.5% 5.5%)",
-        "tonalRamp": [
-          "oklch(15% 0.03497 22.16)",
-          "oklch(26% 0.06495 22.16)",
-          "oklch(38% 0.08494 22.16)",
-          "oklch(49% 0.09992 22.16)",
-          "oklch(61% 0.09992 22.16)",
-          "oklch(72% 0.08494 22.16)",
-          "oklch(84% 0.05995 22.16)",
-          "oklch(95% 0.01998 22.16)"
-        ]
-      },
-      "stage-deep": {
-        "role": "neutral",
-        "displayName": "Burdeos profundo",
-        "canonical": "rgb(5.5% 0.8% 1.8%)",
-        "tonalRamp": [
-          "oklch(15% 0.01073 3.22)",
-          "oklch(26% 0.01993 3.22)",
-          "oklch(38% 0.02606 3.22)",
-          "oklch(49% 0.03066 3.22)",
-          "oklch(61% 0.03066 3.22)",
-          "oklch(72% 0.02606 3.22)",
-          "oklch(84% 0.01840 3.22)",
-          "oklch(95% 0.00613 3.22)"
-        ]
-      },
-      "stage-lower": {
-        "role": "neutral",
-        "displayName": "Luz carmesí inferior",
-        "canonical": "rgb(42% 3.5% 6.5%)",
-        "tonalRamp": [
-          "oklch(15% 0.04517 24.87)",
-          "oklch(26% 0.08388 24.87)",
-          "oklch(38% 0.10969 24.87)",
-          "oklch(49% 0.12905 24.87)",
-          "oklch(61% 0.12905 24.87)",
-          "oklch(72% 0.10969 24.87)",
-          "oklch(84% 0.07743 24.87)",
-          "oklch(95% 0.02581 24.87)"
-        ]
-      },
-      "panel-dark": {
-        "role": "neutral",
-        "displayName": "Burdeos de panel",
-        "canonical": "rgb(10.5% 1.2% 3.5%)",
-        "tonalRamp": [
-          "oklch(15% 0.01630 5.37)",
-          "oklch(26% 0.03028 5.37)",
-          "oklch(38% 0.03959 5.37)",
-          "oklch(49% 0.04658 5.37)",
-          "oklch(61% 0.04658 5.37)",
-          "oklch(72% 0.03959 5.37)",
-          "oklch(84% 0.02795 5.37)",
-          "oklch(95% 0.00932 5.37)"
-        ]
-      },
-      "status-dark": {
-        "role": "neutral",
-        "displayName": "Burdeos de estado",
-        "canonical": "rgb(15% 1.5% 4.5%)",
-        "tonalRamp": [
-          "oklch(15% 0.02092 10.50)",
-          "oklch(26% 0.03885 10.50)",
-          "oklch(38% 0.05080 10.50)",
-          "oklch(49% 0.05976 10.50)",
-          "oklch(61% 0.05976 10.50)",
-          "oklch(72% 0.05080 10.50)",
-          "oklch(84% 0.03586 10.50)",
-          "oklch(95% 0.01195 10.50)"
-        ]
-      },
-      "control-dark": {
-        "role": "neutral",
-        "displayName": "Burdeos de control",
-        "canonical": "rgb(22% 2.5% 8%)",
-        "tonalRamp": [
-          "oklch(15% 0.02717 9.34)",
-          "oklch(26% 0.05046 9.34)",
-          "oklch(38% 0.06598 9.34)",
-          "oklch(49% 0.07762 9.34)",
-          "oklch(61% 0.07762 9.34)",
-          "oklch(72% 0.06598 9.34)",
-          "oklch(84% 0.04657 9.34)",
-          "oklch(95% 0.01552 9.34)"
-        ]
-      },
-      "control-hover": {
-        "role": "neutral",
-        "displayName": "Burdeos señalado",
-        "canonical": "rgb(40% 4.5% 15%)",
-        "tonalRamp": [
-          "oklch(15% 0.04275 11.09)",
-          "oklch(26% 0.07939 11.09)",
-          "oklch(38% 0.10382 11.09)",
-          "oklch(49% 0.12214 11.09)",
-          "oklch(61% 0.12214 11.09)",
-          "oklch(72% 0.10382 11.09)",
-          "oklch(84% 0.07328 11.09)",
-          "oklch(95% 0.02443 11.09)"
-        ]
-      },
-      "transport-dark": {
-        "role": "neutral",
-        "displayName": "Burdeos de transporte",
-        "canonical": "rgb(30% 2.5% 10%)",
-        "tonalRamp": [
-          "oklch(15% 0.03499 12.30)",
-          "oklch(26% 0.06498 12.30)",
-          "oklch(38% 0.08498 12.30)",
-          "oklch(49% 0.09997 12.30)",
-          "oklch(61% 0.09997 12.30)",
-          "oklch(72% 0.08498 12.30)",
-          "oklch(84% 0.05998 12.30)",
-          "oklch(95% 0.01999 12.30)"
-        ]
-      },
-      "divider": {
-        "role": "neutral",
-        "displayName": "División carmesí",
-        "canonical": "rgb(37% 8% 16%)",
-        "tonalRamp": [
-          "oklch(15% 0.03717 9.16)",
-          "oklch(26% 0.06902 9.16)",
-          "oklch(38% 0.09026 9.16)",
-          "oklch(49% 0.10619 9.16)",
-          "oklch(61% 0.10619 9.16)",
-          "oklch(72% 0.09026 9.16)",
-          "oklch(84% 0.06371 9.16)",
-          "oklch(95% 0.02124 9.16)"
-        ]
-      },
-      "slider-track": {
-        "role": "neutral",
-        "displayName": "Pista de volumen",
-        "canonical": "rgb(36% 15% 21%)",
-        "tonalRamp": [
-          "oklch(15% 0.02808 4.17)",
-          "oklch(26% 0.05214 4.17)",
-          "oklch(38% 0.06819 4.17)",
-          "oklch(49% 0.08022 4.17)",
-          "oklch(61% 0.08022 4.17)",
-          "oklch(72% 0.06819 4.17)",
-          "oklch(84% 0.04813 4.17)",
-          "oklch(95% 0.01604 4.17)"
-        ]
-      },
       "text-light": {
         "role": "neutral",
-        "displayName": "Blanco suave",
-        "canonical": "rgb(95% 95% 93%)",
+        "displayName": "Text light",
+        "canonical": "rgb(97% 96% 97%)",
         "tonalRamp": [
-          "oklch(15% 0.00237 106.53)",
-          "oklch(26% 0.00439 106.53)",
-          "oklch(38% 0.00574 106.53)",
-          "oklch(49% 0.00676 106.53)",
-          "oklch(61% 0.00676 106.53)",
-          "oklch(72% 0.00574 106.53)",
-          "oklch(84% 0.00405 106.53)",
-          "oklch(95% 0.00135 106.53)"
+          "oklch(15% 0.00151 325.61)",
+          "oklch(26% 0.00280 325.61)",
+          "oklch(38% 0.00366 325.61)",
+          "oklch(49% 0.00431 325.61)",
+          "oklch(61% 0.00431 325.61)",
+          "oklch(72% 0.00366 325.61)",
+          "oklch(84% 0.00259 325.61)",
+          "oklch(95% 0.00086 325.61)"
         ]
       },
       "text-muted": {
         "role": "neutral",
-        "displayName": "Rosa secundario",
-        "canonical": "rgb(85% 72% 76%)",
+        "displayName": "Text muted",
+        "canonical": "rgb(72% 72% 75%)",
         "tonalRamp": [
-          "oklch(15% 0.01410 357.56)",
-          "oklch(26% 0.02618 357.56)",
-          "oklch(38% 0.03424 357.56)",
-          "oklch(49% 0.04028 357.56)",
-          "oklch(61% 0.04028 357.56)",
-          "oklch(72% 0.03424 357.56)",
-          "oklch(84% 0.02417 357.56)",
-          "oklch(95% 0.00806 357.56)"
+          "oklch(15% 0.00375 286.15)",
+          "oklch(26% 0.00697 286.15)",
+          "oklch(38% 0.00912 286.15)",
+          "oklch(49% 0.01072 286.15)",
+          "oklch(61% 0.01072 286.15)",
+          "oklch(72% 0.00912 286.15)",
+          "oklch(84% 0.00643 286.15)",
+          "oklch(95% 0.00214 286.15)"
         ]
       },
-      "footer-light": {
-        "role": "neutral",
-        "displayName": "Plata clara",
-        "canonical": "rgb(98% 95% 96%)",
+      "initial-1": {
+        "role": "secondary",
+        "displayName": "Initial 1",
+        "canonical": "rgb(36% 18% 28%)",
         "tonalRamp": [
-          "oklch(15% 0.00309 354.85)",
-          "oklch(26% 0.00575 354.85)",
-          "oklch(38% 0.00752 354.85)",
-          "oklch(49% 0.00884 354.85)",
-          "oklch(61% 0.00884 354.85)",
-          "oklch(72% 0.00752 354.85)",
-          "oklch(84% 0.00530 354.85)",
-          "oklch(95% 0.00177 354.85)"
+          "oklch(15% 0.02636 346.95)",
+          "oklch(26% 0.04895 346.95)",
+          "oklch(38% 0.06401 346.95)",
+          "oklch(49% 0.07531 346.95)",
+          "oklch(61% 0.07531 346.95)",
+          "oklch(72% 0.06401 346.95)",
+          "oklch(84% 0.04518 346.95)",
+          "oklch(95% 0.01506 346.95)"
         ]
       },
-      "footer-shade": {
-        "role": "neutral",
-        "displayName": "Sombra de plata",
-        "canonical": "rgb(60% 56% 59%)",
+      "initial-2": {
+        "role": "secondary",
+        "displayName": "Initial 2",
+        "canonical": "rgb(19% 30% 36%)",
         "tonalRamp": [
-          "oklch(15% 0.00571 334.29)",
-          "oklch(26% 0.01060 334.29)",
-          "oklch(38% 0.01386 334.29)",
-          "oklch(49% 0.01631 334.29)",
-          "oklch(61% 0.01631 334.29)",
-          "oklch(72% 0.01386 334.29)",
-          "oklch(84% 0.00979 334.29)",
-          "oklch(95% 0.00326 334.29)"
+          "oklch(15% 0.01487 233.14)",
+          "oklch(26% 0.02761 233.14)",
+          "oklch(38% 0.03611 233.14)",
+          "oklch(49% 0.04248 233.14)",
+          "oklch(61% 0.04248 233.14)",
+          "oklch(72% 0.03611 233.14)",
+          "oklch(84% 0.02549 233.14)",
+          "oklch(95% 0.00850 233.14)"
         ]
       },
-      "footer-ink": {
-        "role": "neutral",
-        "displayName": "Tinta de pie",
-        "canonical": "rgb(20% 6% 10%)",
+      "initial-3": {
+        "role": "secondary",
+        "displayName": "Initial 3",
+        "canonical": "rgb(22% 32% 24%)",
         "tonalRamp": [
-          "oklch(15% 0.02057 5.07)",
-          "oklch(26% 0.03820 5.07)",
-          "oklch(38% 0.04995 5.07)",
-          "oklch(49% 0.05877 5.07)",
-          "oklch(61% 0.05877 5.07)",
-          "oklch(72% 0.04995 5.07)",
-          "oklch(84% 0.03526 5.07)",
-          "oklch(95% 0.01175 5.07)"
+          "oklch(15% 0.01610 150.16)",
+          "oklch(26% 0.02991 150.16)",
+          "oklch(38% 0.03911 150.16)",
+          "oklch(49% 0.04601 150.16)",
+          "oklch(61% 0.04601 150.16)",
+          "oklch(72% 0.03911 150.16)",
+          "oklch(84% 0.02761 150.16)",
+          "oklch(95% 0.00920 150.16)"
+        ]
+      },
+      "initial-4": {
+        "role": "secondary",
+        "displayName": "Initial 4",
+        "canonical": "rgb(35% 24% 18%)",
+        "tonalRamp": [
+          "oklch(15% 0.01636 49.52)",
+          "oklch(26% 0.03039 49.52)",
+          "oklch(38% 0.03974 49.52)",
+          "oklch(49% 0.04676 49.52)",
+          "oklch(61% 0.04676 49.52)",
+          "oklch(72% 0.03974 49.52)",
+          "oklch(84% 0.02805 49.52)",
+          "oklch(95% 0.00935 49.52)"
+        ]
+      },
+      "initial-5": {
+        "role": "secondary",
+        "displayName": "Initial 5",
+        "canonical": "rgb(26% 22% 37%)",
+        "tonalRamp": [
+          "oklch(15% 0.02287 295.28)",
+          "oklch(26% 0.04247 295.28)",
+          "oklch(38% 0.05553 295.28)",
+          "oklch(49% 0.06534 295.28)",
+          "oklch(61% 0.06534 295.28)",
+          "oklch(72% 0.05553 295.28)",
+          "oklch(84% 0.03920 295.28)",
+          "oklch(95% 0.01307 295.28)"
+        ]
+      },
+      "initial-6": {
+        "role": "secondary",
+        "displayName": "Initial 6",
+        "canonical": "rgb(36% 19% 22%)",
+        "tonalRamp": [
+          "oklch(15% 0.02221 9.36)",
+          "oklch(26% 0.04124 9.36)",
+          "oklch(38% 0.05393 9.36)",
+          "oklch(49% 0.06345 9.36)",
+          "oklch(61% 0.06345 9.36)",
+          "oklch(72% 0.05393 9.36)",
+          "oklch(84% 0.03807 9.36)",
+          "oklch(95% 0.01269 9.36)"
         ]
       },
       "lyric-active": {
@@ -426,61 +501,53 @@
       }
     },
     "typographyMeta": {
-      "display": {
-        "displayName": "display",
-        "purpose": "Título de resultados."
+      "score": {
+        "displayName": "score",
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
       "headline": {
         "displayName": "headline",
-        "purpose": "Título de selección."
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
-      "empty-title": {
-        "displayName": "empty-title",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      "empty": {
+        "displayName": "empty",
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
-      "panel-title": {
-        "displayName": "panel-title",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      "results": {
+        "displayName": "results",
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
-      "result-name": {
-        "displayName": "result-name",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      "library": {
+        "displayName": "library",
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
-      "result-song": {
-        "displayName": "result-song",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      "panel": {
+        "displayName": "panel",
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
-      "score": {
-        "displayName": "score",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
-      },
-      "cover-artist": {
-        "displayName": "cover-artist",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      "artist": {
+        "displayName": "artist",
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
       "section": {
         "displayName": "section",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
       "body": {
         "displayName": "body",
-        "purpose": "Botones y valores de campos."
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
-      "count": {
-        "displayName": "count",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+      "action": {
+        "displayName": "action",
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
       "label": {
         "displayName": "label",
-        "purpose": "Pestañas, etiquetas y estado."
+        "purpose": "Tamaño en unidades de la composición nativa."
       },
       "caption": {
         "displayName": "caption",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
-      },
-      "cover-action": {
-        "displayName": "cover-action",
-        "purpose": "Rol nativo descrito en Typography de DESIGN.md."
+        "purpose": "Tamaño en unidades de la composición nativa."
       }
     },
     "shadows": [],
@@ -492,101 +559,79 @@
       "name": "Acción lateral",
       "kind": "button",
       "refersTo": "button",
-      "description": "Fila simple; cambio tonal bajo el puntero y marco de foco sin transición.",
-      "html": "<button class=\"ds-action\">Importar paquete</button>",
-      "css": ".ds-action{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;width:368px;height:40px;border:0;border-radius:0;background:#380614;color:#f2f2ed;font-size:18px;text-align:left;padding:0 8px;cursor:pointer}.ds-action:hover{background:#660b26}.ds-action:focus-visible{outline:3px solid #f7407a;outline-offset:0}.ds-action:active{transform:none}"
+      "description": "Acción lateral. Traducción estática de las medidas lógicas del motor.",
+      "html": "<button class=\"control\">Importar canciones</button>",
+      "css": ".control{width:368px;height:40px;padding:0 12px;border:0;background:#27272c;color:#f7f5f7;text-align:left;font:400 18px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #f7407a}"
     },
     {
-      "name": "Acción con descripción",
-      "kind": "button",
-      "refersTo": "button-description",
-      "description": "Fila de dos líneas, 64 unidades de superficie y ocho de separación.",
-      "html": "<button class=\"ds-description\">Añadir a la cola<span class=\"ds-description-help\">Con voz original</span></button>",
-      "css": ".ds-description{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;width:368px;height:64px;border:0;border-radius:0;background:#380614;color:#f2f2ed;font-size:18px;text-align:left;padding:0 8px;cursor:pointer}.ds-description:hover{background:#660b26}.ds-description:focus-visible{outline:3px solid #f7407a;outline-offset:0}.ds-description-help{display:block;margin-top:12px;font-size:15px;color:#d9b8c2}.ds-description:active{transform:none}"
-    },
-    {
-      "name": "Acción de escenario",
+      "name": "Acción del escenario",
       "kind": "button",
       "refersTo": "button-stage",
-      "description": "Acción explícita sobre escenario; foco pálido. No hay hover distintivo implementado en el escenario.",
-      "html": "<button class=\"ds-stage-action\">Buscar canciones</button>",
-      "css": ".ds-stage-action{font-family:\"Noto Sans\",sans-serif;font-weight:400;width:218px;height:48px;padding:0 20px;border:0;border-radius:0;background:#b50e40;color:#f2f2ed;font-size:18px;text-align:left}.ds-stage-action:hover{background:#b50e40}.ds-stage-action:focus-visible{outline:3px solid #ffe6ed}.ds-stage-action:active{transform:none}"
+      "description": "Acción del escenario. Traducción estática de las medidas lógicas del motor.",
+      "html": "<button class=\"control\">Añadir a la cola</button>",
+      "css": ".control{width:178px;height:44px;padding:0 12px;border:0;background:#a31447;color:#f7f5f7;text-align:left;font:400 17px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #ffb8d1}"
     },
     {
-      "name": "Campo de texto",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Traducción de la presentación SDL; el input web no reproduce las restricciones del editor nativo.",
-      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Nombre del cantante</span><input class=\"ds-field-value\" value=\"Lucía\" aria-label=\"Nombre del cantante\"></label>",
-      "css": ".ds-field{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;width:368px;height:74px;background:#380614}.ds-field:hover{background:#660b26}.ds-field:focus-within{outline:3px solid #f7407a}.ds-field-label{display:block;padding:8px 8px 0;color:#d9b8c2;font-size:16px}.ds-field-value{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;margin:14px 8px 0;padding:0;width:345px;border:0;background:transparent;color:#f2f2ed;font-size:18px}.ds-field-value:focus-visible{outline:none}.ds-field-value::selection{background:#990e38}"
-    },
-    {
-      "name": "Navegación del panel",
-      "kind": "nav",
+      "name": "Pestaña activa",
+      "kind": "button",
       "refersTo": "navigation-selected",
-      "description": "Cuatro posiciones estables; selección y foco independientes. No añade comportamiento de navegación al preview.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Sesión\"><button class=\"ds-tab\" aria-current=\"page\">Biblioteca</button><button class=\"ds-tab\">Buscar</button><button class=\"ds-tab\">Cola</button><button class=\"ds-tab\">Ajustes</button></nav>",
-      "css": ".ds-nav{display:flex;gap:4px;padding:4px;background:#1b0309}.ds-tab{font-family:\"Noto Sans\",sans-serif;font-weight:400;width:92px;height:36px;padding:0;border:0;border-radius:0;font-size:16px;background:#1b0309;color:#f2f2ed}.ds-tab[aria-current]{background:#a30938;box-shadow:inset 0 -2px #f7407a}.ds-tab:hover{color:#f2f2ed}.ds-tab:focus-visible{outline:2px solid #f7407a}.ds-tab:active{transform:none}"
+      "description": "Pestaña activa. Traducción estática de las medidas lógicas del motor.",
+      "html": "<button class=\"control\">Biblioteca</button>",
+      "css": ".control{width:92px;height:36px;padding:0 12px;border:0;border-bottom:2px solid #f7407a;background:#2e2930;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #f7407a}"
     },
     {
       "name": "Restaurar panel",
       "kind": "button",
       "refersTo": "panel-restore",
-      "description": "Acceso compacto que queda visible cuando se recupera el ancho del escenario.",
-      "html": "<button class=\"ds-restore\">Mostrar panel</button>",
-      "css": ".ds-restore{font-family:\"Noto Sans\",sans-serif;font-weight:400;display:block;width:154px;height:40px;border:0;border-radius:0;background:#380614;color:#f2f2ed;font-size:16px;text-align:left;padding:0 14px;cursor:pointer}.ds-restore:hover{background:#660b26}.ds-restore:focus-visible{outline:3px solid #f7407a;outline-offset:0}.ds-restore:active{transform:none}"
+      "description": "Restaurar panel. Traducción estática de las medidas lógicas del motor.",
+      "html": "<button class=\"control\">Mostrar panel</button>",
+      "css": ".control{width:154px;height:40px;padding:0 12px;border:0;background:#27272c;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #f7407a}"
     },
     {
-      "name": "Volumen",
+      "name": "Control de canto",
+      "kind": "button",
+      "refersTo": "transport",
+      "description": "Control de canto. Traducción estática de las medidas lógicas del motor.",
+      "html": "<button class=\"control\">Pausar / continuar</button>",
+      "css": ".control{width:180px;height:36px;padding:0 12px;border:0;background:#302e33;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #f7407a}"
+    },
+    {
+      "name": "Fila de canción",
       "kind": "custom",
-      "refersTo": "slider-track",
-      "description": "Pista rectangular y porcentaje. Preview estático: no implica un deslizador web en la app SDL.",
-      "html": "<div class=\"ds-volume\" tabindex=\"0\" role=\"slider\" aria-label=\"Música\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"65\"><span class=\"ds-volume-label\">Música</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-volume-value\">65%</span></div>",
-      "css": ".ds-volume{font-family:\"Noto Sans\",sans-serif;font-weight:400;position:relative;width:368px;height:66px;color:#f2f2ed;background:#1b0309}.ds-volume-label{position:absolute;left:8px;top:8px;font-size:18px}.ds-track{position:absolute;left:8px;top:44px;width:290px;height:8px;background:#5c2636}.ds-fill{display:block;width:65%;height:8px;background:#f7407a}.ds-volume-value{position:absolute;left:309px;top:36px;font-size:16px}.ds-volume:focus-visible{outline:3px solid #f7407a;background:#380614}.ds-volume:hover{color:#f2f2ed}"
+      "refersTo": "song-row",
+      "description": "Fila de canción. Traducción estática de las medidas lógicas del motor.",
+      "html": "<div class=\"row\"><button class=\"detail\"><span class=\"art\">AD</span><span>Canción de prueba<small>Artista de demostración</small></span></button><button aria-label=\"Añadir a la cola\" class=\"add\">+</button></div>",
+      "css": ".row,.detail{display:flex;align-items:center;gap:12px}.row{width:368px;height:60px;border-bottom:1px solid #38383d;background:#1b1b1e}.detail,.add{border:0;background:none;color:#f7f5f7;font:18px \"Noto Sans\",sans-serif;text-align:left}.detail{flex:1;padding:6px}.art{background:#5c2e47;display:grid;place-items:center;width:48px;height:48px}small{display:block;font-size:14px;color:#b8b8bf}.add{width:38px;height:38px;background:#382e38;text-align:center}button:focus-visible{outline:2px solid #fc91b8}"
     },
     {
-      "name": "Portada tipográfica y pie elegido",
-      "kind": "card",
-      "refersTo": "cover-caption",
-      "description": "Funda propia sin imagen; textos de demostración, no canción incluida. Traducción estática de CoverAt a tamaño 240.",
-      "html": "<button class=\"ds-cover\"><span class=\"ds-sleeve\"><span class=\"ds-sleeve-artist\">Artista de prueba</span><span class=\"ds-sleeve-title\">Canción de prueba</span></span><span class=\"ds-cover-caption\"><span class=\"ds-cover-artist\">Artista de prueba</span><span class=\"ds-cover-title\">Canción de prueba</span><span class=\"ds-cover-action\">Añadir a la cola</span></span></button>",
-      "css": ".ds-cover{font-family:\"Noto Sans\",sans-serif;font-weight:400;width:240px;padding:0;border:0;border-radius:0;text-align:left;color:#f2f2ed;background:transparent}.ds-sleeve{display:block;position:relative;height:240px;background:linear-gradient(rgb(34% 10% 19%),rgb(12% 2% 7%))}.ds-sleeve-artist{position:absolute;left:8%;top:50%;font-size:21.6px}.ds-sleeve-title{position:absolute;left:8%;top:65%;font-size:15.6px;color:#d9b8c2}.ds-cover-caption{display:block;position:relative;height:96px;background:#b50e40}.ds-cover-artist{position:absolute;left:14px;top:14px;font-size:21px}.ds-cover-title{position:absolute;left:14px;top:43px;font-size:18px}.ds-cover-action{position:absolute;left:14px;top:73px;font-size:13px}.ds-cover:hover{color:#f2f2ed}.ds-cover:focus-visible{outline:4px solid #ffe6ed}.ds-cover:active{transform:none}"
+      "name": "Campo de búsqueda",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de búsqueda. Traducción estática de las medidas lógicas del motor.",
+      "html": "<label>Buscar canciones<input aria-label=\"Buscar canciones\" placeholder=\"Artista o título\"></label>",
+      "css": "label{display:block;background:#27272c;width:352px;height:50px;padding:8px;color:#b8b8bf;font:16px \"Noto Sans\",sans-serif}input{display:block;width:100%;margin-top:6px;border:0;background:transparent;font-size:18px;color:#f7f5f7;caret-color:#ffa8c7}"
     }
   ],
   "narrative": {
-    "northStar": "Una canción en el escenario carmesí",
-    "overview": "La identidad aprobada es una adaptación propia del SingStar clásico de PS3: escenario burdeos iluminado en carmesí, una portada protagonista con pie fucsia, vecinas subordinadas y un pie plateado. El lateral operativo usa la misma familia cálida con densidad controlada; se pliega para recuperar espacio de canto. La marca es Karaoke y los gráficos del HUD son originales.\n\nSe documenta el artefacto nativo SDL/OpenGL, no una réplica histórica certificada. La elección explícita del usuario sustituye el sistema verde anterior; conserva la ventana única, la biblioteca y cola persistentes, el inicio manual de cada turno y el canto concurrente con la preparación. Las referencias históricas y sus límites están en `docs/research/SINGSTAR-REFERENCIAS.md`; la composición vigente está en `.impeccable/surfaces/native-ukaraokeshell-pas.md`.",
+    "northStar": "El disco tiene el escenario",
+    "overview": "La portada identifica la grabación antes de leer su título. En el escenario de grafito, la carátula y el nombre ocupan el centro de atención. A su derecha está la acción de añadir un turno. La tira inferior permite recorrer las canciones y el lateral reúne búsqueda, biblioteca, cola y ajustes.",
     "keyCharacteristics": [
-      "Escenario burdeos con luz carmesí y selección fucsia.",
-      "Una portada dominante, vecinas menores y reflejos subordinados.",
-      "Texto regular claro, pie plateado y foco explícito de teclado.",
-      "Panel operativo plegable y canto real de Deluxe en proporción 4:3."
+      "Portada cuadrada con espacio propio y título contiguo.",
+      "Fondo grafito continuo, texto claro y acción principal frambuesa.",
+      "La misma imagen acompaña a la canción desde la búsqueda hasta la cola.",
+      "El panel se pliega por completo para dar más espacio al canto."
     ],
-    "rules": [
-      {
-        "name": "The State Before Ornament Rule",
-        "body": "El foco debe seguir identificable sobre la selección: marco rosa en el panel y pálido en el escenario, además del fondo de estado.",
-        "section": "colors"
-      },
-      {
-        "name": "The Logical Coordinates Rule",
-        "body": "Separar siempre unidades lógicas, proyección del panel, proyección 800×600 del canto y píxeles físicos al modificar geometría o revisar capturas.",
-        "section": "typography"
-      }
-    ],
+    "rules": [],
     "dos": [
-      "**Do** mantener la portada elegida dominante y el foco visible sobre su estado de selección.",
-      "**Do** conservar ventana única, panel recuperable y canto continuo al preparar otros turnos.",
-      "**Do** usar contenido real de biblioteca y fundas tipográficas explícitas cuando falta portada.",
-      "**Do** verificar teclado, acentos, textos largos y geometría en 1000×640, 1280×800 y Retina 2×.",
-      "**Do** preservar proporción 4:3 y coordenadas propias del HUD al expandir el escenario."
+      "Conservar el foco y la selección al resolver imágenes o recibir más resultados.",
+      "Mostrar la misma identidad visual para una canción en todas las superficies.",
+      "Comprobar el panel con acentos, títulos largos y cambios de escala.",
+      "Verificar que el puntero y los controles de canto siguen accesibles después de plegar."
     ],
     "donts": [
-      "**Don't** restaurar el verde anterior ni prohibir los degradados y reflejos propios del mundo aprobado.",
-      "**Don't** introducir inicio automático de turnos o una segunda ventana de canto en esta V1.",
-      "**Don't** presentar fixtures de captura como canciones incluidas o sustituir afinación real por gráficos simulados.",
-      "**Don't** atribuir a Sony los tokens, tipografía, panel lateral o resultados propios de Karaoke.",
-      "**Don't** afirmar animación temporal del carrusel, validación física Windows/micrófonos o accesibilidad AX completa sin pruebas específicas."
+      "Evitar que una carátula tardía desplace la fila o cambie el turno activo.",
+      "Evitar presentar el monograma como portada del disco.",
+      "Evitar deformar el escenario de canto al aprovechar el ancho del panel."
     ]
   }
 }

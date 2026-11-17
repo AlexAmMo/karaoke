@@ -1,0 +1,130 @@
+{
+  "scope": "Real desktop app and Deluxe, synthetic audio input. Not physical microphones, latency, live downloads, or visual/accessibility verification.",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "engine_sha256": "500b6435821fe268b4a69303b4f7397c24334cd3bf142e1b5daf02520b2253c5",
+  "checks": [
+    {
+      "name": "Explicit synthetic demo is identified in both engine and interface",
+      "passed": true
+    },
+    {
+      "name": "Second launcher cannot acquire the running session lock",
+      "passed": true
+    },
+    {
+      "name": "Three turns reuse two prepared packages",
+      "passed": true
+    },
+    {
+      "name": "Real engine recognizes independent A and B pitch classes",
+      "passed": true
+    },
+    {
+      "name": "Per-player monitoring gains are independent",
+      "passed": true
+    },
+    {
+      "name": "Collapsing the panel expands the stage without interrupting song, score, audio or queue",
+      "passed": true
+    },
+    {
+      "name": "System cursor remains enabled during singing, folding and restoring the panel",
+      "passed": true
+    },
+    {
+      "name": "Restoring the panel restores geometry and keeps the active turn and score",
+      "passed": true
+    },
+    {
+      "name": "Muting return preserves analysis and accumulating score",
+      "passed": true
+    },
+    {
+      "name": "Another package imports while the current song continues",
+      "passed": true
+    },
+    {
+      "name": "Engine produces independent final scores",
+      "passed": true
+    },
+    {
+      "name": "Results do not automatically start the next turn",
+      "passed": true
+    },
+    {
+      "name": "Cancelling a repeated turn retains its library package",
+      "passed": true
+    },
+    {
+      "name": "Newly selected song starts without restarting the engine launcher",
+      "passed": true
+    },
+    {
+      "name": "Closing native game shuts down the main app",
+      "passed": true
+    },
+    {
+      "name": "Main app releases its instance lock on close",
+      "passed": true
+    },
+    {
+      "name": "Restarting restores the visible panel for session setup",
+      "passed": true
+    },
+    {
+      "name": "Interrupted turn and pending queue recover in original order",
+      "passed": true
+    },
+    {
+      "name": "Restoring a session never resumes playback automatically",
+      "passed": true
+    },
+    {
+      "name": "Host can explicitly skip to another ready turn",
+      "passed": true
+    },
+    {
+      "name": "Final close succeeds",
+      "passed": true
+    }
+  ],
+  "cursor_evidence": [
+    {
+      "state": "singing",
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "panel_width": 435,
+      "stage_width": 845,
+      "width": 1280,
+      "height": 800,
+      "drawable_width": 2560,
+      "drawable_height": 1600
+    },
+    {
+      "state": "singing",
+      "cursor_visible": true,
+      "panel_collapsed": true,
+      "panel_width": 0,
+      "stage_width": 1280,
+      "width": 1280,
+      "height": 800,
+      "drawable_width": 2560,
+      "drawable_height": 1600
+    },
+    {
+      "state": "singing",
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "panel_width": 435,
+      "stage_width": 845,
+      "width": 1280,
+      "height": 800,
+      "drawable_width": 2560,
+      "drawable_height": 1600
+    }
+  ],
+  "physical_pointer_verified": false,
+  "elapsed_seconds": 33.22,
+  "samples": 376,
+  "passed": true
+}

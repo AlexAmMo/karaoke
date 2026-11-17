@@ -18,6 +18,9 @@ from pathlib import Path
 from PIL import Image
 from .songs import SongError, duration, import_package, normalize, read_chart, resource, validate
 from .store import Store
+from . import catalog
+from .artwork import ArtworkResolver
+from .package_import import PackageImportMixin, prepare_local
 
 
 def atomic_json(path: Path, value):
@@ -74,7 +77,7 @@ def cover_path(song: dict) -> str:
     return ""
 
 
-class Service:
+class Service(PackageImportMixin):
     def __init__(self, root: Path):
         self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
@@ -92,7 +95,15 @@ class Service:
         self.page = "Biblioteca"
         self.query = ""
         self.message = "Importa una carpeta UltraStar o conecta USDB para empezar."
-        self.results = []
+        self.results = catalog.starter_songs()
+        self.result_page = 0
+        self.search_cursor = None
+        self.search_busy = False
+        self.lookup_query = ""
+        self.result_detail = None
+        self.turn_detail = None
+        self.queue_page = 0
+        self.artwork = ArtworkResolver(root / "artwork")
         self.candidates = []
         self.detail = None
         self.fields = {
@@ -135,7 +146,7 @@ class Service:
             key = (self.store.db.total_changes, query)
             if self.library_cache_key != key:
                 songs = self.store.rows(
-                    "SELECT id,title,artist,variant,chart FROM songs ORDER BY artist,title,variant,id"
+                    "SELECT id,title,artist,variant,chart,audio,source FROM songs ORDER BY artist,title,variant,id"
                 )
                 self.library_count = len(songs)
                 self.library_cache = [
@@ -155,13 +166,16 @@ class Service:
         start = max(0, min(selected - 2, len(songs) - 5))
         return songs[start:start + 5], selected - start if songs else 0, len(songs)
 
+    def cover(self, song):
+        return self.artwork.get(song, local_cover=cover_path(song) if song.get("chart") else "")
+
     def carousel_view(self):
         window, index, total = self.library_window()
         songs = self.library_entries()
         return {
             "songs": [
                 {"id": song["id"], "title": song["title"], "artist": song["artist"],
-                 "cover": cover_path(song)}
+                 "cover": self.cover(song)["path"]}
                 for song in window
             ],
             "index": index,
@@ -202,7 +216,7 @@ class Service:
             "response": str(response),
             "operation": operation,
             "progress": str(self.root / "download-progress.json"),
-            **self.credentials(),
+            **(self.credentials() if operation != "starter" else {}),
             **kwargs,
         }
         # argv and logs contain no credentials. Use stdin, no persistent password file.
@@ -217,9 +231,9 @@ class Service:
             )
             with self.children_lock:
                 self.children.add(proc)
-                if operation == "download":
+                if operation in ("download", "starter"):
                     self.download_process = proc
-            deadline = time.monotonic() + (1800 if operation == "download" else 90)
+            deadline = time.monotonic() + (1800 if operation in ("download", "starter") else 90)
             pending_input = json.dumps(request)
             while True:
                 try:
@@ -232,7 +246,7 @@ class Service:
                     if time.monotonic() > deadline:
                         raise SongError("La fuente ha tardado demasiado. Reintenta la operación.")
                     if (
-                        operation == "download"
+                        operation in ("download", "starter")
                         and shutil.disk_usage(self.root).free < 256 * 1024**2
                     ):
                         raise SongError("Descarga detenida: queda poco espacio disponible.")
@@ -257,56 +271,97 @@ class Service:
     def submit(self, work, callback):
         self.futures.append((self.pool.submit(work), callback))
 
-    def search(self, query):
-        self.query = query.strip()
-        self.page = "Buscar"
-        self.results = []
-        self.pending_result = None
-        self.search_generation += 1
-        generation = self.search_generation
-        query_snapshot = self.query
-        if not self.query:
-            self.message = "Escribe artista, título o un enlace de YouTube."
+    def local_results(self, query):
+        items = {catalog.source_key(s): s for s in catalog.starter_songs(query)}
+        if query and not youtube_id(query):
+            for saved in self.store.rows("SELECT * FROM songs ORDER BY artist,title,id"):
+                if catalog.matches(query, saved):
+                    source = saved.get("source") or ""
+                    if not source.startswith(("usdb:", "deluxe:")):
+                        source = "local:" + saved["id"]
+                    items[source] = {**saved, "source": source, "library_id": saved["id"]}
+        return sorted(items.values(), key=lambda s: catalog.rank(query, s))
+
+    def search(self, query, *, more=False):
+        if more and (self.search_busy or not self.search_cursor):
             return
-        self.message = "Consultando mapas existentes en USDB…"
+        if not more:
+            self.query = query.strip()
+            self.page = "Buscar"
+            self.results = self.local_results(self.query)
+            self.result_page = 0
+            self.result_detail = None
+            self.pending_result = None
+            self.search_generation += 1
+            self.search_cursor = None
+            self.search_busy = False
+            self.lookup_query = self.query
+        if not self.query:
+            self.message = "Elige una canción de inicio o busca en el catálogo."
+            return
+        if not self.store.setting("username", ""):
+            self.message = "Conecta USDB en Ajustes o consulta los otros catálogos."
+            return
+        self.search_busy = True
+        self.message = "Buscando más mapas en USDB…" if more else "Consultando USDB…"
+        generation = self.search_generation
+        query_snapshot = self.lookup_query
+        cursor = self.search_cursor if more else None
+        video_id = youtube_id(self.query)
 
         def work():
-            query = query_snapshot
-            video_id = youtube_id(query)
-            if query.startswith(("http://", "https://")) and not video_id:
-                raise SongError("Introduce un enlace de YouTube válido.")
-            if video_id:
-                from yt_dlp import YoutubeDL
+            lookup = query_snapshot
+            try:
+                if not more and lookup.startswith(("http://", "https://")) and not video_id:
+                    raise SongError("Introduce un enlace de YouTube válido.")
+                if video_id and not more:
+                    from yt_dlp import YoutubeDL
 
-                with YoutubeDL(
-                    {"quiet": True, "no_warnings": True, "noplaylist": True, "socket_timeout": 20}
-                ) as dl:
-                    info = dl.extract_info(
-                        "https://www.youtube.com/watch?v=" + video_id, download=False
-                    )
-                query = (
-                    (info.get("artist") or info.get("creator") or "")
-                    + " - "
-                    + (info.get("track") or info.get("title", ""))
-                )
-                query = query.strip(" -")
-            result = self.provider("search", query=query)
-            items = result["songs"]
-            # Even an associated URL isn't proof of musical compatibility. Surface candidates.
-            for item in items:
-                item["requested_video"] = video_id
-                item["match"] = "Por comprobar" if video_id else "Mapa existente"
-            return items
+                    with YoutubeDL({"quiet": True, "no_warnings": True, "noplaylist": True,
+                                    "socket_timeout": 20}) as dl:
+                        info = dl.extract_info(
+                            "https://www.youtube.com/watch?v=" + video_id, download=False
+                        )
+                    lookup = " - ".join(filter(None, (info.get("artist") or info.get("creator"),
+                                                        info.get("track") or info.get("title"))))
+                    if not lookup:
+                        raise SongError("No se ha podido identificar la canción del vídeo.")
+                result = self.provider("search", query=lookup, cursor=cursor)
+                return lookup, result, ""
+            except Exception as exc:
+                return lookup, {}, str(exc) or "No se pudo consultar USDB."
 
-        def done(items):
-            if generation != self.search_generation:
+        def done(response):
+            self.search_busy = False
+            lookup, result, error = response
+            self.lookup_query = lookup
+            if error:
+                self.message = "USDB: " + error
                 return
-            self.results = items
-            self.message = (
-                f"{len(items)} mapas encontrados. Revisa la versión antes de pedirla."
-                if items
-                else "No se han localizado mapas en USDB para esta búsqueda."
-            )
+            self.search_cursor = result.get("next_cursor") or None
+            previous = self.results
+            combined = {catalog.source_key(item): item for item in
+                        (previous if more else self.local_results(lookup))}
+            for item in result["songs"]:
+                item = {**item, "requested_video": video_id,
+                        "match": "Por comprobar" if video_id else "Mapa existente"}
+                key = catalog.source_key(item)
+                if key not in combined or not combined[key].get("library_id"):
+                    combined[key] = item
+            if more:
+                prior_keys = {catalog.source_key(x) for x in previous}
+                # Keep displayed pages in place when another remote batch arrives.
+                additions = sorted((item for key, item in combined.items()
+                                    if key not in prior_keys),
+                                   key=lambda item: catalog.rank(lookup, item))
+                self.results = previous + additions
+                if additions:
+                    self.result_page = len(previous) // 12
+            else:
+                self.results = sorted(combined.values(), key=lambda item: catalog.rank(lookup, item))
+            self.message = (f"{len(self.results)} versiones encontradas." if self.results else
+                            "Sin coincidencias en esta página." if self.search_cursor else
+                            "No se han encontrado mapas en estas fuentes.")
 
         self.submit(work, done)
         self.futures[-1][0].search_generation = generation
@@ -315,28 +370,35 @@ class Service:
         payload = json.loads(job["payload"])
         if shutil.disk_usage(self.library).free < 512 * 1024**2:
             raise SongError("Preparación detenida: quedan menos de 512 MB libres.")
+        if payload["kind"] in ("archive", "paired"):
+            return prepare_local(payload, self.library)
         if payload["kind"] == "import":
             return import_package(Path(payload["chart"]), self.library)
         target = self.root / "downloads" / job["id"]
         target.mkdir(parents=True, exist_ok=True)
-        result = self.provider(
-            "download",
-            song=payload["song"],
-            destination=str(target),
-            video=self.store.setting("video", True),
-            resolution=self.store.setting("resolution", "720p"),
-        )
+        if payload["kind"] == "deluxe":
+            result = self.provider("starter", key=job["source"].split(":", 1)[1],
+                                   destination=str(target))
+        else:
+            result = self.provider(
+                "download", song=payload["song"], destination=str(target),
+                video=self.store.setting("video", True),
+                resolution=self.store.setting("resolution", "720p"),
+            )
         failures = []
         for chart in result["charts"]:
             try:
                 imported = import_package(Path(chart), self.library)
+                if payload["kind"] == "deluxe":
+                    shutil.copy2(Path(chart).parent / "license.txt",
+                                 Path(imported["chart"]).parent / "license.txt")
                 shutil.rmtree(target)
                 return imported
             except SongError as exc:
                 failures.append(str(exc))
         raise SongError("; ".join(failures) or "No se encontró un paquete compatible.")
 
-    def choose_folder(self):
+    def choose_folder(self, mode="folder"):
         response = self.root / ("picker-" + uuid.uuid4().hex + ".json")
         proc = subprocess.Popen(
             child_command("karaoke.picker"),
@@ -348,7 +410,7 @@ class Service:
         with self.children_lock:
             self.children.add(proc)
         try:
-            proc.communicate(json.dumps({"response": str(response)}))
+            proc.communicate(json.dumps({"response": str(response), "mode": mode}))
             if not response.exists():
                 return ""
             return json.loads(response.read_text(encoding="utf-8"))["folder"]
@@ -358,7 +420,19 @@ class Service:
             response.unlink(missing_ok=True)
 
     def add_import(self, value):
+        if not value.strip():
+            raise SongError("Elige una carpeta, un mapa TXT o un ZIP.")
         folder = Path(value.strip().strip('"')).expanduser().resolve()
+        if folder.is_file() and folder.suffix.lower() == ".zip":
+            self.open_zip(folder)
+            return
+        if folder.is_file() and folder.suffix.lower() == ".txt":
+            _, meta = read_chart(folder)
+            try:
+                resource(folder.parent, meta.get("AUDIO") or meta.get("MP3", ""))
+            except SongError:
+                self.open_pair(folder)
+                return
         charts = (
             [folder]
             if folder.is_file() and folder.suffix.lower() == ".txt"
@@ -378,7 +452,7 @@ class Service:
         self.page = "Cola"
 
     def request_result(self, index, queue):
-        song = dict(self.results[index])
+        song = dict(self.results[index] if isinstance(index, int) else index)
         if song.get("requested_video"):
             # Require a deliberate selection, never replace the source media with pasted video.
             # Capture the actual song and intent. A later search can replace the
@@ -389,15 +463,22 @@ class Service:
         self._request_song(song, queue)
 
     def _request_song(self, song, queue):
+        if song.get("library_id"):
+            if queue:
+                self.enqueue_song(song["library_id"])
+            else:
+                self.song(song["library_id"])
+                self.message = "Esta versión ya está en la biblioteca."
+            return
+        source = catalog.source_key(song)
         self.store.request(
-            "usdb:" + str(song["song_id"]),
-            {
-                "kind": "usdb",
-                "song": {k: v for k, v in song.items() if k not in ("requested_video", "match")},
-            },
+            source,
+            {"kind": source.split(":", 1)[0],
+             "song": {k: v for k, v in song.items()
+                      if k not in ("requested_video", "match", "source")}},
             self.names() if queue else None,
         )
-        self.message = "Canción solicitada. Se preparará en segundo plano."
+        self.message = "Turno añadido a la cola." if queue else "Canción solicitada para la biblioteca."
 
     def start(self, turn_id):
         if self.active or self.engine.get("state") == "singing":
@@ -586,6 +667,8 @@ class Service:
     def handle(self, event):
         action = event.get("action", "")
         value = str(event.get("value", ""))[:4096]
+        if action.startswith("import:") and self.import_action(action):
+            return
         if action.startswith("field:"):
             field = action.split(":", 1)[1]
             self.fields[field] = value
@@ -711,9 +794,39 @@ class Service:
             self.command("latency", value=milliseconds)
             self.store.configure("latency", milliseconds)
             return
+        if action in ("search:previous", "search:next"):
+            self.result_page = min(max(0, (len(self.results)-1) // 12),
+                                   max(0, self.result_page + (1 if action == "search:next" else -1)))
+            return
+        if action == "search:more":
+            self.search(self.query, more=True)
+            return
+        if action.startswith("external:"):
+            import webbrowser
+            link = catalog.assisted_url(action.split(":", 1)[1], self.lookup_query)
+            if not webbrowser.open(link):
+                raise SongError("No se ha podido abrir el navegador.")
+            return
+        if action.startswith("enqueue:"):
+            self.enqueue_song(action.split(":", 1)[1])
+            return
+        if action in ("queue:next", "queue:previous"):
+            self.queue_page = max(0, self.queue_page + (1 if action == "queue:next" else -1))
+            return
+        if action.startswith("turn:"):
+            self.turn_detail = action.split(":", 1)[1]
+            self.page = "Turno"
+            return
         if action.startswith("result:"):
-            _, op, index = action.split(":")
-            self.request_result(int(index), op == "queue")
+            _, op, generation, key = action.split(":", 3)
+            item = next((x for x in self.results if catalog.source_key(x) == key), None)
+            if str(self.search_generation) != generation or item is None:
+                raise SongError("La búsqueda ha cambiado. Selecciona de nuevo la canción.")
+            if op == "detail":
+                self.result_detail = item
+                self.page = "Versión"
+            elif op in ("save", "queue"):
+                self.request_result(item, op == "queue")
             return
         if action == "confirm-version":
             if not self.pending_result:
@@ -938,6 +1051,11 @@ class Service:
         def button(label, action, sub=""):
             rows.append({"kind": "button", "label": label, "action": action, "sub": sub})
 
+        def song_row(song, label, sub, action="", add_action=""):
+            rows.append({"kind": "song", "label": label, "sub": sub, "action": action,
+                         "add_action": add_action, "artist": song.get("artist") or "",
+                         "cover": self.cover(song)["path"]})
+
         def field(label, key, default="", secret=False):
             rows.append(
                 {
@@ -959,7 +1077,9 @@ class Service:
                 }
             )
 
-        if self.page == "Terminar canción":
+        if self.import_rows(text, button, field):
+            pass
+        elif self.page == "Terminar canción":
             text("¿Terminar esta interpretación?", "Se mostrarán los puntos obtenidos hasta ahora.")
             button("Continuar cantando", "page:Cola")
             button("Terminar y ver resultados", "confirm-end")
@@ -968,17 +1088,10 @@ class Service:
             text("Tu repertorio", f"{self.library_count} versiones guardadas · disponibles sin conexión")
             field("Filtrar biblioteca", "local")
             for song in songs:
-                button(
-                    song["title"],
-                    "song:" + song["id"],
-                    song["artist"]
-                    + " · "
-                    + (
-                        "Instrumental confirmada"
-                        if song["variant"] == "instrumental"
-                        else "Audio original del paquete"
-                    ),
-                )
+                sub = song["artist"]
+                if song["variant"] == "instrumental":
+                    sub += " · Instrumental"
+                song_row(song, song["title"], sub, "song:" + song["id"], "enqueue:" + song["id"])
             if total > 5:
                 button("Canción anterior", "carousel:previous")
                 button("Canción siguiente", "carousel:next")
@@ -986,27 +1099,51 @@ class Service:
                 text("Tu primera canción", "Importa un paquete o busca un mapa existente en USDB.")
             elif not songs:
                 text("Sin coincidencias", "Prueba otro título o artista.")
-            button("Elegir carpeta para importar", "choose-import")
-            field("O pega una carpeta o archivo TXT", "import")
-            button("Importar canciones", "import")
+            button("Importar TXT, audio o ZIP", "import:open")
         elif self.page == "Buscar":
-            text(
-                "Encuentra tu próxima canción",
-                "Artista, título, «artista - título» o enlace de YouTube",
-            )
-            field("Buscar en USDB", "query")
-            button("Buscar mapas", "search")
-            for index, song in enumerate(self.results):
-                text(
-                    song["title"],
-                    song["artist"]
-                    + " · "
-                    + song.get("language", "")
-                    + " · "
-                    + song.get("match", ""),
-                )
-                button("Añadir a la cola", f"result:queue:{index}")
-                button("Guardar sin turno", f"result:save:{index}")
+            field("Artista, canción o enlace de YouTube", "query")
+            button("Buscar canciones", "search")
+            if not self.query:
+                text("Canciones para empezar", "Incluyen voz original y notas.")
+            start = self.result_page * 12
+            visible = self.results[start:start + 12]
+            keys = [catalog.source_key(x) for x in visible]
+            saved = {row["matched_source"]: row for row in self.store.rows(
+                f"SELECT s.*,ss.source AS matched_source FROM songs s JOIN song_sources ss ON ss.song_id=s.id WHERE ss.source IN ({','.join('?' for _ in keys)})",
+                keys,
+            )} if keys else set()
+            for song, key in zip(visible, keys):
+                local = saved.get(key) or (song if song.get("library_id") else None)
+                source = ("Deluxe" if key.startswith("deluxe:") else
+                          "USDB" if key.startswith("usdb:") else "Biblioteca")
+                status = "Lista para cantar" if local else "Preparar"
+                token = f"{self.search_generation}:{key}"
+                detail_action = ("song:" + local["id"]) if local and not song.get("requested_video") else ("result:detail:" + token)
+                song_row(local or song, song["title"], f"{song['artist']} · {source} · {status}",
+                         detail_action, "result:queue:" + token)
+            if start:
+                button("Página anterior", "search:previous")
+            if start + len(visible) < len(self.results):
+                button("Página siguiente", "search:next")
+            elif self.search_cursor and not self.search_busy:
+                button("Buscar más en USDB", "search:more")
+            if self.query and not self.search_busy:
+                button("Consultar UltraStar España", "external:es", "Abrir catálogo en el navegador")
+                button("Consultar USDB.eu", "external:eu", "Abrir catálogo en el navegador")
+            button("Importar TXT, audio o ZIP", "import:open")
+        elif self.page == "Versión" and self.result_detail:
+            song = self.result_detail
+            key = catalog.source_key(song)
+            token = f"{self.search_generation}:{key}"
+            song_row(song, song["title"], song["artist"])
+            if key.startswith("deluxe:"):
+                text("UltraStar Deluxe Songs", "Audio original, mapa y licencia " + song["license"])
+            else:
+                text("Mapa USDB", " · ".join(str(song[k]) for k in
+                                            ("language", "edition", "creator") if song.get(k)))
+            button("Añadir a la cola", "result:queue:" + token)
+            button("Guardar sin turno", "result:save:" + token)
+            button("Volver a los resultados", "page:Buscar")
         elif self.page == "Confirmar versión":
             text(
                 "Comprueba la grabación",
@@ -1032,31 +1169,24 @@ class Service:
             text("Próximos turnos", "El siguiente empieza cuando tú lo decidas.")
             if not turns:
                 text("La cola está libre", "Añade una canción desde la biblioteca o el buscador.")
-            for index, turn in enumerate(turns):
-                text(
-                    f"{index + 1}. " + (turn["title"] or "Preparando canción"),
-                    ", ".join(json.loads(turn["names"]))
-                    + " · "
-                    + (
-                        "Lista"
-                        if turn["song_id"]
-                        else {
-                            "waiting": "En espera",
-                            "working": "Preparando",
-                            "error": "Error",
-                            "cancelled": "Cancelada",
-                        }.get(turn["preparation"], "Pendiente")
-                    ),
-                )
-                if turn["state"] == "queued":
-                    if turn["song_id"]:
-                        button(
-                            "Empezar turno" if index == 0 else "Saltar a este turno",
-                            "start:" + turn["id"],
-                        )
-                    button("Subir turno", "up:" + turn["id"])
-                    button("Bajar turno", "down:" + turn["id"])
-                    button("Quitar turno", "cancel:" + turn["id"])
+            self.queue_page = min(self.queue_page, max(0, (len(turns) - 1) // 12))
+            start = self.queue_page * 12
+            for index, turn in enumerate(turns[start:start + 12], start):
+                original = json.loads(turn["job_payload"] or "{}").get("song", {})
+                song = self.song(turn["song_id"]) if turn["song_id"] else original
+                title = song.get("title") or "Preparando canción"
+                status = "Lista" if turn["song_id"] else {
+                    "waiting": "En espera", "working": "Preparando", "error": "Error",
+                    "cancelled": "Cancelada"}.get(turn["preparation"], "Pendiente")
+                sub = " · ".join(filter(None, (song.get("artist"), ", ".join(json.loads(turn["names"])), status)))
+                song_row(song, f"{index + 1}. {title}", sub, "turn:" + turn["id"])
+            if start:
+                button("Turnos anteriores", "queue:previous")
+            if start + 12 < len(turns):
+                button("Más turnos", "queue:next")
+            next_ready = next((t for t in turns if t["state"] == "queued"), None)
+            if next_ready and next_ready["song_id"] and not self.active:
+                button("Empezar turno", "start:" + next_ready["id"])
             text("Preparación de biblioteca")
             for job in self.store.rows("SELECT * FROM jobs WHERE state!='ready' ORDER BY created"):
                 payload = json.loads(job["payload"])
@@ -1069,6 +1199,18 @@ class Service:
                     button("Reintentar preparación", "retry:" + job["id"])
                 if job["state"] in ("working", "waiting"):
                     button("Cancelar preparación", "cancel-job:" + job["id"])
+        elif self.page == "Turno":
+            turn = next((t for t in self.store.queue() if t["id"] == self.turn_detail), None)
+            if turn:
+                text(turn["title"] or json.loads(turn["job_payload"] or "{}").get("song", {}).get("title")
+                     or "Preparando canción", ", ".join(json.loads(turn["names"])))
+                if turn["state"] == "queued":
+                    if turn["song_id"]:
+                        button("Empezar este turno", "start:" + turn["id"])
+                    button("Subir turno", "up:" + turn["id"])
+                    button("Bajar turno", "down:" + turn["id"])
+                    button("Quitar turno", "cancel:" + turn["id"])
+            button("Volver a la cola", "page:Cola")
         elif self.page == "Canción" and self.detail:
             song = self.song(self.detail)
             text(song["title"], song["artist"])
@@ -1078,6 +1220,12 @@ class Service:
                 else "Audio original del paquete",
                 f"{round(song['duration'])} s · {song['language']}",
             )
+            art = self.cover(song)
+            text(art["kind"], " · ".join(filter(None, (art["credit"], art["license"], art["url"]))))
+            if (song.get("source") or "").startswith("deluxe:"):
+                key = song["source"].partition(":")[2]
+                if key in catalog.STARTERS:
+                    text("UltraStar Deluxe Songs", catalog.STARTERS[key][2] + " · Créditos en license.txt")
             if song["freestyle"]:
                 text(
                     "Contiene partes libres o rap",
@@ -1204,6 +1352,7 @@ class Service:
                 if child.poll() is None:
                     child.terminate()
         self.pool.shutdown(wait=True, cancel_futures=True)
+        self.artwork.close()
         self.store.close()
 
 

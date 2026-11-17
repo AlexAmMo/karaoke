@@ -72,7 +72,7 @@ def test_failed_package_cannot_start(service, package):
         encoding="utf-8",
         newline="\n",
     )
-    service.add_import(str(package))
+    service.add_import(str(package.parent))
     wait(service, lambda: bool(service.store.rows("SELECT * FROM jobs WHERE state='error'")))
     assert service.store.rows("SELECT * FROM songs") == []
     job = service.store.rows("SELECT * FROM jobs")[0]
@@ -255,3 +255,51 @@ def test_instrumental_selection_discards_previous_audio_and_out_of_order_complet
     assert service.candidate_audio == selected_audio
     assert service.message == message
     assert not service.candidate_audio.get("listened")
+
+
+def test_open_catalogue_works_without_usdb_and_rejects_stale_selection(service):
+    service.handle({"action": "page:Buscar"})
+    songs = [r for r in service.view()["rows"] if r["kind"] == "song"]
+    assert {r["label"] for r in songs} == {"On the run", "Northern Star"}
+    chosen = songs[0]
+    service.handle({"action": chosen["add_action"]})
+    assert service.store.queue()[0]["source"].startswith("deluxe:")
+    service.search("Northern Star")
+    with pytest.raises(SongError, match="búsqueda ha cambiado"):
+        service.handle({"action": chosen["add_action"]})
+    assert len(service.store.queue()) == 1
+    rows = service.view()["rows"]
+    assert [r["label"] for r in rows if r["kind"] == "song"] == ["Northern Star"]
+    assert {"external:es", "external:eu", "import:open"} <= {r.get("action") for r in rows}
+
+
+def test_search_remote_pages_merge_without_duplicate_or_wrong_queue_item(service, monkeypatch):
+    from time import monotonic, sleep
+
+    service.store.configure("username", "fixture")
+    examples = [{"song_id": i, "title": f"Canción {i}", "artist": "Artista"} for i in range(15)]
+
+    def search(operation, query, cursor):
+        assert operation == "search" and query == "Artista"
+        return ({"songs": examples[:14], "next_cursor": {"0": 100}} if cursor is None
+                else {"songs": examples[13:], "next_cursor": {}})
+
+    monkeypatch.setattr(service, "provider", search)
+    def finish():
+        deadline = monotonic() + 4
+        while service.search_busy and monotonic() < deadline:
+            service.tick()
+            sleep(0.01)
+        assert not service.search_busy
+
+    service.search("Artista")
+    finish()
+    rows = service.view()["rows"]
+    assert len([r for r in rows if r["kind"] == "song"]) == 12
+    first = next(r for r in rows if r["kind"] == "song")
+    service.handle({"action": "search:next"})
+    service.handle({"action": "search:more"})
+    finish()
+    assert len(service.results) == 15 and service.search_cursor is None
+    service.handle({"action": first["add_action"]})
+    assert service.store.queue()[0]["source"] == first["add_action"].split(":", 3)[-1]

@@ -300,6 +300,10 @@ def main():
                 and s.get("position", 0) > collapsed["position"] + 0.3
             )
             check(
+                "System cursor remains enabled during singing, folding and restoring the panel",
+                all(s.get("cursor_visible") is True for s in (expanded, collapsed, restored_panel)),
+            )
+            check(
                 "Restoring the panel restores geometry and keeps the active turn and score",
                 restored_panel["panel_width"] == expanded["panel_width"]
                 and restored_panel["stage_width"] == expanded["stage_width"]

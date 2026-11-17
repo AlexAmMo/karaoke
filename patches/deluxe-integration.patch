@@ -725,7 +725,7 @@ index e68a4f6..723b594 100644
      if name <> nil then
        device.UseName := true;
 diff --git a/src/menu/UDisplay.pas b/src/menu/UDisplay.pas
-index 93e1eef..844e7bd 100644
+index 93e1eef..2eb60a8 100644
 --- a/src/menu/UDisplay.pas
 +++ b/src/menu/UDisplay.pas
 @@ -167,6 +167,7 @@   TDisplay = class
@@ -799,7 +799,21 @@ index 93e1eef..844e7bd 100644
  end;
  
  { sets SDL_ShowCursor depending on options set in Ini }
-@@ -777,7 +783,7 @@ procedure TDisplay.SaveScreenShot;
+@@ -512,6 +518,13 @@ procedure TDisplay.SetCursor(ScreenHideMode: TCursorScreenHideMode);
+ var
+   Cursor: Integer;
+ begin
++  // Karaoke presents singing and interactive controls in one SDL window.
++  if ShellEnabled then
++  begin
++    Cursor_HiddenByScreen := false;
++    SDL_ShowCursor(SDL_ENABLE);
++    Exit;
++  end;
+   Cursor := 0;
+ 
+   if (Ini.Mouse = 2) and
+@@ -777,7 +790,7 @@ procedure TDisplay.SaveScreenShot;
    // in this case one may have to add " glext, " to the list of used units
    //  glReadPixels(0, 0, ScreenW, ScreenH, GL_BGR, GL_UNSIGNED_BYTE, ScreenData);
    Surface := SDL_CreateRGBSurfaceFrom(

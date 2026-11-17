@@ -2,23 +2,22 @@
 version: 1
 slug: "native-ukaraokeshell-pas"
 primary_target: "native/UKaraokeShell.pas"
-related_targets: []
+related_targets:
+  - "src/karaoke/service.py"
 ---
 
-# Sesión de karaoke — PS3 clásico
+# Biblioteca, catálogo y sesión de canto
 
-Mode: Operate en el lateral; Experience en selección y canto. Build path: code-led, motor SDL/OpenGL nativo. Reemplazo visual autorizado por «copiar la interfaz visual estandar de singstar, en cuanto a estetica, colorido navegacion» y elección «SingStar clásico de PS3 (recomendado)».
+Mode: Operate en búsqueda, ajustes y cola. Experience en biblioteca y canto. Implementación nativa SDL/OpenGL para macOS y Windows.
 
-THESIS: La biblioteca ocupa un escenario carmesí con una canción protagonista y portadas vecinas; el panel operativo se puede plegar para cantar.
+THESIS: La canción elegida ocupa el escenario con su portada, título, artista y acción de encolar. Las miniaturas de la tira inferior permiten explorar la biblioteca. El panel derecho reúne las acciones de la sesión.
 
-OWN-WORLD: Burdeos profundo, luz carmesí, selección fucsia, títulos blancos abiertos y pie plateado. Referencia primaria: portfolios Nigal Raymond y ff, documentados en docs/research/SINGSTAR-REFERENCIAS.md. Marca Karaoke y gráficos propios; contenido real de biblioteca. No inventar portadas ni repertorio disponible. Sin portada: composición tipográfica claramente propia.
+OWN-WORLD: Grafito, texto claro, metadatos suaves y acción principal frambuesa. La imagen validada de la grabación identifica a la canción en biblioteca, búsqueda y cola. Cuando falta imagen se dibujan iniciales sobre un color estable por artista, con el título como alternativa.
 
-STORY: Preparar micrófonos y buscar/importar desde el lateral; recorrer canciones con flechas, añadir a cola, comenzar el turno y plegar panel. Conservar biblioteca, cola, edición y audio al plegar. Recuperar lateral mediante control visible o Cmd/Ctrl+B. Cmd/Ctrl+1–4 abre cada sección.
+STORY: Buscar una canción, comprobar su edición y añadirla a la cola. En una fila musical, Tab y Mayús+Tab permiten recorrer detalle y botón de añadir. Comenzar el turno desde la cola y plegar con Cmd/Ctrl+B. La flecha del sistema permanece visible durante el canto. El panel conserva alimentación de audio, cola y edición al plegar.
 
-FIRST VIEWPORT: Encabezado blanco «Elige tu canción», fondo burdeos con horizonte rojo, portada central grande con pie fucsia y vecinas más pequeñas reflejadas. Biblioteca vacía: misma identidad, invitación concreta a buscar/importar, sin carátulas ficticias. Panel derecho 340–440 px, tabs y filas con foco fucsia. Durante canto vídeo y notas cian, segunda voz roja, letras en banda clara. El motor conserva su proporción 4:3 hasta una adaptación panorámica coherente, nunca estirado. Resultados son adaptación propia, no reconstrucción histórica certificada.
+FIRST VIEWPORT: Cabecera «Mi repertorio» y recuento. Portada grande a la izquierda, información y botón a la derecha, hasta cinco miniaturas debajo. La biblioteca vacía ofrece «Buscar canciones». En el lateral, miniaturas de 48 unidades, título y metadatos en la misma fila. Panel abierto de 340–440 puntos y acceso «Mostrar panel» al plegarlo. Canto y letra conservan el lienzo 4:3 de Deluxe.
 
-FORM: seed: none (pinned). «SingStar clásico de PS3 (recomendado)». Composición fijada: «1 solo pantalla ... ventana principal ... lateral una columna» y «ventana lateral colapsable». Interacción distintiva: carrusel de biblioteca real y expansión del escenario al plegar el panel.
+FORM: seed: none (pinned). La solicitud «Implementa el plan» se refiere a docs/research/PLAN-CATALOGO-E-INTERFAZ.md. La ventana única y la selección por flechas conservan la continuidad del producto; el sistema de grafito con arte real define el aspecto actual.
 
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
-
-Verificación: 1280×800 y mínimo1000×640, Retina2×, biblioteca vacía/con contenido real de prueba, nombres largos y acentos, teclado/clic, panel plegado durante canto, cola/puntuación/audio preservados. No certificar accesibilidad AX completa ni micrófono físico no disponible. Estética anterior verde sustituida por decisión explícita del usuario.
+FINISH: Revisar el escenario mínimo de 1000×640, la ventana 1280×800, Retina y Windows. Probar canto y panel con la cola activa, títulos largos, imágenes ausentes o tardías, puntero y teclado. [Medidas y controles](../../DESIGN.md) · [Evidencia con SDL y señal sintética](../../docs/validation/catalog-ui-native-macos.json)

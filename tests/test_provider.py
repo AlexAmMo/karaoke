@@ -229,3 +229,80 @@ def test_worker_reads_utf8_protocol_even_with_legacy_console_encoding(tmp_path):
     )
     assert process.returncode == 0, process.stderr.decode("utf-8", errors="replace")
     assert invalid_resolution in json.loads(response.read_text(encoding="utf-8"))["error"]
+
+
+def test_natural_query_finds_accents_and_resumes_only_nonexhausted_filters(
+    tmp_path, monkeypatch, usdb_song, no_network
+):
+    from usdb_syncer import usdb_scraper as scraper
+    from usdb_syncer.usdb_song import UsdbSong
+
+    monkeypatch.setattr(scraper.Usdb, "MAX_SONGS_PER_PAGE", 2)
+
+    def versions(*ids):
+        return [
+            UsdbSong.from_json(
+                {
+                    **usdb_song,
+                    "song_id": i,
+                    "artist": "Éminem",
+                    "title": "Lose Yourself" if i == 3 else "Lose Yourself (live)",
+                }
+            )
+            for i in ids
+        ]
+
+    def first_page(order, descending, content_filter, session):
+        yield (
+            versions(1, 2) if content_filter == {"interpret": "Eminem", "title": "Yourself"} else []
+        )
+
+    monkeypatch.setattr(scraper, "_get_songs_from_usdb", first_page)
+    request = {"root": str(tmp_path), "operation": "search", "query": "Eminem Lose Yourself"}
+    first = provider.run(request)
+    assert [s["song_id"] for s in first["songs"]] == [1, 2]
+    assert first["next_cursor"] == {"2": 2}
+
+    def request_page(endpoint, method, *, params, payload, session):
+        assert payload["start"] == "2"
+        assert payload["interpret"] == "Eminem" and payload["title"] == "Yourself"
+        return "second-page"
+
+    monkeypatch.setattr(scraper, "get_usdb_page", request_page)
+    monkeypatch.setattr(
+        scraper,
+        "_parse_songs_from_songlist",
+        lambda html: versions(3) if html == "second-page" else [],
+    )
+    second = provider.run({**request, "cursor": first["next_cursor"]})
+    assert [s["song_id"] for s in second["songs"]] == [3]
+    assert second["next_cursor"] == {}
+
+
+def test_fallback_uses_artist_when_accentless_title_misses_usdb(
+    tmp_path, monkeypatch, usdb_song, no_network
+):
+    from usdb_syncer import usdb_scraper
+    from usdb_syncer.usdb_song import UsdbSong
+
+    def pages(order, descending, content_filter, session):
+        yield (
+            [UsdbSong.from_json({**usdb_song, "artist": "Estopa", "title": "Como Camarón"})]
+            if content_filter == {"interpret": "Estopa"}
+            else []
+        )
+
+    monkeypatch.setattr(usdb_scraper, "_get_songs_from_usdb", pages)
+    result = provider.run(
+        {"root": str(tmp_path), "operation": "search", "query": "Estopa Como Camaron"}
+    )
+    assert [s["title"] for s in result["songs"]] == ["Como Camarón"]
+
+
+def test_remote_anchors_preserve_accented_spelling():
+    from karaoke.catalog import search_filters
+
+    assert {"interpret": "Héroes", "title": "tierras"} in search_filters(
+        "Héroes del Silencio Entre dos tierras"
+    )
+    assert {"interpret": "Estopa", "title": "Camarón"} in search_filters("Estopa Como Camarón")

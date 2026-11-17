@@ -116,7 +116,7 @@ class Store:
                 return turn_id
 
     def queue(self):
-        return self.rows("""SELECT t.*,s.title,s.artist,s.variant,s.chart,j.state AS preparation,j.message
+        return self.rows("""SELECT t.*,s.title,s.artist,s.variant,s.chart,j.state AS preparation,j.message,j.payload AS job_payload
           FROM turns t LEFT JOIN songs s ON t.song_id=s.id LEFT JOIN jobs j ON t.source=j.source
           WHERE t.state IN ('queued','starting','singing') ORDER BY t.position,t.created""")
 

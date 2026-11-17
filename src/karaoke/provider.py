@@ -122,7 +122,65 @@ def _bounded_video_options(options):
     return BoundedVideoOptions(**dataclasses.asdict(options))
 
 
+def _search(request, session, scraper, encoder):
+    from .catalog import matches, rank, recovery_filters, search_filters
+
+    query = request["query"].strip()
+    filters = search_filters(query)
+    cursor = request.get("cursor")
+    limit = scraper.Usdb.MAX_SONGS_PER_PAGE
+    results = {}
+    following = {}
+    recovery = recovery_filters(query)
+    for index, content_filter in enumerate(filters + recovery):
+        if cursor is None and index >= len(filters) and results:
+            break
+        key = str(index)
+        if cursor is not None and key not in cursor:
+            continue
+        offset = int((cursor or {}).get(key, 0))
+        if offset == 0:
+            batch = next(scraper._get_songs_from_usdb("rating", True, content_filter, session), [])
+        else:
+            # The pinned Syncer generator always starts at zero. Use its parser and
+            # request format to resume directly at the next upstream page.
+            html = scraper.get_usdb_page(
+                "index.php",
+                scraper.RequestMethod.POST,
+                params={"link": "list"},
+                payload={
+                    "order": "rating",
+                    "ud": "desc",
+                    "details": "1",
+                    "limit": str(limit),
+                    "start": str(offset),
+                    **content_filter,
+                },
+                session=session,
+            )
+            batch = list(scraper._parse_songs_from_songlist(html))
+        for song in batch:
+            item = json.loads(json.dumps(song, cls=encoder))
+            if matches(query, item):
+                results[int(song.song_id)] = item
+        if len(batch) == limit and offset + limit < scraper.Usdb.MAX_SONG_ID:
+            following[key] = offset + limit
+    return {
+        "songs": sorted(results.values(), key=lambda item: rank(query, item)),
+        "next_cursor": following,
+    }
+
+
 def run(request: dict) -> dict:
+    if request["operation"] == "starter":
+        from .catalog import download_starter
+
+        destination = Path(request["destination"])
+        chart = download_starter(
+            request["key"], destination, PreparationProgress(request.get("progress"), destination)
+        )
+        return {"charts": [str(chart)]}
+
     import requests
     from PySide6.QtCore import QCoreApplication
 
@@ -172,20 +230,7 @@ def run(request: dict) -> dict:
             raise ValueError("No se ha podido iniciar sesión en USDB.")
         return {"ok": True}
     if operation == "search":
-        query = request["query"].strip()
-        if " - " in query:
-            artist, title = query.split(" - ", 1)
-            filters = [{"interpret": artist, "title": title}]
-        else:
-            filters = [{"interpret": query}, {"title": query}]
-        results = {}
-        for content_filter in filters:
-            # First page is sufficient for an interactive, bounded result list.
-            batch = next(usdb_scraper._get_songs_from_usdb("rating", True, content_filter, session))
-            for song in batch:
-                item = json.loads(json.dumps(song, cls=UsdbSongEncoder))
-                results[str(int(song.song_id))] = item
-        return {"songs": list(results.values())[:100]}
+        return _search(request, session, usdb_scraper, UsdbSongEncoder)
     if operation == "details":
         details = usdb_scraper.get_usdb_details(SongId(int(request["song_id"])))
         return {

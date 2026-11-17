@@ -2,11 +2,11 @@
 
 Karaoke doméstico instalado en el ordenador: UltraStar Deluxe muestra letras, notas y puntuación; un lateral permite preparar biblioteca y próximos turnos sin abrir otra ventana.
 
-**Versión de desarrollo 0.1.0.** La app empaquetada supera 17 comprobaciones de sesión en macOS Apple Silicon. Las 55 pruebas Python pasan localmente y en CI sobre macOS, Linux y Windows. Windows supera una prueba de arranque y cierre con gráficos y audio simulados. Las pruebas sintéticas no sustituyen una sesión con uno o dos micrófonos por cable; las descargas con cuenta USDB también están pendientes de validación real. El estado verificable está en [docs/VALIDACION.md](docs/VALIDACION.md).
+La rama de desarrollo incluye búsqueda por artista y título, paquetes opcionales con voz y notas, importación de TXT/ZIP y portadas en biblioteca, búsqueda y cola. Las pruebas y sus condiciones están en [Validación](docs/VALIDACION.md).
 
 ## Instalación
 
-Descarga los paquetes de la [prerelease v0.1.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.1.0), o usa uno de estos comandos. Incluyen el motor y las herramientas necesarias: no necesitas Python ni compiladores.
+Los comandos de esta sección instalan la versión anterior al rediseño del catálogo. Descarga los paquetes de la [prerelease v0.1.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.1.0), o usa uno de estos comandos. Incluyen el motor y las herramientas necesarias: no necesitas Python ni compiladores.
 
 **macOS**, desde Terminal (Apple Silicon: macOS 26 o posterior; Intel: macOS 15 o posterior):
 
@@ -34,13 +34,15 @@ Los instaladores verifican SHA-256 y conservan la biblioteca y los ajustes fuera
 4. Añade un turno. La preparación ocurre en segundo plano. En **Cola**, pulsa **Empezar turno** cuando esté listo.
 5. Al terminar verás los resultados. Tú decides cuándo empieza la siguiente canción.
 
-La búsqueda acepta `artista - título` y enlaces de YouTube. Un enlace ofrece candidatos de mapas; no cambia silenciosamente el audio asociado al mapa. No es un buscador general de vídeos.
+En la versión de desarrollo puedes escribir `Eminem Lose Yourself`, `Eminem - Lose Yourself` o pegar un enlace de YouTube. Las flechas de página recorren los resultados cargados y **Buscar más en USDB** obtiene la siguiente página. Consultar UltraStar España o USDB.eu abre su catálogo en el navegador. Para un paquete obtenido allí, selecciona **Importar TXT, audio o ZIP**. Puedes elegir mapas de un ZIP o asociar el audio de la misma edición a un TXT suelto y escucharlo antes de guardar.
+
+Al abrir **Buscar** tienes dos canciones de inicio que se preparan desde UltraStar Deluxe Songs sin cuenta. El crédito y la licencia acompañan a cada paquete. El botón **+** prepara la canción y la añade a la cola.
 
 La voz original del paquete se conserva. **Buscar instrumental existente** obtiene candidatos; permite preescucha al principio, centro y final y exige confirmar la correspondencia. Ni el título ni una duración parecida certifican la afinación o la sincronía. No se generan notas ni se separa voz con IA.
 
 ## Interfaz y controles
 
-La versión de desarrollo adapta la estética clásica de SingStar para PS3: escenario burdeos, selección fucsia, carrusel de portadas y letras sobre una banda clara. Las portadas proceden de tus paquetes; cuando faltan se muestran artista y título. Las [referencias visuales](docs/research/SINGSTAR-REFERENCIAS.md) distinguen lo observado de las adaptaciones propias.
+El escenario usa fondo grafito, acento frambuesa, portada protagonista y una tira de canciones. El lateral muestra miniatura, artista y acciones en una sola fila. Las portadas se resuelven en segundo plano desde el paquete, la ficha USDB o el sencillo y el álbum identificados en MusicBrainz. Cuando corresponde se intenta la imagen del artista en Wikimedia Commons. Sin imagen disponible se muestran iniciales. El detalle conserva la procedencia.
 
 Puedes plegar el lateral con la flecha de su encabezado o **Cmd/Ctrl+B**, y recuperarlo con **Mostrar panel**. La canción, la cola y los ajustes siguen activos. **Cmd/Ctrl+1–4** abre Biblioteca, Buscar, Cola o Ajustes. **Tab/Mayús+Tab** recorre el carrusel y los controles; con el carrusel enfocado, las flechas eligen canción e **Intro** la añade a la cola. El canto conserva su proporción 4:3 al ampliar el escenario.
 
