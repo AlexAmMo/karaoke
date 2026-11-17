@@ -1,0 +1,59 @@
+{
+  "source_run": "https://github.com/AlexAmMo/karaoke/actions/runs/44194552768",
+  "passed": true,
+  "platform": "Windows-2022Server-10.0.20348-SP0",
+  "package_sha256": "1ac6c3bf86ebe02d3a0a89e3e72a1bec8ba93facfb38b7095c4c76e623c41fad",
+  "local_search_journey": {
+    "query": "Probe A",
+    "catalogue_http_unreachable": true,
+    "controls": [
+      "Buscar",
+      "Campo de búsqueda",
+      "Añadir a la cola",
+      "Cola",
+      "Empezar a cantar"
+    ],
+    "passed": true
+  },
+  "singing_cursor": [
+    {
+      "state": "singing",
+      "position": 1.5165453514739227,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        375,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 1.7237585034013605,
+      "cursor_visible": true,
+      "panel_collapsed": true,
+      "scores": [
+        625,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 1.9285238095238098,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        750,
+        0
+      ]
+    }
+  ],
+  "elapsed_seconds": 12.22,
+  "ci_audio_driver": "dummy",
+  "source_revision": "036ecbf3f3c867460dae3374e9aee578f60e1ae7",
+  "job_url": "https://github.com/AlexAmMo/karaoke/actions/runs/44194552768/job/134432520020",
+  "smoke_artifact_id": 14377429475,
+  "smoke_result_sha256": "67fa169351d811fec453803aea4db488a964459eeec61759bd53bcd6ccad601c",
+  "launcher_exit_code": 0,
+  "exit_code_evidence": "scripts/smoke_desktop.py comprueba process.returncode tras cerrar el ejecutable y solo entonces marca passed.",
+  "scope": "Paquete Windows x64, controles comunicados por la interfaz, gráficos por software y audio sintético."
+}

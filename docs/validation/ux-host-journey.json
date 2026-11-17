@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "Configure one singer, backing volume, microphone return and input meter",
+      "passed": true
+    },
+    {
+      "name": "Typing a title produces one matching work without a submit or source button",
+      "passed": true,
+      "visible_controls": [
+        "input",
+        "song"
+      ]
+    },
+    {
+      "name": "One add action prepares the exact recording with no listening or edition step",
+      "passed": true,
+      "source": "allkaraoke:alex-ubago-sigo-aqui"
+    },
+    {
+      "name": "Pause holds playback position",
+      "passed": true
+    },
+    {
+      "name": "The matching search result displays its album art after being queued",
+      "passed": true,
+      "artist": "Álex Ubago"
+    },
+    {
+      "name": "Search while singing keeps the current recording playing",
+      "passed": true
+    },
+    {
+      "name": "Import, add a second song, reorder and remove a repeat while singing",
+      "passed": true
+    },
+    {
+      "name": "Full song reaches scores and returns to the session with next turn queued",
+      "passed": true,
+      "title": "Sigo Aquí",
+      "scores": [
+        1844
+      ]
+    },
+    {
+      "name": "Sing next turn and empty the queue",
+      "passed": true
+    },
+    {
+      "name": "Reopen, retain prepared songs and stay idle",
+      "passed": true
+    }
+  ],
+  "input": "synthetic",
+  "real_catalogue": true,
+  "elapsed_seconds": 277.38
+}

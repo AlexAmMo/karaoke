@@ -139,3 +139,19 @@ Se prepararon por separado la edición de «Despacito» con Daddy Yankee y el re
 El motor de la aplicación macOS empaquetada reprodujo además un turno completo de «Sigo Aquí» en una biblioteca temporal. Se observaron posiciones a 50, 100, 150 y 200 segundos, seguidas de un turno finalizado con puntuaciones persistidas. El micrófono de prueba generó tonos sintéticos y la salida de audio fue simulada. Durante esa prueba, la biblioteca de uso diario permaneció en la revisión de la edición.
 
 El paquete Windows x64 compiló y superó la prueba del ejecutable congelado, arranque del motor, importación y canto sintético con el panel abierto, plegado y restaurado. En el primer intento la prueba emitió la orden de importar antes de confirmar la recepción de la ruta del fixture. El segundo intento esperó el estado visible y terminó correctamente con el mismo código de la aplicación. [Prueba final en Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44188110442) · [Evidencia del paquete](validation/catalogue-federated-windows.json)
+
+## Sesión simplificada y carátulas en la búsqueda
+
+La búsqueda de «Álex Ubago Sigo Aquí» agrupa las fuentes en una fila con portada y botón **+**. En dos ventanas Retina (1000×640 y 1280×800 puntos) se comprobó que al escribir aparece el resultado y que llevar el foco al botón conserva la cola hasta pulsar Intro. Dos búsquedas con caché vacía obtuvieron la portada del álbum. Una tercera encontró un límite temporal del proveedor de imágenes y mostró las iniciales del artista. La preparación de una canción es independiente de la descarga de su imagen. [Verificación en macOS](validation/ux-macos.json)
+
+Con biblioteca temporal y sin cuenta, una pulsación en **+** preparó la grabación de «Sigo Aquí» con voz y notas en 10,7 segundos. El proceso verifica la correspondencia de la grabación descargada con el mapa y comunica un error si la comparación no es concluyente. La experiencia de preparación reemplaza la escucha obligatoria documentada en pruebas anteriores. Los paquetes oficiales se verifican con su manifiesto. Los archivos originales de un paquete local se comprueban tal como los declara su mapa.
+
+El paquete de macOS completó una sesión de dos canciones. Se recorrieron búsqueda durante el canto, pausa y reanudación, importación, cambios de cola, puntuaciones y reapertura. El motor pasó otras 21 comprobaciones con señal de micrófono sintética. Se comprobaron además las opciones para dos cantantes, la selección de entradas y la recuperación tras una descarga fallida. La latencia y el retorno de un micrófono físico siguen pendientes. [Recorrido completo](validation/ux-host-journey.json) · [Ajustes y recuperación](validation/host-session-secondary.md)
+
+Para repetir el recorrido en macOS con una biblioteca temporal y comprobar además la portada remota de esta canción, ejecuta desde la raíz del repositorio:
+
+```sh
+uv run python scripts/test_host_journey.py --launcher "$HOME/Applications/Karaoke.app/Contents/MacOS/karaoke" --check-remote-cover --output build/ux-qa/online-session.json
+```
+
+El paquete x64 superó además la búsqueda desde el campo con los catálogos sin conexión, la adición a la cola, el inicio de una canción local y el plegado del panel durante el canto en Windows Server 2022 con gráficos y audio de prueba. La suite Python de esta revisión pasó 120 pruebas en el Mac. [Ejecución Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44194552768) · [Resultados del paquete](validation/ux-windows.json)

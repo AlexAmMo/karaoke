@@ -15,7 +15,7 @@ from pathlib import Path
 from test_session import ROOT, Session, read_json
 
 
-def run(launcher: Path, output: Path):
+def run(launcher: Path, output: Path, check_remote_cover=False):
     report = {"passed": False, "checks": [], "input": "synthetic", "real_catalogue": True}
     chart = ROOT / "technical-spike/fixtures/staging/C/song.txt"
     if not chart.exists() or not any(chart.parent.glob("*.wav")):
@@ -134,7 +134,22 @@ def run(launcher: Path, output: Path):
             session.wait(lambda s: not s.get("panel_collapsed"))
             page("Buscar")
             click("field:query", "sigo aqui")
-            row(lambda r: r.get("label") == "Sigo Aquí" and r.get("add_action"))
+            cover_result = row(
+                lambda r: (
+                    r.get("label") == "Sigo Aquí"
+                    and r.get("add_action")
+                    and (not check_remote_cover or r.get("cover"))
+                ),
+                timeout=60,
+            )
+            check(
+                "The result remains available with its cover or artist fallback after being queued",
+                Path(cover_result["cover"]).is_file()
+                if cover_result.get("cover")
+                else bool(cover_result.get("artist")),
+                album_cover_available=bool(cover_result["cover"]),
+                artist=cover_result["artist"],
+            )
             check(
                 "Search while singing keeps the current recording playing",
                 session.state().get("token") == first and session.state()["position"] > paused,
@@ -199,5 +214,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--launcher", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--check-remote-cover",
+        action="store_true",
+        help="Require real remote cover art for Sigo Aquí in this online run",
+    )
     options = parser.parse_args()
-    run(options.launcher, options.output)
+    run(options.launcher, options.output, options.check_remote_cover)
