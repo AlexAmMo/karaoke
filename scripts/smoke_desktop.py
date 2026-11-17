@@ -45,12 +45,40 @@ try {
     (output / 'desktop-capture.log').write_bytes(capture.stdout + capture.stderr)
 
 
+def check_singing_cursor(data, process):
+    from test_session import ROOT, Session
+
+    subprocess.run([sys.executable, str(ROOT / 'technical-spike/scripts/generate_fixtures.py')],
+                   check=True, capture_output=True, timeout=30)
+    session = Session(data, [], {})
+    session.process = process
+    chart = ROOT / 'technical-spike/fixtures/initial/A/song.txt'
+    session.event('field:import', str(chart))
+    session.event('import')
+    session.wait(lambda _: bool(session.rows("SELECT id FROM songs WHERE title='Probe A'")), timeout=45)
+    song = session.rows("SELECT id FROM songs WHERE title='Probe A'")[0]
+    turn = session.enqueue(song['id'])
+    session.event('start:' + turn)
+    start = session.wait(lambda s: s.get('state') == 'singing' and s.get('position', 0) > 1.5)
+    samples = [start]
+    for collapsed in (True, False):
+        session.native('panel', collapsed=collapsed)
+        previous = samples[-1]['position']
+        samples.append(session.wait(lambda s: s.get('panel_collapsed') is collapsed
+                                    and s.get('position', 0) > previous + 0.2))
+    if not all(s.get('cursor_visible') and s.get('token') == turn for s in samples):
+        raise AssertionError('System cursor or active turn lost during panel transition')
+    return [{k: s.get(k) for k in ('state', 'position', 'cursor_visible', 'panel_collapsed', 'scores')}
+            for s in samples]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--launcher', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--package-archive', type=Path)
     parser.add_argument('--source-run')
+    parser.add_argument('--check-cursor', action='store_true')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -102,6 +130,8 @@ def main():
             else:
                 raise TimeoutError('No idle synthetic engine state within 45 seconds; inspect engine.log and engine.json')
             report['engine_state'] = state
+            if args.check_cursor:
+                report['singing_cursor'] = check_singing_cursor(data, process)
             commands = data / 'ipc/commands'
             command = commands / ('smoke-' + uuid.uuid4().hex + '.json')
             temporary = command.with_suffix('.tmp')

@@ -19,6 +19,7 @@ from PIL import Image
 from .songs import SongError, duration, import_package, normalize, read_chart, resource, validate
 from .store import Store
 from . import catalog
+from .account import AccountSession, SessionExpired
 from .artwork import ArtworkResolver
 from .package_import import PackageImportMixin, prepare_local
 
@@ -94,7 +95,8 @@ class Service(PackageImportMixin):
             (self.ipc / name).unlink(missing_ok=True)
         self.page = "Biblioteca"
         self.query = ""
-        self.message = "Importa una carpeta UltraStar o conecta USDB para empezar."
+        self.message = ("Elige una canción para la cola." if self.store.rows("SELECT 1 FROM songs LIMIT 1")
+                        else "Busca tu primera canción o importa un paquete UltraStar.")
         self.results = catalog.starter_songs()
         self.result_page = 0
         self.search_cursor = None
@@ -121,6 +123,8 @@ class Service(PackageImportMixin):
         self.futures = []
         self.download = None
         self.search_generation = 0
+        self.account = AccountSession()
+        self.account_workers = set()
         self.children = set()
         self.download_process = None
         self.cancelled_jobs = set()
@@ -209,35 +213,70 @@ class Service(PackageImportMixin):
             else {}
         )
 
+    def _login_cookies(self, username, password):
+        result = self._provider_worker("login", private_login=True, username=username, password=password)
+        return result["cookies"]
+
+    def _change_account(self, *, pending=False):
+        generation = self.account.begin_change(pending)
+        self.search_generation += 1
+        self.search_busy = False
+        self.search_cursor = None
+        self.results = self.local_results(self.query)
+        self.result_detail = self.pending_result = None
+        with self.children_lock:
+            for child in self.account_workers:
+                if child.poll() is None:
+                    child.terminate()
+        return generation
+
     def provider(self, operation, **kwargs):
+        if operation == "starter":
+            return self._provider_worker(operation, **kwargs)
+        generation = self.account.generation
+        cookies = self.account.acquire(generation, self.credentials, self._login_cookies)
+        try:
+            result = self._provider_worker(operation, generation=generation, session_cookies=cookies, **kwargs)
+        except SessionExpired:
+            cookies = self.account.acquire(generation, self.credentials, self._login_cookies, expired=cookies)
+            result = self._provider_worker(operation, generation=generation, session_cookies=cookies, **kwargs)
+        self.account.check(generation)
+        return result
+
+    def _provider_worker(self, operation, *, generation=None, **kwargs):
         response = self.root / ("response-" + uuid.uuid4().hex + ".json")
         request = {
             "root": str(self.root / "syncer"),
             "response": str(response),
             "operation": operation,
             "progress": str(self.root / "download-progress.json"),
-            **(self.credentials() if operation != "starter" else {}),
             **kwargs,
         }
         # argv and logs contain no credentials. Use stdin, no persistent password file.
-        log = tempfile.TemporaryFile()
+        private_login = bool(kwargs.get("private_login"))
+        if private_login:
+            del request["response"]
         try:
             proc = subprocess.Popen(
                 child_command("karaoke.provider"),
                 stdin=subprocess.PIPE,
-                stdout=log,
-                stderr=log,
-                text=True,
+                stdout=subprocess.PIPE if private_login else subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True, encoding="utf-8", errors="replace",
             )
             with self.children_lock:
                 self.children.add(proc)
+                if operation != "starter":
+                    self.account_workers.add(proc)
+                    if generation is not None:
+                        self.account.check(generation)
                 if operation in ("download", "starter"):
                     self.download_process = proc
             deadline = time.monotonic() + (1800 if operation in ("download", "starter") else 90)
             pending_input = json.dumps(request)
             while True:
                 try:
-                    proc.communicate(pending_input, timeout=1)
+                    output, _ = proc.communicate(pending_input, timeout=1)
                     break
                 except subprocess.TimeoutExpired:
                     pending_input = None
@@ -250,9 +289,22 @@ class Service(PackageImportMixin):
                         and shutil.disk_usage(self.root).free < 256 * 1024**2
                     ):
                         raise SongError("Descarga detenida: queda poco espacio disponible.")
-            if proc.returncode or not response.exists():
-                raise SongError("El servicio de catálogo ha fallado. Reintenta la operación.")
-            result = json.loads(response.read_text(encoding="utf-8"))
+            if proc.returncode:
+                raise SongError("El servicio de catálogo se ha interrumpido. Reintenta la operación.")
+            if private_login:
+                marker = "KARAOKE_LOGIN "
+                line = next((line[len(marker):] for line in reversed((output or "").splitlines())
+                             if line.startswith(marker)), "")
+                try:
+                    result = json.loads(line)
+                except ValueError:
+                    raise SongError("No se ha podido verificar la sesión USDB.") from None
+            else:
+                if not response.exists():
+                    raise SongError("El servicio de catálogo ha fallado. Reintenta la operación.")
+                result = json.loads(response.read_text(encoding="utf-8"))
+            if result.get("expired"):
+                raise SessionExpired(result["error"])
             if result.get("error"):
                 raise SongError(result["error"])
             return result
@@ -263,10 +315,10 @@ class Service(PackageImportMixin):
                     proc.wait()
                 with self.children_lock:
                     self.children.discard(proc)
+                    self.account_workers.discard(proc)
                     if self.download_process is proc:
                         self.download_process = None
             response.unlink(missing_ok=True)
-            log.close()
 
     def submit(self, work, callback):
         self.futures.append((self.pool.submit(work), callback))
@@ -718,26 +770,39 @@ class Service(PackageImportMixin):
             username, password = self.fields.get("username", ""), self.fields.pop("password", "")
             if not username or not password:
                 raise SongError("Introduce usuario y contraseña de USDB.")
+            generation = self._change_account(pending=True)
             self.message = "Comprobando acceso a USDB…"
 
             def work():
-                self.provider("login", username=username, password=password)
+                try:
+                    cookies = self.account.authenticate(generation, username, password, self._login_cookies)
+                    return cookies, ""
+                except Exception as exc:
+                    return None, str(exc) or "USDB no está disponible."
+
+            def done(response):
+                if self.account.generation != generation:
+                    return
+                cookies, error = response
+                if error:
+                    self.account.finish_change(generation)
+                    raise SongError(error)
                 import keyring
-
-                keyring.set_password("Karaoke/USDB", username, password)
-                return username
-
-            def done(user):
-                self.store.configure("username", user)
-                self.message = (
-                    "USDB conectado. Contraseña guardada en el almacén seguro del sistema."
-                )
+                try:
+                    keyring.set_password("Karaoke/USDB", username, password)
+                    self.store.configure("username", username)
+                except Exception:
+                    self.account.finish_change(generation)
+                    raise
+                self.account.finish_change(generation, username, cookies)
+                self.message = "USDB conectado. Contraseña guardada en el almacén seguro del sistema."
 
             self.submit(work, done)
             return
         if action == "logout":
             import keyring
 
+            self._change_account()
             user = self.store.setting("username", "")
             if user:
                 try:
@@ -1369,6 +1434,7 @@ class Service(PackageImportMixin):
 
     def close(self):
         self.closing = True
+        self.account.begin_change()
         self.stop_preview()
         with self.children_lock:
             for child in self.children:

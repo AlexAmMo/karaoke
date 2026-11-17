@@ -330,3 +330,24 @@ def test_assisted_chart_search_opens_reviewed_entry_without_queue_or_account(
     service.handle({"action": actions["Abrir ficha"]})
     assert opened == [catalog.assisted_entry_url("espana:" + slug)]
     assert service.store.queue() == []
+
+
+def test_open_package_keeps_complete_original_credits_after_staging_cleanup(service, package, monkeypatch):
+    import shutil
+    credits = "On the run\nJoshua Morin\nCC BY-SA 2.5\nOriginal credits preserved.\n".encode()
+    source = "deluxe:on-the-run"
+    song = next(x for x in service.results if x["source"] == source)
+    service._request_song(song, False)
+    job, = service.store.rows("SELECT * FROM jobs")
+
+    def prepared(operation, *, key, destination):
+        assert operation == "starter" and key == "on-the-run"
+        target = Path(destination) / key
+        shutil.copytree(package.parent, target)
+        (target / "license.txt").write_bytes(credits)
+        return {"charts": [str(target / package.name)]}
+
+    monkeypatch.setattr(service, "provider", prepared)
+    saved = service.prepare(job)
+    assert Path(saved["chart"]).with_name("license.txt").read_bytes() == credits
+    assert not (service.root / "downloads" / job["id"]).exists()

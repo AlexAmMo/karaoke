@@ -172,6 +172,33 @@ def _search(request, session, scraper, encoder):
 
 
 def run(request: dict) -> dict:
+    if "session_cookies" not in request:
+        return _run(request)
+
+    import requests
+    from functools import partial
+    from usdb_syncer import song_loader, usdb_scraper  # noqa: F401 -- upstream import order
+
+    with requests.Session() as shared:
+        for cookie in request["session_cookies"]:
+            shared.cookies.set(
+                cookie["name"],
+                cookie["value"],
+                domain="usdb.animux.de",
+                path=cookie["path"],
+                secure=True,
+            )
+        # Syncer otherwise attempts its own browser/settings-based re-login after
+        # an expired session for download/details pages. The parent owns renewal.
+        original = usdb_scraper.get_usdb_page
+        usdb_scraper.get_usdb_page = partial(original, session=shared)
+        try:
+            return _run(request, session=shared)
+        finally:
+            usdb_scraper.get_usdb_page = original
+
+
+def _run(request: dict, session=None) -> dict:
     if request["operation"] == "starter":
         from .catalog import download_starter
 
@@ -217,7 +244,7 @@ def run(request: dict) -> dict:
     settings.set_song_dir(Path(request.get("destination", root / "downloads")), temp=True)
     if os.environ.get("KARAOKE_FFMPEG_DIR"):
         settings.set_ffmpeg_dir(os.environ["KARAOKE_FFMPEG_DIR"], temp=True)
-    session = requests.Session()
+    session = session if session is not None else requests.Session()
     user = request.get("username", "")
     password = request.get("password", "")
     if user and password:
@@ -226,8 +253,18 @@ def run(request: dict) -> dict:
     usdb_scraper.SessionManager._session = session
     operation = request["operation"]
     if operation == "login":
-        if not usdb_scraper.get_logged_in_usdb_user(session):
-            raise ValueError("No se ha podido iniciar sesión en USDB.")
+        profile = usdb_scraper.get_logged_in_usdb_user(session)
+        if not profile or profile.name.casefold() != user.casefold():
+            raise ValueError("No se ha podido verificar la cuenta USDB.")
+        if request.get("private_login"):
+            cookies = [
+                {"name": c.name, "value": c.value, "path": c.path or "/"}
+                for c in session.cookies
+                if c.domain.lstrip(".") in ("usdb.animux.de", "animux.de")
+            ]
+            if not cookies:
+                raise ValueError("USDB no ha devuelto una sesión reutilizable.")
+            return {"cookies": cookies}
         return {"ok": True}
     if operation == "search":
         return _search(request, session, usdb_scraper, UsdbSongEncoder)
@@ -306,6 +343,13 @@ def main():
             else str(exc)
         )
         result = {"error": message or type(exc).__name__}
+        if isinstance(exc, UsdbLoginError):
+            result["expired"] = True
+    if request.get("private_login"):
+        # Use only the anonymous stdout pipe for login material. No response file.
+        sys.stdout.buffer.write(b"\nKARAOKE_LOGIN " + json.dumps(result).encode("ascii") + b"\n")
+        sys.stdout.buffer.flush()
+        return
     Path(request["response"]).write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
 
 
