@@ -120,7 +120,9 @@ class Session:
     def event(self, action: str, value=""):
         self.last_event_timestamp = max(time.time_ns(), self.last_event_timestamp + 1)
         atomic_json(
-            self.ipc / "events" / (str(self.last_event_timestamp) + "-" + uuid.uuid4().hex + ".json"),
+            self.ipc
+            / "events"
+            / (str(self.last_event_timestamp) + "-" + uuid.uuid4().hex + ".json"),
             {"action": action, "value": str(value)},
         )
 
@@ -129,6 +131,19 @@ class Session:
             self.ipc / "commands" / (str(time.time_ns()) + ".json"),
             {"op": operation, **parameters},
         )
+
+    def import_chart(self, chart: Path):
+        view = self.ipc / "view.json"
+        self.event("import:open")
+        self.wait(lambda _: read_json(view).get("page") == "Importar paquete")
+        self.event("field:import", str(chart))
+        self.wait(
+            lambda _: any(
+                row.get("action") == "field:import" and row.get("value") == str(chart)
+                for row in read_json(view).get("rows", [])
+            )
+        )
+        self.event("import")
 
     def enqueue(self, song_id: str):
         previous = {turn["id"] for turn in self.queue()}
@@ -216,8 +231,12 @@ def main():
         # Packaged apps need not ship test songs. Feed these original fixtures
         # through the same public import action used by the desktop interface.
         for relative in ("initial/A/song.txt", "staging/B/song.txt"):
-            session.event("field:import", str(ROOT / "technical-spike/fixtures" / relative))
-            session.event("import")
+            session.import_chart(ROOT / "technical-spike/fixtures" / relative)
+            session.wait(
+                lambda _: session.rows(
+                    "SELECT 1 FROM songs WHERE title=?", ("Probe " + Path(relative).parent.name,)
+                )
+            )
         session.wait(lambda _: len(session.rows("SELECT * FROM songs")) == 2)
         check(
             "Explicit synthetic demo is identified in both engine and interface",
@@ -276,9 +295,11 @@ def main():
             page_before = read_json(session.ipc / "view.json").get("page")
             session.native("panel", collapsed=True)
             collapsed = session.wait(
-                lambda s: s.get("panel_collapsed") is True
-                and s.get("position", 0) > expanded["position"] + 0.4
-                and s.get("scores", [0])[0] > expanded["scores"][0]
+                lambda s: (
+                    s.get("panel_collapsed") is True
+                    and s.get("position", 0) > expanded["position"] + 0.4
+                    and s.get("scores", [0])[0] > expanded["scores"][0]
+                )
             )
             check(
                 "Collapsing the panel expands the stage without interrupting song, score, audio or queue",
@@ -298,8 +319,10 @@ def main():
             )
             session.native("panel", collapsed=False)
             restored_panel = session.wait(
-                lambda s: s.get("panel_collapsed") is False
-                and s.get("position", 0) > collapsed["position"] + 0.3
+                lambda s: (
+                    s.get("panel_collapsed") is False
+                    and s.get("position", 0) > collapsed["position"] + 0.3
+                )
             )
             check(
                 "System cursor remains enabled during singing, folding and restoring the panel",
@@ -335,8 +358,7 @@ def main():
             },
         )
         position_before = muted["position"]
-        session.event("field:import", str(ROOT / "technical-spike/fixtures/staging/C/song.txt"))
-        session.event("import")
+        session.import_chart(ROOT / "technical-spike/fixtures/staging/C/song.txt")
         state = session.wait(
             lambda s: (
                 len(session.rows("SELECT * FROM songs")) == 3

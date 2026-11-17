@@ -59,3 +59,24 @@ def test_recording_offsets_and_inconclusive_audio(tmp_path, offset, audio_kind, 
             assert "Posible desfase en el final" in result["message"]
     else:
         assert not any(w["reliable"] for w in result["windows"])
+
+
+@pytest.mark.parametrize("offsets", [[0.0, 0.0, 0.175], [0.125, 0.0, -0.075]])
+def test_unattended_preparation_rejects_borderline_absolute_or_drifting_offsets(monkeypatch, offsets):
+    from karaoke import acoustic
+    from karaoke.songs import SongError
+    monkeypatch.setattr(acoustic, "analyze", lambda *_: {
+        "status": "no_large_shift_detected",
+        "windows": [{"offset_s": lag, "reliable": True} for lag in offsets]})
+    with pytest.raises(SongError, match="sincronía"):
+        acoustic.require_alignment(None, None)
+
+
+def test_rap_only_map_requires_pitch_evidence_to_be_admitted(tmp_path):
+    from karaoke import acoustic
+    from karaoke.songs import SongError
+    chart = tmp_path / "rap.txt"
+    chart.write_text("#TITLE:Rap\n#ARTIST:Fixture\n#BPM:120\n#GAP:0\n"
+                     + "".join(f"R {4*i} 3 {i % 12} syllable\n" for i in range(100)) + "E\n")
+    with pytest.raises(SongError, match="sincronía"):
+        acoustic.require_alignment(chart, tmp_path / "audio.wav")

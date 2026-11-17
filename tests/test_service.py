@@ -134,54 +134,28 @@ def test_native_commands_keep_order_when_windows_clock_does_not_advance(service,
     assert commands[0]["names"] == ["José"]
 
 
-def test_instrumental_is_a_separate_confirmed_variant(service, package, tmp_path, monkeypatch):
-    import os
-    import subprocess
-    from types import SimpleNamespace
-    from karaoke import service as service_module, sync_review
+def test_verified_instrumental_is_saved_automatically_as_a_separate_version(service, package, monkeypatch):
+    from karaoke import acoustic, allkaraoke
+    from karaoke.songs import import_package
+    import shutil
 
-    package.write_text(package.read_text().replace("\nE\n", "\n- 16\n: 16 6 21 tres\nE\n"))
-    service.add_import(str(package))
-    wait(service, lambda: bool(service.store.rows("SELECT * FROM songs")))
-    original = service.store.rows("SELECT * FROM songs")[0]
-    original_text = Path(original["chart"]).read_bytes()
-    mp3 = tmp_path / "instrumental.mp3"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", original["audio"], str(mp3)], check=True)
+    original = import_package(package, service.library)
+    service.store.save_song(original)
     service.detail = original["id"]
     service.page = "Instrumental"
-    service.candidate_audio = {
-        "path": str(mp3),
-        "song": original["id"],
-        "source": "test:instrumental",
-    }
-    with pytest.raises(SongError, match="Preescucha"):
-        service.confirm_instrumental()
-    clock = [100.0]
-    monkeypatch.setattr(service_module, "time", SimpleNamespace(monotonic=lambda: clock[0]))
-    monkeypatch.setattr(sync_review, "play_review", lambda *args: SimpleNamespace(poll=lambda: 0))
-    service.handle({"action": "instrumental-cue:instrumental:0"})
-    with pytest.raises(SongError, match="Preescucha"):
-        service.confirm_instrumental()
-    for track in ("original", "instrumental"):
-        for i in range(3):
-            service.handle({"action": f"instrumental-cue:{track}:{i}"})
-            clock[0] += 9
-    assert any(r.get("action") == "confirm-instrumental" for r in service.view()["rows"])
-    before = mp3.stat()
-    os.utime(mp3, ns=(before.st_atime_ns, before.st_mtime_ns + 50_000_000))
-    with pytest.raises(SongError, match="Preescucha"):
-        service.confirm_instrumental()
-    for track in ("original", "instrumental"):
-        for i in range(3):
-            service.handle({"action": f"instrumental-cue:{track}:{i}"})
-            clock[0] += 9
-    service.confirm_instrumental()
-    variants = service.store.rows("SELECT * FROM songs WHERE variant='instrumental'")
-    assert len(variants) == 1
-    assert variants[0]["parent"] == original["id"]
-    assert variants[0]["verified"] == 1
-    assert Path(original["chart"]).read_bytes() == original_text
-    assert Path(variants[0]["chart"]).exists()
+    service.candidates = [{"url": "https://youtu.be/abcdefghijk", "title": "Fixture instrumental"}]
+    def fetch(song, folder, guard):
+        path = folder / "different.wav"
+        shutil.copyfile(original["audio"], path)
+        return path
+    verified = []
+    monkeypatch.setattr(allkaraoke, "download_recording", fetch)
+    monkeypatch.setattr(acoustic, "require_alignment", lambda *args: verified.append(args))
+    service.handle({"action": "candidate:0"})
+    wait(service, lambda: bool(service.store.rows("SELECT id FROM songs WHERE variant='instrumental'")))
+    variant, = service.store.rows("SELECT * FROM songs WHERE variant='instrumental'")
+    assert variant["parent"] == original["id"] and variant["verified"]
+    assert verified and service.page == "Canción" and service.detail == variant["id"]
 
 
 def test_ending_performance_requires_explicit_confirmation(service):
@@ -197,90 +171,37 @@ def test_ending_performance_requires_explicit_confirmation(service):
 
 
 @pytest.mark.parametrize("reserve_turn", [False, True])
-def test_youtube_version_confirmation_preserves_song_and_save_intent(service, reserve_turn):
-    selected = {
-        "song_id": 41,
-        "title": "Chosen version",
-        "artist": "Fixture",
-        "requested_video": "abcdefghijk",
-        "match": "Por comprobar",
-    }
+def test_youtube_requires_exact_video_identity(service, reserve_turn):
+    selected = {"song_id": 41, "title": "Tema", "artist": "Cantante", "requested_video": "abcdefghijk"}
     service.results = [selected]
-    service.request_result(0, reserve_turn)
-    assert service.page == "Confirmar versión"
-    rows = service.view()["rows"]
-    assert any(row["label"] == "Chosen version" and row["sub"] == "Fixture" for row in rows)
-    confirmation = next(row for row in rows if row.get("action") == "confirm-version")
-    assert confirmation["label"] == (
-        "Añadir esta versión a la cola" if reserve_turn else "Guardar esta versión"
-    )
-    assert service.store.queue() == []
-    # A search result refresh must not change which version the host confirms.
-    service.results = [{"song_id": 99, "title": "Different version", "artist": "Fixture"}]
-    service.handle({"action": "confirm-version"})
-    jobs = service.store.rows("SELECT * FROM jobs")
-    assert len(jobs) == 1
-    assert jobs[0]["source"] == "usdb:41"
-    assert json.loads(jobs[0]["payload"])["song"]["title"] == "Chosen version"
-    assert len(service.store.queue()) == int(reserve_turn)
-    assert service.page == ("Cola" if reserve_turn else "Biblioteca")
-    assert selected["requested_video"] == "abcdefghijk"
+    with pytest.raises(SongError, match="compatible"):
+        service.request_result(0, reserve_turn)
+    assert not service.store.queue() and not service.store.rows("SELECT id FROM jobs")
 
 
-def test_leaving_version_confirmation_invalidates_pending_action(service):
-    service.results = [{"song_id": 41, "title": "Fixture", "requested_video": "abcdefghijk"}]
-    service.request_result(0, False)
-    service.handle({"action": "page:Buscar"})
-    with pytest.raises(SongError, match="seleccionar"):
-        service.handle({"action": "confirm-version"})
-    assert service.store.rows("SELECT * FROM jobs") == []
-
-
-@pytest.mark.parametrize("late_failure", [False, True])
-def test_instrumental_selection_discards_previous_audio_and_out_of_order_completion(
-    service, package, monkeypatch, late_failure
-):
+def test_obsolete_instrumental_completion_cannot_replace_the_active_selection(service, package, monkeypatch):
     from concurrent.futures import Future
     from karaoke.songs import import_package
 
     original = import_package(package, service.library)
     service.store.save_song(original)
-    service.detail = original["id"]
-    service.candidates = [{"url": "test:candidate-a"}, {"url": "test:candidate-b"}]
-    service.candidate_audio = {
-        "path": "old.mp3",
-        "source": "test:old",
-        "song": original["id"],
-        "listened": True,
-    }
+    service.page, service.detail = "Instrumental", original["id"]
+    service.candidates = [{"url": "https://youtu.be/abcdefghijk", "title": "Primera"}, {"url": "https://youtu.be/00000000000", "title": "Segunda"}]
     pending = []
-
     def deferred(_work):
         future = Future()
         pending.append(future)
         return future
-
     monkeypatch.setattr(service.pool, "submit", deferred)
     service.candidate(0)
-    assert service.candidate_audio is None
-    with pytest.raises(SongError, match="Preescucha"):
-        service.confirm_instrumental()
     service.candidate(1)
-    selected_audio = {"path": "b.mp3", "source": "test:candidate-b", "song": original["id"]}
-    pending[1].set_result(selected_audio)
+    pending[0].set_exception(SongError("Stale download failure"))
     service.tick()
-    assert service.candidate_audio == selected_audio
-    message = service.message
-    if late_failure:
-        pending[0].set_exception(SongError("Stale download failure"))
-    else:
-        pending[0].set_result(
-            {"path": "a.mp3", "source": "test:candidate-a", "song": original["id"]}
-        )
+    assert service.message != "Stale download failure" and service.instrumental_busy
+    pending[1].set_exception(SongError("No coincide"))
     service.tick()
-    assert service.candidate_audio == selected_audio
-    assert service.message == message
-    assert not service.candidate_audio.get("listened")
+    assert service.message == "No coincide" and not service.instrumental_busy
+    assert len(service.store.rows("SELECT id FROM songs")) == 1
 
 
 def test_open_catalogue_works_without_usdb_and_rejects_stale_selection(service):
@@ -299,7 +220,12 @@ def test_open_catalogue_works_without_usdb_and_rejects_stale_selection(service):
     assert len(service.store.queue()) == 1
     rows = service.view()["rows"]
     assert [r["label"] for r in rows if r["kind"] == "song"] == ["Northern Star"]
-    assert {"external:es", "external:eu", "import:open"} <= {r.get("action") for r in rows}
+    actions = {r.get("action") for r in rows}
+    assert actions.isdisjoint({"external:es", "external:eu", "import:open", "search"})
+    service.handle({"action": "page:Descargas"})
+    assert "import:open" in {r.get("action") for r in service.view()["rows"]}
+    service.handle({"action": "page:Otros catálogos"})
+    assert {"external:es", "external:eu"} <= {r.get("action") for r in service.view()["rows"]}
 
 
 def test_search_remote_pages_merge_without_duplicate_or_wrong_queue_item(service, monkeypatch):
@@ -380,3 +306,106 @@ def test_open_package_keeps_complete_original_credits_after_staging_cleanup(serv
     saved = service.prepare(job)
     assert Path(saved["chart"]).with_name("license.txt").read_bytes() == credits
     assert not (service.root / "downloads" / job["id"]).exists()
+
+
+def test_queue_offers_first_ready_turn_while_earlier_download_is_blocked(service, package):
+    from karaoke.songs import import_package
+
+    pending = service.store.request("usdb:10", {"kind": "usdb", "song": {"title": "Pendiente"}}, service.names())
+    service.store.execute("UPDATE jobs SET state='error', message='Grabación no disponible'")
+    song = import_package(package, service.library)
+    service.store.save_song(song)
+    ready = service.store.request(song["id"], {}, service.names())
+    service.handle({"action": "page:Cola"})
+    rows = service.view()["rows"]
+    assert rows[0]["action"] == "start:" + ready
+    assert rows[0]["sub"] == song["title"]
+    assert [t["id"] for t in service.store.queue()] == [pending, ready]
+    service.handle({"action": "turn:" + pending})
+    actions = {row.get("action", "") for row in service.view()["rows"]}
+    assert any(action.startswith("retry:") for action in actions)
+    assert "cancel:" + pending in actions
+
+
+def test_first_run_search_and_single_singer_settings(service):
+    assert service.page == "Buscar"
+    service.handle({"action": "page:Ajustes"})
+    def actions():
+        return {row.get("action") for row in service.view()["rows"]}
+
+    assert "gain:1" not in actions()
+    assert {"page:Micrófonos", "page:Cuenta USDB", "page:Descargas"} <= actions()
+    assert actions().isdisjoint({"login", "scan", "save-settings"})
+    service.handle({"action": "field:player1", "value": "Lucía"})
+    service.handle({"action": "field:player2", "value": "Juan"})
+    assert service.store.setting("player1") == "Lucía"
+    assert "gain:1" in actions()
+    service.handle({"action": "page:Micrófonos"})
+    assert "page:Entrada 2" in actions()
+
+
+def test_host_secondary_workflow_device_directory_and_recovery(tmp_path, package):
+    from karaoke.songs import import_package
+
+    root = tmp_path / "session"
+    service = Service(root)
+
+    def act(action, value=""):
+        service.handle({"action": action, "value": value})
+
+    def actions():
+        return {r.get("action") for r in service.view()["rows"]}
+
+    try:
+        assert service.page == "Buscar"
+        act("page:Ajustes")
+        act("field:player1", "Ángela")
+        act("field:player2", "José")
+        assert "gain:1" in actions()
+        service.engine = {
+            "state": "idle", "testing": True, "levels": [0.1, 0.7],
+            "devices": [{"name": "USB", "channels": 2, "players": [1, 2], "index": 7}],
+        }
+        act("page:Micrófonos")
+        assert {r["label"] for r in service.view()["rows"]} >= {"Señal de Ángela", "Señal de José"}
+        act("page:Entrada 2")
+        assert "device:1:7:1" in actions()
+        act("device:1:7:1")
+        command = json.loads(next((service.ipc / "commands").glob("*.json")).read_text())
+        assert (command["player"], command["device"], command["channel"]) == (1, 7, 1)
+        act("page:Descargas")
+        future_library = tmp_path / "library"
+        act("field:library", str(future_library))
+        assert "save-settings" in actions()
+        act("save-settings")
+        assert service.library == future_library.resolve()
+        act("page:Cuenta USDB")
+        assert "login" in actions() and "logout" not in actions()
+        act("page:Cola")
+        assert "page:Buscar" in actions()
+
+        failed = service.store.request(
+            "usdb:7", {"kind": "usdb", "song": {"title": "Pendiente"}}, service.names()
+        )
+        service.store.execute("UPDATE jobs SET state='error',message='Recurso no disponible'")
+        song = import_package(package, service.library)
+        service.store.save_song(song)
+        service.enqueue_song(song["id"])
+        ready = service.store.queue()[1]["id"]
+        assert "start:" + ready in actions()
+        act("turn:" + failed)
+        assert any(a and a.startswith("retry:") for a in actions())
+        assert "down:" + failed in actions() and "up:" + failed not in actions()
+        act("down:" + failed)
+        assert service.store.queue()[0]["id"] == ready
+        act("cancel:" + failed)
+    finally:
+        service.close()
+    reopened = Service(root)
+    try:
+        assert reopened.page == "Biblioteca"
+        assert reopened.names() == ["Ángela", "José"]
+        assert reopened.library == future_library.resolve()
+        assert [(turn["id"], turn["state"]) for turn in reopened.store.queue()] == [(ready, "queued")]
+    finally:
+        reopened.close()

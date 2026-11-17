@@ -196,3 +196,16 @@ def analyze(chart: Path, audio: Path) -> dict:
         return _report(windows)
     except (OSError, SongError, ValueError, OverflowError, subprocess.SubprocessError):
         return _report([])
+
+def require_alignment(chart: Path, audio: Path) -> None:
+    """Unattended admission is stricter than the human-readable diagnostic."""
+    report = analyze(chart, audio)
+    windows = report.get("windows", [])
+    offsets = [w["offset_s"] for w in windows if w.get("reliable")]
+    if (report["status"] == "no_large_shift_detected" and len(offsets) == len(windows) == 3
+            and max(abs(value) for value in offsets) <= 0.15
+            and max(offsets) - min(offsets) <= 0.150001):
+        return
+    if report["status"] == "possible_shift":
+        raise SongError("La voz no coincide con las notas de esta edición. Elige otra versión.")
+    raise SongError("No se ha podido verificar la sincronía de esta edición. Elige otra versión.")

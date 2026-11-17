@@ -26,19 +26,17 @@ Se instala en `%LOCALAPPDATA%\Programs\Karaoke` y crea un acceso directo en Inic
 
 Los instaladores verifican SHA-256 y conservan la biblioteca y los ajustes fuera de la app. Esta prerelease no incluye canciones comerciales.
 
-## Uso
+## Una sesión en la versión de desarrollo
 
-1. Abre **Karaoke**. En **Ajustes**, introduce los nombres; deja el segundo vacío para cantar solo.
-2. Conecta el micrófono, pulsa **Detectar micrófonos** y asigna dispositivo/canal a cada jugador. Prueba la señal y sube el retorno gradualmente si quieres oír tu voz.
-3. Importa una carpeta UltraStar preparada desde **Biblioteca**, o conecta tu cuenta gratuita de [USDB](https://usdb.animux.de/) en **Ajustes** y busca artista/título en **Buscar**.
-4. Añade un turno. La preparación ocurre en segundo plano. En **Cola**, pulsa **Empezar turno** cuando esté listo.
-5. Al terminar verás los resultados. Tú decides cuándo empieza la siguiente canción.
+1. Abre **Buscar** y escribe el título o el artista. Por ejemplo, `Alex Ubago Sigo Aqui`. También puedes pegar el enlace de un vídeo de YouTube.
+2. Pulsa **+** junto a la canción. Karaoke elige una edición compatible y prepara la grabación con voz en segundo plano. Puedes seguir buscando mientras tanto.
+3. Abre **Cola** y pulsa **Empezar a cantar**. Al acabar verás la puntuación. Tú decides cuándo empieza el siguiente turno.
 
-En la versión de desarrollo **Buscar** reúne la biblioteca, AllKaraoke, UltraStar España, USDB.eu, UltraStar Deluxe Songs y, si conectas tu cuenta, USDB Animux. Escribe artista y título en cualquier orden o pega la URL del vídeo. Una fila agrupa las fuentes que comparten artista y título. En **Ediciones** eliges el mapa y la grabación. Los resultados públicos se consultan por primera vez con conexión y sus índices se guardan en el ordenador.
+Karaoke agrupa las fuentes de una misma canción en una fila. Pulsar el título permite consultar sus ediciones. Las canciones preparadas se conservan en **Biblioteca** para otra sesión. Desde la biblioteca también puedes importar una carpeta, un TXT con su grabación o un ZIP.
 
-Para probarlo, busca **Álex Ubago Sigo aquí**, abre **Ediciones**, elige **AllKaraoke** y pulsa el botón para preparar la grabación exacta. La app obtiene el mapa y el audio del vídeo indicado por su autor. Si el vídeo deja de estar disponible, puedes elegir una copia local de la misma edición. Durante la revisión, escucha los fragmentos de inicio, mitad y final. Un pitido marca cuándo debe entrar la primera sílaba indicada. Confirma la edición si coincide en los fragmentos. Las entradas de UltraStar España y USDB.eu permiten abrir la ficha e importar el material local que tengas.
+Los 39 paquetes de UltraStar Deluxe Songs incluyen mapa, audio y licencia. Los mapas de AllKaraoke y USDB usan el audio identificado por la edición. La aplicación comprueba su correspondencia en segundo plano. Si falta el audio o la comparación resulta dudosa, la cola indica el motivo y permite continuar con otra canción. Las fichas de UltraStar España y USDB.eu ofrecen importación asistida. La primera consulta de los índices públicos requiere conexión. En **Ajustes → Cuenta USDB** puedes conectar tu cuenta para ampliar los resultados.
 
-Al abrir **Buscar** tienes 39 canciones de UltraStar Deluxe Songs que se preparan sin cuenta. Las grabaciones principales conservan la voz y cada paquete incluye sus créditos y licencia. El botón **+** prepara la canción y la añade a la cola. Las variantes instrumentales se gestionan por separado. El proyecto utiliza mapas de notas existentes.
+En **Ajustes** puedes cambiar los nombres, el volumen de la música y cuánto se oye tu micrófono en los altavoces. Deja vacío el segundo nombre para cantar solo. **Micrófonos** reúne la selección de entradas y el ajuste de latencia.
 
 ## Interfaz y controles
 

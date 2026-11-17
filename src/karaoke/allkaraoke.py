@@ -12,7 +12,7 @@ import re
 import shutil
 import tempfile
 import threading
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlsplit
 
 import requests
 
@@ -125,3 +125,11 @@ def prepare_review(song, directory, guard, local=None):
     if meta["end_seconds"] > actual + 0.1:
         raise SongError("La grabación termina antes que las notas.")
     return chart, audio
+
+def source_usdb_id(song):
+    """Match a publisher attribution, without following arbitrary source URLs."""
+    ref = urlsplit(song.get("origin") or "")
+    if ref.hostname != "usdb.animux.de" or ref.path != "/index.php":
+        return None
+    values = parse_qs(ref.query).get("id", [])
+    return "usdb:" + values[0] if len(values) == 1 and values[0].isdigit() else None

@@ -43,7 +43,7 @@ def test_declared_video_title_and_duration_checked_before_review(package, tmp_pa
         assert chart.read_text() == CHART and recording.read_bytes() == audio.read_bytes()
 
 
-def test_grouped_federation_without_login_keeps_versions_and_blocks_unreviewed_queue(tmp_path, monkeypatch):
+def test_grouped_federation_offers_one_click_for_exact_recording(tmp_path, monkeypatch):
     assisted = {**SONG, "source": "community-es:fixture", "catalogue_url": "https://example.org"}
     monkeypatch.setattr(allkaraoke, "search", lambda *args: [SONG])
     monkeypatch.setattr(community_catalog, "search", lambda *args: [assisted])
@@ -54,15 +54,11 @@ def test_grouped_federation_without_login_keeps_versions_and_blocks_unreviewed_q
         while service.futures and time.monotonic() < deadline:
             service.tick()
         row, = [r for r in service.view()["rows"] if r["kind"] == "song"]
-        assert row["action"].startswith("result:editions:") and not row["add_action"]
-        service.handle({"action": row["action"]})
-        row = next(r for r in service.view()["rows"] if "AllKaraoke" in r["sub"])
-        service.handle({"action": row["action"]})
-        actions = [r["action"] for r in service.view()["rows"] if "action" in r]
-        assert any(a.startswith("result:recording:") for a in actions)
-        with pytest.raises(SongError, match="Revisa"):
-            service._request_song(SONG, True)
-        assert not service.store.queue()
+        assert row["action"].startswith("result:editions:") and row["add_action"].startswith("result:best:")
+        service.handle({"action": row["add_action"]})
+        turn, = service.store.queue()
+        assert turn["source"] == SONG["source"] and not turn["song_id"]
+        assert service.page == "Buscar"
     finally:
         service.close()
 
@@ -87,34 +83,81 @@ def test_versions_page_reaches_later_maps_and_can_queue_saved_edition(tmp_path, 
         service.close()
 
 
-@pytest.mark.parametrize("estimate_fails", [True, False])
-def test_acoustic_estimate_is_advisory_and_retains_listening_checks(
-    tmp_path, package, monkeypatch, estimate_fails
-):
+@pytest.mark.parametrize("status", ["possible_shift", "inconclusive", "no_large_shift_detected"])
+def test_auto_preparation_only_publishes_when_audio_is_aligned(tmp_path, package, monkeypatch, status):
     from karaoke import acoustic
 
-    def estimate(chart, audio):
-        assert chart == package and audio == package.with_name("audio.wav")
-        if estimate_fails:
-            raise RuntimeError("decoder unavailable")
-        return {"status": "possible_shift", "message": "Posible desfase en dos ventanas."}
-
-    monkeypatch.setattr(acoustic, "analyze", estimate)
+    monkeypatch.setattr(acoustic, "analyze", lambda *_: {"status": status,
+        "windows": [{"reliable": True, "offset_s": offset} for offset in [0.05, -0.05, -0.1]]})
     monkeypatch.setattr(allkaraoke, "prepare_review",
                         lambda *args: (package, package.with_name("audio.wav")))
     service = Service(tmp_path / "app")
     try:
-        service.page = "Versión"
-        service.result_detail = SONG
-        service.begin_catalogue_review(SONG, local=False)
-        deadline = time.monotonic() + 3
-        while service.review_busy and time.monotonic() < deadline:
+        service._request_song(SONG, True)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
             service.tick()
-        assert service.page == "Asociar grabación"
-        assert ("no disponible" if estimate_fails else "Posible desfase") in service.pair_analysis_note
-        assert not service.pair_heard
-        with pytest.raises(SongError, match="fragmentos"):
-            service.handle({"action": "import:pair"})
-        assert not service.store.queue()
+            turn, = service.store.queue()
+            if turn["preparation"] in ("ready","error"):
+                break
+            time.sleep(.01)
+        assert bool(turn["song_id"]) == (status == "no_large_shift_detected")
+        assert len(service.store.rows("SELECT id FROM songs")) == int(status == "no_large_shift_detected")
+        if not turn["song_id"]:
+            assert turn["preparation"] == "error"
+            with pytest.raises(SongError, match="preparado"):
+                service.start(turn["id"])
     finally:
         service.close()
+
+
+def test_group_does_not_try_another_artist_or_mix_and_publishes_only_successful_map(
+    tmp_path, package, monkeypatch
+):
+    from karaoke import acoustic
+
+    primary = {**SONG, "source": "allkaraoke:a", "origin": "https://usdb.animux.de/index.php?link=gettxt&id=23"}
+    compatible = {**SONG, "source": "allkaraoke:b"}
+    wrong_cut = {**SONG, "source": "allkaraoke:c", "video_id": "00000000000"}
+    wrong_artist = {**SONG, "source": "allkaraoke:d", "artist": "Otro artista"}
+    duet = {**SONG, "source": "allkaraoke:e", "artist": "Álex Ubago feat. Invitado"}
+    attempted = []
+    def prepare(song, *args):
+        attempted.append(song["source"])
+        if song["source"] == primary["source"]:
+            raise SongError("No disponible")
+        return package, package.with_name("audio.wav")
+    monkeypatch.setattr(allkaraoke, "prepare_review", prepare)
+    monkeypatch.setattr(acoustic, "require_alignment", lambda *args: None)
+    s = Service(tmp_path / "app")
+    try:
+        s.results = [primary, compatible, wrong_cut, wrong_artist, duet]
+        s.add_best(primary)
+        job, = s.store.rows("select * from jobs")
+        assert [x["source"] for x in json.loads(job["payload"])["alternatives"]] == ["allkaraoke:b"]
+        saved = s.prepare(job)
+        s.store.finish_job(job, saved, saved["edition_source"])
+        assert attempted == ["allkaraoke:a", "allkaraoke:b"]
+        assert s.store.queue()[0]["song_id"] == saved["id"]
+        aliases = {row["source"] for row in s.store.rows("select source from song_sources")}
+        assert aliases == {job["source"], "allkaraoke:b"}
+        s.add_best(primary)
+        assert [turn["song_id"] for turn in s.store.queue()] == [saved["id"], saved["id"]]
+        assert len(s.store.rows("SELECT id FROM jobs")) == 1
+    finally:
+        s.close()
+
+
+def test_declared_cross_reference_refuses_other_usdb_recording_even_with_matching_title(
+    tmp_path, package, monkeypatch
+):
+    s = Service(tmp_path / "app")
+    try:
+        fallback = {"artist": "Fixture", "title": "Canción de prueba", "song_id": 23}
+        monkeypatch.setattr(s, "provider", lambda *args, **kw:
+                            {"charts": [str(package)], "audio_resource": "WRONGVIDEO1"})
+        with pytest.raises(SongError, match="otra grabación"):
+            s.prepare_edition(fallback, "usdb:23", tmp_path, {"id": "job"}, {"exact_video": VIDEO})
+        assert not list(s.library.iterdir())
+    finally:
+        s.close()

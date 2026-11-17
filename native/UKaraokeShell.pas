@@ -24,6 +24,8 @@ var
   Scroll: integer = 0;
   EditValue, EditAction, Page, ErrorText, Token: UTF8String;
   EditSelectedAll: boolean = false;
+  LastSubmitted, Composition: UTF8String;
+  LastEditTick: cardinal;
   Sequence: integer = 0;
   SynthPosition: int64 = 0;
   SynthTick: cardinal;
@@ -77,6 +79,7 @@ function SideWidth: integer;
 begin if PanelCollapsed then Result:=0 else Result:=ExpandedSideWidth; end;
 function Height: single;
 begin Result:=ScreenH*400/ExpandedSideWidth; end;
+procedure PublishSearch; forward;
 procedure SetPanelCollapsed(Collapsed: boolean);
 begin
   if PanelCollapsed=Collapsed then Exit;
@@ -84,7 +87,7 @@ begin
   // Hiding the panel is not submitting/cancelling an edit. Keep its value and
   // action-based focus while suspending text input until it becomes visible.
   if PanelCollapsed then
-  begin PanelToggleFocused:=true; SDL_StopTextInput; LastAction:='panel:hide'; end
+  begin if Composition='' then PublishSearch; PanelToggleFocused:=true; SDL_StopTextInput; LastAction:='panel:hide'; end
   else
   begin
     PanelToggleFocused:=false; StageFocused:=Focus=-12; LastAction:='panel:show';
@@ -211,11 +214,26 @@ begin
   end
   else if Op='quit' then begin Display.NextScreenWithCheck:=nil; Display.CheckOK:=true; end;
 end;
+procedure EditChanged;
+begin
+  LastEditTick:=SDL_GetTicks;
+  Composition:='';
+end;
+
+procedure PublishSearch;
+begin
+  if (EditAction='field:query') and (EditValue<>LastSubmitted) then
+  begin
+    Emit(EditAction,EditValue);
+    LastSubmitted:=EditValue;
+  end;
+end;
+
 procedure ShellTick;
 var J,O: TJSONObject; A,Scores,Devices,Levels: TJSONArray; SR: TSearchRec;
     Commands: TStringList; Forgotten: TSong;
     I,K,N: integer; NowTick: cardinal; Buf: array[0..4095] of SmallInt;
-    Frequency: double; Name,FocusKey: string; NewFocus: integer;
+    Frequency: double; Name,FocusKey: string; NewFocus: integer; EnterSearch: boolean;
 begin
   if not ShellEnabled then Exit;
   NowTick:=SDL_GetTicks;
@@ -272,6 +290,7 @@ begin
       Inc(SynthPosition,N); SynthTick:=NowTick;
     end;
   end;
+  if (not PanelCollapsed) and (Composition='') and (NowTick-LastEditTick>=350) then PublishSearch;
   if NowTick-LastView>150 then
   begin
     LastView:=NowTick;
@@ -279,14 +298,26 @@ begin
     try
       FocusKey:=FocusAction;
       J:=ReadJSON(Root+'/view.json');
+      EnterSearch:=(J.Get('page','')='Buscar') and (Page<>'Buscar');
       if J.Get('page','')<>Page then
       begin
         Page:=J.Get('page','');
         // Tabs keep their focus on navigation. Page-local controls do not.
         if (Focus< -10) or (Focus> -7) then begin Focus:=-1; StageFocused:=false; FocusKey:=''; end;
-        EditAction:=''; EditValue:=''; EditSelectedAll:=false; Scroll:=0; SDL_StopTextInput;
+        EditAction:=''; EditValue:=''; Composition:=''; EditSelectedAll:=false; Scroll:=0; SDL_StopTextInput;
       end;
       View.Free; View:=J;
+      if EnterSearch and not PanelCollapsed then
+        for I:=0 to View.Arrays['rows'].Count-1 do
+        begin
+          O:=TJSONObject(View.Arrays['rows'][I]);
+          if O.Get('action','')='field:query' then
+          begin
+            Focus:=I; StageFocused:=false; AddFocused:=false; FocusKey:='field:query';
+            EditAction:=FocusKey; EditValue:=O.Get('value',''); LastSubmitted:=EditValue;
+            SDL_StartTextInput; Break;
+          end;
+        end;
       // Async rows may be inserted or removed. Preserve the action, never its old index.
       if Focus>=0 then
       begin
@@ -309,6 +340,7 @@ begin
     if TestingInput then for I:=0 to 1 do AudioInputProcessor.Sound[I].AnalyzeBuffer;
     try
       if Singing then J.Add('state','singing') else J.Add('state','idle');
+      J.Add('paused', Singing and ScreenSing.Paused);
       J.Add('cursor_visible',SDL_ShowCursor(SDL_QUERY)=SDL_ENABLE);
       J.Add('mouse_x',LastMouseX); J.Add('mouse_y',LastMouseY); J.Add('mouse_clicks',MouseClicks); J.Add('width',ScreenW); J.Add('height',ScreenH); J.Add('last_action',LastAction);
       J.Add('drawable_width',DrawableW); J.Add('drawable_height',DrawableH);
@@ -362,11 +394,11 @@ begin
   while (I>1) and ((Ord(S[I]) and $C0)=$80) do Dec(I);
   Delete(S,I,Length(S)-I+1);
 end;
-procedure LabelAt(X,Y,Size: single; const S: UTF8String; Width: single=360; Muted: boolean=false);
+procedure LabelAt(X,Y,Size: single; const S: UTF8String; Width: single=360; Muted: boolean=false; Strong: boolean=false);
 var T: UTF8String;
 begin
-  SetFontFamily(0); SetFontStyle(ftRegular); ResetFont; SetFontSize(Size);
-  if Muted then SetFontColor(0.72,0.72,0.75,1) else SetFontColor(0.97,0.96,0.97,1);
+  SetFontFamily(0); if Strong then SetFontStyle(ftBold) else SetFontStyle(ftRegular); ResetFont; SetFontSize(Size);
+  if Muted then SetFontColor(0.73,0.75,0.79,1) else SetFontColor(0.97,0.96,0.97,1);
   T:=S;
   if TextWidth(T)>Width then
   begin
@@ -399,6 +431,45 @@ begin
   Rect(B.X-2,B.Y-2,B.W+4,2,R,G,Blue); Rect(B.X-2,B.Y+B.H,B.W+4,2,R,G,Blue);
   Rect(B.X-2,B.Y,2,B.H,R,G,Blue); Rect(B.X+B.W,B.Y,2,B.H,R,G,Blue);
 end;
+// Rounded surfaces are one triangle batch, independent of the drawable scale.
+procedure Surface(const B: TBox; Radius,R,G,Blue: single);
+const Steps=6;
+var Mesh: TTriangleList; I,Corner,Step: integer; Angle,CX,CY,X,Y,PX,PY: single;
+begin
+  Radius:=Min(Radius,Min(B.W,B.H)/2);
+  SetLength(Mesh,4*(Steps+1)); I:=0; PX:=B.X+B.W-Radius; PY:=B.Y;
+  for Corner:=0 to 3 do
+  begin
+    if Corner in [0,1] then CX:=B.X+B.W-Radius else CX:=B.X+Radius;
+    if Corner in [0,3] then CY:=B.Y+Radius else CY:=B.Y+B.H-Radius;
+    for Step:=0 to Steps do
+    begin
+      Angle:=((Corner-1)+Step/Steps)*Pi/2;
+      X:=CX+Radius*Cos(Angle); Y:=CY+Radius*Sin(Angle);
+      Mesh[I].X1:=B.X+B.W/2; Mesh[I].Y1:=B.Y+B.H/2;
+      Mesh[I].X2:=PX; Mesh[I].Y2:=PY; Mesh[I].X3:=X; Mesh[I].Y3:=Y;
+      Mesh[I].ColR:=R; Mesh[I].ColG:=G; Mesh[I].ColB:=Blue; Mesh[I].Alpha:=1;
+      PX:=X; PY:=Y; Inc(I);
+    end;
+  end;
+  // The first triangle closes the final straight edge of the perimeter.
+  Mesh[0].X2:=PX; Mesh[0].Y2:=PY;
+  Renderer.DrawTriangles(Mesh);
+end;
+
+procedure FocusInset(const B:TBox);
+begin
+  Surface(Box(B.X-1,B.Y-1,B.W+2,B.H+2),7,0.99,0.66,0.78);
+end;
+
+procedure Chevron(X,Y: single; Right: boolean; Size: single=4);
+var DX: single;
+begin
+  DX:=Size; if not Right then DX:=-Size;
+  Renderer.DrawLine(X-DX/2,Y-Size,X+DX/2,Y,0,1.5,0.77,0.79,0.84,1);
+  Renderer.DrawLine(X+DX/2,Y,X-DX/2,Y+Size,0,1.5,0.77,0.79,0.84,1);
+end;
+
 function CachedCover(const FileName: string): TTexture;
 var I,Slot: integer;
 begin
@@ -450,14 +521,14 @@ end;
 function HeroArt(W: single): TBox;
 var S: single;
 begin
-  S:=Min(396,Min(W*0.45,ScreenH*0.425));
-  Result:=Box(40,Max(110,(ScreenH-122-S)/2),S,S);
+  S:=Min(460,Min(W*0.46,ScreenH*0.51));
+  Result:=Box(40,Max(82,(ScreenH-108-S)/2),S,S);
 end;
 function HeroButton(W: single): TBox;
 var Art: TBox;
 begin Art:=HeroArt(W); Result:=Box(Art.X+Art.W+28,Art.Y+Art.H*0.67,Min(178,W-Art.X-Art.W-60),44); end;
 function EmptyButton: TBox;
-begin Result:=Box(40,ScreenH*0.46+94,218,46); end;
+begin Result:=Box(40,ScreenH*0.50+94,218,46); end;
 function ResultButton: TBox;
 begin Result:=Box(40,ScreenH-110,218,46); end;
 function SleeveBox(W: single; I: integer): TBox;
@@ -476,78 +547,162 @@ begin
 end;
 procedure PrimaryButton(const B: TBox; const Caption: UTF8String; Focused: boolean);
 begin
-  Fill(B,0.64,0.08,0.28);
-  if Focused then Outline(B,1,0.72,0.82);
-  LabelAt(B.X+16,B.Y+13,17,Caption,B.W-28);
+  if Focused then FocusInset(B);
+  Surface(B,7,0.67,0.09,0.31);
+  LabelAt(B.X+17,B.Y+13,16,Caption,B.W-32,false,true);
 end;
 procedure TitleAt(X,Y,Size,W: single; const Title: UTF8String);
 var Line,Rest: UTF8String; I,Cut: integer;
 begin
-  SetFontFamily(0); SetFontStyle(ftRegular); ResetFont; SetFontSize(Size);
-  if TextWidth(Title)<=W then begin LabelAt(X,Y,Size,Title,W); Exit; end;
+  SetFontFamily(0); SetFontStyle(ftBold); ResetFont; SetFontSize(Size);
+  if TextWidth(Title)<=W then begin LabelAt(X,Y,Size,Title,W,false,true); Exit; end;
   Rest:=Title; Line:=''; Cut:=0;
   for I:=1 to Length(Title) do if Title[I]=' ' then
   begin
     if TextWidth(Copy(Title,1,I-1))>W then Break;
     Cut:=I;
   end;
-  if Cut=0 then begin LabelAt(X,Y,Size,Title,W); Exit; end;
+  if Cut=0 then begin LabelAt(X,Y,Size,Title,W,false,true); Exit; end;
   Line:=Copy(Title,1,Cut-1); Delete(Rest,1,Cut);
-  LabelAt(X,Y,Size,Line,W); LabelAt(X,Y+Size*1.20,Size,Rest,W);
+  LabelAt(X,Y,Size,Line,W,false,true); LabelAt(X,Y+Size*1.20,Size,Rest,W,false,true);
+end;
+procedure PitchPreview(X,Y:single);
+const Tones:array[0..5] of integer=(1,2,2,3,1,0);
+      Lengths:array[0..5] of integer=(30,49,24,42,37,63);
+var I:integer; P:single;
+begin
+  for I:=0 to 3 do Rect(X,Y+I*14,291,1,0.18,0.19,0.23);
+  P:=X;
+  for I:=0 to 5 do
+  begin
+    if I<3 then Surface(Box(P,Y+Tones[I]*14-3,Lengths[I],7),3,0.87,0.30,0.51)
+    else Surface(Box(P,Y+Tones[I]*14-3,Lengths[I],7),3,0.42,0.30,0.40);
+    P:=P+Lengths[I]+9;
+  end;
 end;
 procedure DrawStage(W: integer);
 var C,Song: TJSONObject; Songs: TJSONArray; I,Index: integer;
-    Art,B: TBox; X,TextW,TitleSize: single; CountText: string;
+    Art,B: TBox; X,TextW,TitleSize,Y: single; CountText: string;
 begin
-  Rect(0,0,W,ScreenH,0.080,0.080,0.091);
+  Rect(0,0,W,ScreenH,0.076,0.080,0.100);
   if ShowingResults then
   begin
-    LabelAt(40,33,34,'Tu interpretación',W-80);
-    if Assigned(CurrentSong) then LabelAt(40,89,22,CurrentSong.Title,W-80,true);
+    LabelAt(40,36,18,'Puntuación',W-80,true);
+    if Assigned(CurrentSong) then begin
+      TitleAt(40,79,Min(42,W/16),W-80,CurrentSong.Title);
+      LabelAt(40,186,21,CurrentSong.Artist,W-80,true);
+    end;
     for I:=0 to Min(1,High(Player)) do
     begin
-      Rect(40,178+I*106,W-80,1,0.22,0.22,0.24);
-      LabelAt(40,206+I*106,25,Player[I].Name,W-270);
-      LabelAt(W-192,195+I*106,42,IntToStr(Player[I].ScoreTotalInt),152);
+      Y:=244+I*95;
+      Rect(40,Y,W-80,1,0.22,0.23,0.26);
+      Rect(40,Y+25,3,36,0.92,0.39,0.60);
+      LabelAt(59,Y+29,23,Player[I].Name,W-270,false,true);
+      LabelAt(W-193,Y+17,40,IntToStr(Player[I].ScoreTotalInt),152,false,true);
     end;
+    if Assigned(View) then LabelAt(40,ResultButton.Y-41,16,View.Get('next',''),W-80,true);
     PrimaryButton(ResultButton,'Volver al repertorio',StageFocused);
   end else if HasCarousel then
   begin
     C:=Carousel; Songs:=C.Arrays['songs']; Index:=EnsureRange(C.Get('index',0),0,Songs.Count-1);
-    LabelAt(40,33,30,'Mi repertorio',W-80);
+    LabelAt(40,32,18,'Mi repertorio',W-80,true);
+    Song:=TJSONObject(Songs[Index]); Art:=HeroArt(W); Artwork(Song,Art);
+    B:=HeroButton(W); X:=B.X; TextW:=W-X-34; TitleSize:=Min(45,TextW/6.3);
+    LabelAt(X,Art.Y+Art.H*0.17,Min(20,TextW/10),Song.Get('artist',''),TextW,true);
+    TitleAt(X,Art.Y+Art.H*0.30,TitleSize,TextW,Song.Get('title',''));
+    PrimaryButton(B,'Añadir a la cola',StageFocused);
     CountText:=IntToStr(C.Get('total',Songs.Count));
     if CountText='1' then CountText:=CountText+' canción' else CountText:=CountText+' canciones';
-    LabelAt(40,78,16,CountText,W-80,true);
-    Song:=TJSONObject(Songs[Index]); Art:=HeroArt(W); Artwork(Song,Art);
-    B:=HeroButton(W); X:=B.X; TextW:=W-X-34; TitleSize:=Min(39,TextW/7.5);
-    TitleAt(X,Art.Y+Art.H*0.13,TitleSize,TextW,Song.Get('title',''));
-    LabelAt(X,Art.Y+Art.H*0.49,Min(22,TextW/10),Song.Get('artist',''),TextW,true);
-    PrimaryButton(B,'Añadir a la cola',StageFocused);
+    Rect(40,SleeveBox(W,0).Y-44,W-80,1,0.18,0.19,0.22);
+    LabelAt(40,SleeveBox(W,0).Y-31,14,CountText,W-80,true);
     for I:=0 to Songs.Count-1 do
     begin
       B:=SleeveBox(W,I); Artwork(TJSONObject(Songs[I]),B);
-      if I=Index then Rect(B.X,B.Y+B.H+5,B.W,3,0.98,0.30,0.52);
+      if I=Index then Rect(B.X,B.Y+B.H+5,B.W,2,0.98,0.30,0.52);
     end;
     if C.Get('has_previous',false) then DrawArrow(ArrowBox(W,false),false);
     if C.Get('has_next',false) then DrawArrow(ArrowBox(W,true),true);
   end else
   begin
-    LabelAt(40,33,30,'Mi repertorio',W-80);
-    LabelAt(40,ScreenH*0.46-16,36,'Tu primera canción',W-80);
-    LabelAt(40,ScreenH*0.46+47,19,'Busca una canción con notas o importa una carpeta.',W-80,true);
-    PrimaryButton(EmptyButton,'Buscar canciones',StageFocused);
+    Y:=ScreenH*0.5;
+    PitchPreview(40,Y-102);
+    TitleAt(40,Y-18,36,W-80,'Tu primera canción');
+    if (Page='Buscar') and not PanelCollapsed then
+      LabelAt(40,Y+44,19,'Añade una canción a la cola para empezar.',W-80,true)
+    else PrimaryButton(EmptyButton,'Buscar canciones',StageFocused);
   end;
   if ShellSynthetic then LabelAt(40,ScreenH-22,12,'PRUEBA · Audio sintético, sin micrófono real',W-80,true);
 end;
+function SearchField(R: TJSONObject): boolean;
+begin Result:=R.Get('action','')='field:query'; end;
 function RowHeight(Row: TJSONObject): integer;
-begin if Row.Get('kind','')='song' then Result:=62 else if Row.Get('kind','')='input' then Result:=74 else if Row.Get('kind','')='slider' then Result:=74 else if Row.Get('sub','')<>'' then Result:=72 else Result:=48; end;
+var Kind: string;
+begin
+  Kind:=Row.Get('kind','');
+  if Kind='song' then Result:=62
+  else if SearchField(Row) then Result:=58
+  else if Kind='input' then Result:=70
+  else if Kind='slider' then Result:=60
+  else if Row.Get('sub','')<>'' then Result:=64
+  else if Row.Get('style','')='back' then Result:=38
+  else Result:=44;
+end;
+
+function TabPage(I: integer): UTF8String;
+begin
+  case I of 0:Result:='Biblioteca'; 1:Result:='Buscar'; 2:Result:='Cola'; else Result:='Ajustes'; end;
+end;
+
+function MainPage: boolean;
+begin Result:=(Page='Biblioteca') or (Page='Buscar') or (Page='Cola') or (Page='Ajustes'); end;
+
+function CurrentTab: integer;
+begin
+  if MainPage then begin
+    for Result:=0 to 3 do if TabPage(Result)=Page then Exit;
+  end;
+  if (Page='Ediciones') or (Page='Versión') or (Page='Otros catálogos') then Result:=1
+  else if (Page='Turno') or (Page='Preparaciones') or (Page='Terminar canción') then Result:=2
+  else if (Page='Micrófonos') or (Page='Descargas') or (Page='Cuenta USDB') or (Page='Entrada 1') or (Page='Entrada 2') then Result:=3
+  else Result:=0;
+end;
+
+function TabBox(I:integer):TBox;
+const Left:array[0..3] of integer=(12,108,186,262);
+      Widths:array[0..3] of integer=(92,74,72,76);
+begin Result:=Box(Left[I],14,Widths[I],36); end;
+function FoldBox:TBox;
+begin Result:=Box(346,13,42,38); end;
+function RestoreBox:TBox;
+begin Result:=Box(ScreenW-164,16,148,40); end;
+function TransportBox(Second:boolean):TBox;
+begin Result:=Box(16+Ord(Second)*186,66,178,36); end;
+
 function ContentTop: integer;
 begin
-  if Singing or (Assigned(View) and (View.Get('next','')<>'')) then Result:=166
-  else Result:=118;
+  Result:=76;
+  if Singing then Inc(Result,52);
+  if not MainPage then Inc(Result,43);
 end;
+
+function StatusText: UTF8String;
+begin
+  Result:=ErrorText;
+  if (Result='') and Assigned(View) then Result:=View.Get('message','');
+end;
+function FooterHeight: integer;
+var Msg:UTF8String; Lines:integer;
+begin
+  Msg:=StatusText;
+  if Msg='' then Exit(12);
+  SetFontFamily(0); SetFontStyle(ftRegular); ResetFont; SetFontSize(14);
+  Lines:=EnsureRange(Ceil(TextWidth(Msg)/336),1,3);
+  Result:=24+Lines*19;
+end;
+function ContentBottom: integer;
+begin Result:=Round(Height)-FooterHeight-5; end;
 function AddBox(Y: single): TBox;
-begin Result:=Box(340,Y+10,38,38); end;
+begin Result:=Box(337,Y+9,43,43); end;
 function EditorTail(const Value: UTF8String; MaxWidth: single): UTF8String;
 var L,R,M,Start: integer;
 begin
@@ -564,159 +719,218 @@ begin
   Result:=Copy(Value,L,Length(Value));
 end;
 procedure SongRow(R: TJSONObject; Y: single; Focused,Hovered: boolean);
-var B: TBox; TextW: single;
+var B:TBox; TextW:single;
 begin
-  if Hovered or Focused then Rect(16,Y,368,60,0.153,0.154,0.172)
-  else Rect(16,Y+60,368,1,0.17,0.17,0.19);
-  Artwork(R,Box(22,Y+6,48,48));
+  B:=Box(16,Y,368,56);
+  if Focused and not AddFocused then FocusInset(B);
+  if (Focused and not AddFocused) or Hovered then Surface(B,6,0.18,0.19,0.22)
+  else Rect(82,Y+58,296,1,0.19,0.20,0.23);
+  Artwork(R,Box(22,Y+5,46,46));
   TextW:=295;
   if R.Get('add_action','')<>'' then
   begin
-    B:=AddBox(Y); TextW:=252; Fill(B,0.22,0.18,0.22);
-    if Focused and AddFocused then Outline(B,1,0.66,0.78);
-    Rect(B.X+11,B.Y+18,16,2,1,0.83,0.89); Rect(B.X+18,B.Y+11,2,16,1,0.83,0.89);
+    TextW:=246; B:=AddBox(Y);
+    if Focused and AddFocused then FocusInset(B);
+    Surface(B,20,0.22,0.18,0.23);
+    Rect(B.X+14,B.Y+20,15,2,1,0.76,0.83); Rect(B.X+20.5,B.Y+13.5,2,15,1,0.76,0.83);
   end;
-  LabelAt(82,Y+8,18,R.Get('label',''),TextW);
-  LabelAt(82,Y+34,14,R.Get('sub',''),TextW,true);
-  if Focused and not AddFocused then Outline(Box(16,Y,368,60),0.99,0.57,0.72);
+  LabelAt(82,Y+7,17,R.Get('label',''),TextW,false,true);
+  LabelAt(82,Y+32,14,R.Get('sub',''),TextW,true);
 end;
+
+procedure SearchIcon(X,Y:single);
+var I:integer; A,B:single;
+begin
+  for I:=0 to 15 do
+  begin
+    A:=2*Pi*I/16; B:=2*Pi*(I+1)/16;
+    Renderer.DrawLine(X+5.5*Cos(A),Y+5.5*Sin(A),X+5.5*Cos(B),Y+5.5*Sin(B),0,1.5,0.79,0.80,0.85,1);
+  end;
+  Renderer.DrawLine(X+4,Y+4,X+9,Y+9,0,1.5,0.79,0.80,0.85,1);
+end;
+
+procedure DrawInput(R:TJSONObject; Y:single; Focused:boolean);
+var B:TBox; X,Ty,Available,Caret:single; Value:UTF8String; Editing,Query:boolean;
+begin
+  Query:=SearchField(R); Editing:=Focused and (EditAction=R.Get('action',''));
+  if Query then B:=Box(16,Y,368,44)
+  else begin
+    LabelAt(20,Y+1,14,R.Get('label',''),350,true);
+    B:=Box(16,Y+22,368,39);
+  end;
+  if Editing then FocusInset(B);
+  Surface(B,6,0.18,0.19,0.22);
+  X:=B.X+12; Ty:=B.Y+(B.H-18)/2;
+  if Query then begin SearchIcon(X+5,B.Y+B.H/2-1); X:=X+26; end;
+  Available:=B.X+B.W-X-14;
+  if Editing then Value:=EditValue+Composition else Value:=R.Get('value','');
+  if R.Get('secret',false) then Value:=StringOfChar('*',Length(Value));
+  Value:=EditorTail(Value,Available-4);
+  Caret:=X+TextWidth(Value);
+  if Editing and EditSelectedAll and (Value<>'') then Rect(X-1,Ty-3,Caret-X+3,25,0.49,0.15,0.32);
+  if Value<>'' then LabelAt(X,Ty,18,Value,Available)
+  else if Query then LabelAt(X,Ty,16,R.Get('label','Buscar canciones'),Available,true);
+  if Editing and not EditSelectedAll and ((SDL_GetTicks div 530) mod 2=0) then Rect(Caret+1,Ty-1,1.6,21,1,0.71,0.81);
+end;
+
+procedure DrawControl(R:TJSONObject; Y:single; H:integer; Focused,Hovered:boolean);
+var Kind,Style,Sub: UTF8String; B:TBox; X,Value:single;
+begin
+  Kind:=R.Get('kind',''); Style:=R.Get('style',''); Sub:=R.Get('sub','');
+  if Kind='song' then begin SongRow(R,Y,Focused,Hovered); Exit; end;
+  if Kind='input' then begin DrawInput(R,Y,Focused); Exit; end;
+  if Kind='slider' then
+  begin
+    B:=Box(16,Y,368,H-5);
+    if Focused then begin FocusInset(B); Surface(B,6,0.13,0.14,0.17); end;
+    Value:=EnsureRange(R.Get('value',0.0),0.0,100.0);
+    LabelAt(24,Y+3,16,R.Get('label',''),286);
+    LabelAt(330,Y+3,14,IntToStr(Round(Value))+'%',48,true);
+    Rect(24,Y+35,290,4,0.27,0.28,0.32);
+    Rect(24,Y+35,290*Value/100,4,0.92,0.39,0.60);
+    Surface(Box(19+290*Value/100,Y+31,12,12),6,1,0.78,0.86);
+    Exit;
+  end;
+  if Kind='text' then
+  begin
+    LabelAt(21,Y+6,17,R.Get('label',''),358,false,true);
+    if Sub<>'' then LabelAt(21,Y+30,14,Sub,358,true);
+    Exit;
+  end;
+  B:=Box(16,Y,368,H-6); X:=26;
+  if Focused then FocusInset(B);
+  if Style='primary' then Surface(B,6,0.63,0.085,0.29)
+  else if Hovered or Focused then Surface(B,6,0.19,0.20,0.23)
+  else if Style='' then Rect(22,Y+H-5,356,1,0.18,0.19,0.22);
+  if Style='back' then begin Chevron(X+3,Y+16,false); X:=X+18; end;
+  if (Style='link') or (Style='back') then LabelAt(X,Y+9,15,R.Get('label',''),340,true)
+  else if Style='primary' then LabelAt(X,Y+9,17,R.Get('label',''),341,false,true)
+  else begin
+    LabelAt(X,Y+9,16,R.Get('label',''),321);
+    Chevron(367,Y+(H-6)/2,true);
+  end;
+  if Sub<>'' then LabelAt(X,Y+32,14,Sub,330,true);
+end;
+
+procedure DrawFooter;
+var Msg,Line,Word:UTF8String; I,Y:integer;
+begin
+  Msg:=StatusText; if Msg='' then Exit;
+  Y:=Round(Height)-FooterHeight;
+  Rect(16,Y,368,1,0.21,0.22,0.25); Inc(Y,11); Line:='';
+  while (Msg<>'') and (Y<Height-15) do
+  begin
+    I:=Pos(' ',Msg); if I=0 then I:=Length(Msg)+1;
+    Word:=Copy(Msg,1,I-1); Delete(Msg,1,I);
+    SetFontStyle(ftRegular); ResetFont; SetFontSize(14);
+    if (Line<>'') and (TextWidth(Line+' '+Word)>354) then
+    begin LabelAt(22,Y,14,Line,355,true); Inc(Y,19); Line:=Word; end
+    else if Line='' then Line:=Word else Line:=Line+' '+Word;
+  end;
+  if Y<Height-12 then LabelAt(22,Y,14,Line,355,true);
+end;
+
 procedure ShellDraw;
-var I,Y,RH,W: integer; A: TJSONArray; R: TJSONObject; Kind,Value,Msg: string; Focused: boolean; V: double;
+var I,Y,RH,W,TopY,BottomY,Total,Avail:integer; A:TJSONArray; R:TJSONObject;
+    B:TBox; Value:UTF8String; LabelX,Scale,ThumbH:single;
 begin
   if not ShellEnabled or not Started then Exit;
   Renderer.SetClipText(false); Renderer.SetScissorTest(false);
   W:=ScreenW-SideWidth;
   if not Singing then
   begin
-    Renderer.SetViewPort(0,0,W,ScreenH); Renderer.SetOrthographicProjection(0,W,ScreenH,0,-1,100); Renderer.DepthTest:=false;
-    DrawStage(W);
+    Renderer.SetViewPort(0,0,W,ScreenH); Renderer.SetOrthographicProjection(0,W,ScreenH,0,-1,100);
+    Renderer.DepthTest:=false; DrawStage(W);
   end;
   if PanelCollapsed then
   begin
-    // A small overlay replaces the entire sidebar; no empty rail reserves space.
     Renderer.SetViewPort(0,0,ScreenW,ScreenH);
     Renderer.SetOrthographicProjection(0,ScreenW,ScreenH,0,-1,100); Renderer.DepthTest:=false;
-    if PanelToggleFocused then Rect(ScreenW-173,13,160,46,0.97,0.25,0.48);
-    if PanelHover then Rect(ScreenW-170,16,154,40,0.21,0.21,0.24)
-    else Rect(ScreenW-170,16,154,40,0.153,0.154,0.172);
-    LabelAt(ScreenW-156,28,16,'Mostrar panel',130);
-    Renderer.SetOrthographicProjection(0,RenderW,RenderH,0,-1,100); Renderer.DepthTest:=true;
-    Exit;
+    B:=RestoreBox; if PanelToggleFocused then FocusInset(B);
+    if PanelHover then Surface(B,6,0.23,0.24,0.27) else Surface(B,6,0.14,0.15,0.18);
+    Chevron(B.X+14,B.Y+20,false); LabelAt(B.X+30,B.Y+12,15,'Mostrar panel',106);
+    Renderer.SetOrthographicProjection(0,RenderW,RenderH,0,-1,100); Renderer.DepthTest:=true; Exit;
   end;
   Renderer.SetViewPort(W,0,SideWidth,ScreenH); Renderer.SetOrthographicProjection(0,400,Height,0,-1,100); Renderer.DepthTest:=false;
-  Rect(0,0,400,Height,0.105,0.106,0.119); Rect(0,0,1,Height,0.22,0.22,0.24);
-  LabelAt(22,22,28,'Tu sesión',190);
-  if Assigned(View) then
-  begin
-    Value:=IntToStr(View.Get('queue_count',0));
-    if Value='1' then Value:=Value+' turno' else Value:=Value+' turnos';
-    LabelAt(220,29,16,Value,90,true);
-  end;
-  if Focus= -11 then Rect(335,19,52,38,0.97,0.25,0.48);
-  if PanelHover then Rect(338,22,46,32,0.21,0.21,0.24)
-  else Rect(338,22,46,32,0.153,0.154,0.172);
-  Renderer.DrawLine(357,31,364,38,0,2,0.95,0.95,0.93,1);
-  Renderer.DrawLine(364,38,357,45,0,2,0.95,0.95,0.93,1);
+  Rect(0,0,400,Height,0.105,0.115,0.14); Rect(0,0,1,Height,0.22,0.23,0.26);
   for I:=0 to 3 do
   begin
-    case I of 0: Value:='Biblioteca'; 1: Value:='Buscar'; 2: Value:='Cola'; 3: Value:='Ajustes'; end;
-    if Focus=I-10 then Rect(10+I*96,66,96,40,0.97,0.25,0.48);
-    if Page=Value then
-    begin
-      Rect(12+I*96,68,92,36,0.18,0.16,0.19);
-      Rect(12+I*96,102,92,2,0.97,0.25,0.48);
-    end
-    else Rect(12+I*96,68,92,36,0.105,0.106,0.119);
-    LabelAt(19+I*96,78,16,Value,86);
+    B:=TabBox(I); Value:=TabPage(I);
+    if (I=2) and Assigned(View) and (View.Get('queue_count',0)>0) then
+      Value:=Value+' '+IntToStr(View.Get('queue_count',0));
+    if Focus=I-10 then FocusInset(B);
+    if CurrentTab=I then Surface(B,7,0.26,0.205,0.26)
+    else if Focus=I-10 then Surface(B,7,0.14,0.15,0.18);
+    SetFontStyle(ftRegular); ResetFont; SetFontSize(15);
+    LabelX:=B.X+Max(4.0,(B.W-TextWidth(Value))/2);
+    LabelAt(LabelX,B.Y+10,15,Value,B.W-6,I<>CurrentTab);
   end;
+  B:=FoldBox; if Focus=-11 then FocusInset(B);
+  if PanelHover or (Focus=-11) then Surface(B,7,0.20,0.21,0.24);
+  // Sidebar glyph: a pane divider and a closing chevron.
+  Rect(B.X+11,B.Y+11,1.5,16,0.77,0.79,0.84); Chevron(B.X+23,B.Y+19,true,5);
+  Rect(16,61,368,1,0.22,0.23,0.26);
   if Singing then
   begin
-    if Focus= -6 then Rect(13,113,186,42,0.97,0.25,0.48);
-    if Focus= -5 then Rect(201,113,186,42,0.97,0.25,0.48);
-    Rect(16,116,180,36,0.19,0.18,0.20); LabelAt(30,126,16,'Pausar / continuar',155);
-    Rect(204,116,180,36,0.19,0.18,0.20); LabelAt(220,126,16,'Terminar canción',150);
-  end else if Assigned(View) and (View.Get('next','')<>'') then LabelAt(22,123,16,View.Get('next',''),360,true);
+    B:=TransportBox(false); if Focus=-6 then FocusInset(B);
+    Surface(B,6,0.23,0.19,0.24);
+    if ScreenSing.Paused then Value:='Reanudar' else Value:='Pausar';
+    LabelAt(B.X+12,B.Y+10,16,Value,B.W-24);
+    B:=TransportBox(true); if Focus=-5 then FocusInset(B);
+    if Focus=-5 then Surface(B,6,0.18,0.19,0.22);
+    LabelAt(B.X+12,B.Y+10,16,'Terminar canción',B.W-24,true);
+  end;
+  TopY:=ContentTop; BottomY:=ContentBottom;
+  if not MainPage then LabelAt(20,TopY-42,24,Page,360,false,true);
   if Assigned(View) then
   begin
-    A:=View.Arrays['rows']; Y:=ContentTop-Scroll;
+    A:=View.Arrays['rows']; Total:=0;
+    for I:=0 to A.Count-1 do Inc(Total,RowHeight(TJSONObject(A[I])));
+    Avail:=Max(1,BottomY-TopY); Scroll:=EnsureRange(Scroll,0,Max(0,Total-Avail));
+    Y:=TopY-Scroll; Scale:=SideWidth/400;
+    Renderer.SetScissorRect(W,Max(0,ScreenH-Round(BottomY*Scale)),SideWidth,Max(1,Round(Avail*Scale)));
+    Renderer.SetScissorTest(true);
     for I:=0 to A.Count-1 do
     begin
-      R:=TJSONObject(A[I]); RH:=RowHeight(R); Kind:=R.Get('kind','');
-      if (Y>=ContentTop-6) and (Y+RH<=Height-98) then
-      begin
-        Focused:=Focus=I;
-        if Kind='song' then SongRow(R,Y,Focused,Hover=I)
-        else begin
-        if Focused then Rect(13,Y-3,374,RH-2,0.97,0.25,0.48);
-        if (Kind='button') or (Kind='input') or Focused then
-        begin
-          if Hover=I then Rect(16,Y,368,RH-8,0.21,0.21,0.24)
-          else Rect(16,Y,368,RH-8,0.153,0.154,0.172);
-        end;
-        if Kind='text' then LabelAt(24,Y+8,20,R.Get('label',''),350)
-        else if Kind='input' then LabelAt(24,Y+8,16,R.Get('label',''),350,true)
-        else LabelAt(24,Y+8,18,R.Get('label',''),350);
-        if Kind='input' then
-        begin
-          if Focused and (EditAction<>'') then Value:=EditValue else Value:=R.Get('value','');
-          if R.Get('secret',false) then Value:=StringOfChar('*',Length(Value));
-          if Focused and EditSelectedAll and (EditAction<>'') then Rect(22,Y+35,350,29,0.60,0.055,0.22)
-          else if Focused and (EditAction<>'') then
-          begin
-            Value:=EditorTail(Value,335);
-            Rect(25+TextWidth(Value),Y+39,2,22,1,0.66,0.78);
-          end;
-          if (Value='') and (EditAction<>R.Get('action','')) then LabelAt(24,Y+40,18,'Clic para escribir',345,true)
-          else LabelAt(24,Y+40,18,Value,345);
-        end
-        else if Kind='slider' then
-        begin
-          V:=R.Get('value',0.0); Rect(24,Y+44,290,8,0.28,0.26,0.29); Rect(24,Y+44,290*V/100,8,0.97,0.25,0.48);
-          LabelAt(325,Y+36,16,IntToStr(Round(V))+'%',55);
-        end
-        else if R.Get('sub','')<>'' then LabelAt(24,Y+36,15,R.Get('sub',''),350,true);
-        end;
-      end;
+      R:=TJSONObject(A[I]); RH:=RowHeight(R);
+      if (Y+RH>TopY) and (Y<BottomY) then DrawControl(R,Y,RH,Focus=I,Hover=I);
       Inc(Y,RH);
     end;
-    if Scroll>0 then Renderer.DrawTriangle(365,ContentTop-9,370,ContentTop-14,375,ContentTop-9,0,0.85,0.72,0.76,1);
-    if Y>Height-98 then Renderer.DrawTriangle(365,Height-110,375,Height-110,370,Height-105,0,0.85,0.72,0.76,1);
-    Rect(1,Height-94,399,94,0.126,0.125,0.14);
-    Msg:=View.Get('message','');
-    if ErrorText<>'' then Msg:=ErrorText;
-    // Split by words; no hidden end of status behind a one-line ellipsis.
-    Value:=''; Y:=Round(Height-80);
-    while (Msg<>'') and (Y<Height-12) do
+    Renderer.SetScissorTest(false);
+    if Total>Avail then
     begin
-      I:=Pos(' ',Msg); if I=0 then I:=Length(Msg)+1;
-      Kind:=Copy(Msg,1,I-1); Delete(Msg,1,I);
-      SetFontSize(16);
-      if TextWidth(Value+' '+Kind)>350 then begin LabelAt(22,Y,16,Value,354,true); Inc(Y,22); Value:=Kind; end
-      else if Value='' then Value:=Kind else Value:=Value+' '+Kind;
+      ThumbH:=Max(24.0,Avail*Avail/Total);
+      Rect(395,TopY+Scroll*(Avail-ThumbH)/(Total-Avail),2,ThumbH,0.41,0.42,0.46);
     end;
-    if Y<Height-12 then LabelAt(22,Y,16,Value,354,true);
+    DrawFooter;
   end;
   Renderer.SetOrthographicProjection(0,RenderW,RenderH,0,-1,100); Renderer.DepthTest:=true;
 end;
 procedure CommitEdit;
 begin
-  if EditAction<>'' then begin Emit(EditAction,EditValue); EditAction:=''; EditValue:=''; end;
+  if EditAction<>'' then
+  begin
+    if EditAction='field:query' then PublishSearch else Emit(EditAction,EditValue);
+    EditAction:=''; EditValue:=''; Composition:='';
+  end;
   EditSelectedAll:=false;
   SDL_StopTextInput;
 end;
 function RowAt(X,Y: single): integer;
 var I,P,H: integer; A: TJSONArray;
 begin
-  Result:=-1; if not Assigned(View) or (X<16) or (X>=384) or (Y<ContentTop-6) or (Y>Height-98) then Exit;
+  Result:=-1; if not Assigned(View) or (X<16) or (X>=384) or (Y<ContentTop) or (Y>=ContentBottom) then Exit;
   A:=View.Arrays['rows']; P:=ContentTop-Scroll;
-  for I:=0 to A.Count-1 do begin H:=RowHeight(TJSONObject(A[I])); if (P>=ContentTop-6) and (P+H<=Height-98) and (Y>=P) and (Y<P+H-2) and ((TJSONObject(A[I]).Get('kind','')='song') or (Y<P+H-8)) then begin Result:=I; Exit; end; Inc(P,H); end;
+  for I:=0 to A.Count-1 do begin H:=RowHeight(TJSONObject(A[I])); if (Y>=P) and (Y<P+H-2) and ((TJSONObject(A[I]).Get('kind','')='song') or (Y<P+H-8)) then begin Result:=I; Exit; end; Inc(P,H); end;
 end;
 procedure SelectRow(I: integer; X: single=24; PointerAction: boolean=false; PointerY: single=0);
 var R: TJSONObject; Kind: string; A: TJSONArray; Y,J: integer;
 begin
   if not Assigned(View) then Exit;
   A:=View.Arrays['rows']; if (I<0) or (I>=A.Count) then Exit;
-  CommitEdit; R:=TJSONObject(A[I]); Kind:=R.Get('kind','');
+  R:=TJSONObject(A[I]);
+  if (I=Focus) and (EditAction<>'') and (R.Get('action','')=EditAction) then Exit;
+  CommitEdit; Kind:=R.Get('kind','');
   if (Kind='text') or ((R.Get('action','')='') and (R.Get('add_action','')='')) then Exit;
   Focus:=I;
   if PointerAction then
@@ -732,9 +946,20 @@ begin
     Exit;
   end;
   if Kind='input' then
-  begin EditAction:=R.Get('action',''); EditValue:=R.Get('value',''); SDL_StartTextInput; end
+  begin EditAction:=R.Get('action',''); EditValue:=R.Get('value',''); LastSubmitted:=EditValue; Composition:=''; SDL_StartTextInput; end
   else if Kind='button' then Emit(R.Get('action',''))
   else if (Kind='slider') and PointerAction then Emit(R.Get('action',''),IntToStr(Round(EnsureRange((X-24)/290*100,0.0,100.0))));
+end;
+procedure OpenTab(I:integer);
+var J:integer; A:TJSONArray;
+begin
+  StageFocused:=false; AddFocused:=false;
+  if (I=1) and (Page='Buscar') and Assigned(View) then
+  begin
+    A:=View.Arrays['rows'];
+    for J:=0 to A.Count-1 do if SearchField(TJSONObject(A[J])) then begin SelectRow(J); Exit; end;
+  end;
+  CommitEdit; Focus:=I-10; Emit('page:'+TabPage(I));
 end;
 procedure ActivateFocus;
 var Action: string;
@@ -797,10 +1022,10 @@ begin
   begin
     A:=View.Arrays['rows']; Total:=0;
     for I:=0 to Focus-1 do Inc(Total,RowHeight(TJSONObject(A[I])));
-    if (ContentTop+Total-Scroll<ContentTop-6) or (ContentTop+Total-Scroll+RowHeight(TJSONObject(A[Focus]))>Height-98) then Scroll:=Total;
+    if (ContentTop+Total-Scroll<ContentTop-6) or (ContentTop+Total-Scroll+RowHeight(TJSONObject(A[Focus]))>ContentBottom) then Scroll:=Total;
     R:=TJSONObject(A[Focus]); AddFocused:=Backwards and (R.Get('add_action','')<>'');
     if R.Get('kind','')='input' then
-    begin EditAction:=R.Get('action',''); EditValue:=R.Get('value',''); EditSelectedAll:=false; SDL_StartTextInput; end;
+    begin EditAction:=R.Get('action',''); EditValue:=R.Get('value',''); LastSubmitted:=EditValue; Composition:=''; EditSelectedAll:=false; SDL_StartTextInput; end;
   end;
 end;
 function StagePointer(PX,PY: integer): boolean;
@@ -808,17 +1033,17 @@ var W,I: integer; C: TJSONObject; A: TJSONArray;
 begin
   W:=ScreenW-SideWidth; Result:=false;
   if Singing or (PX>=W) then Exit;
-  if PanelCollapsed and Inside(Box(ScreenW-170,16,154,40),PX,PY) then Exit;
+  if PanelCollapsed and Inside(RestoreBox,PX,PY) then Exit;
   Result:=true; CommitEdit; Focus:=-12; StageFocused:=true; PanelToggleFocused:=false;
   if ShowingResults then
   begin if Inside(ResultButton,PX,PY) then ResultsDismissed:=true; Exit; end;
   if not HasCarousel then
   begin
-    if Inside(EmptyButton,PX,PY) then
+    if ((Page<>'Buscar') or PanelCollapsed) and Inside(EmptyButton,PX,PY) then
     begin SetPanelCollapsed(false); StageFocused:=false; Emit('page:Buscar'); end;
     Exit;
   end;
-  if Inside(HeroButton(W),PX,PY) or Inside(HeroArt(W),PX,PY) then
+  if Inside(HeroButton(W),PX,PY) then
   begin Emit('carousel:enqueue'); Exit; end;
   C:=Carousel; A:=C.Arrays['songs'];
   if C.Get('has_previous',false) and Inside(ArrowBox(W,false),PX,PY) then Emit('carousel:previous')
@@ -834,11 +1059,11 @@ begin
   if Event.type_=SDL_MOUSEMOTION then
   begin
     X:=Event.motion.x; Y:=Event.motion.y; PanelHover:=false; Hover:=-1;
-    if PanelCollapsed then PanelHover:=(X>=ScreenW-170) and (X<=ScreenW-16) and (Y>=16) and (Y<=56)
+    if PanelCollapsed then PanelHover:=Inside(RestoreBox,X,Y)
     else if X>=ScreenW-SideWidth then
     begin
       X:=Round((X-ScreenW+SideWidth)*400/SideWidth); Y:=Round(Y*400/SideWidth);
-      PanelHover:=(X>=338) and (X<=384) and (Y>=22) and (Y<=54);
+      PanelHover:=Inside(FoldBox,X,Y);
       Hover:=RowAt(X,Y);
     end;
   end;
@@ -850,7 +1075,7 @@ begin
     if PanelCollapsed then
     begin
       Result:=true; X:=Event.button.x; Y:=Event.button.y;
-      if (X>=ScreenW-170) and (X<=ScreenW-16) and (Y>=16) and (Y<=56) then SetPanelCollapsed(false)
+      if Inside(RestoreBox,X,Y) then SetPanelCollapsed(false)
       else PanelToggleFocused:=false;
       Exit;
     end;
@@ -858,13 +1083,13 @@ begin
     if X>=ScreenW-SideWidth then
     begin
       Result:=true; X:=Round((X-ScreenW+SideWidth)*400/SideWidth);
-      if (X>=338) and (X<=384) and (Y>=22) and (Y<=54) then SetPanelCollapsed(true)
-      else if (X>=12) and (X<392) and ((X-12) mod 96<92) and (Y>=68) and (Y<104) then
+      if Inside(FoldBox,X,Y) then SetPanelCollapsed(true)
+      else if (Y>=TabBox(0).Y) and (Y<TabBox(0).Y+TabBox(0).H) then
       begin
-        CommitEdit; I:=(X-12) div 96; Focus:=I-10;
-        case I of 0: Emit('page:Biblioteca'); 1: Emit('page:Buscar'); 2: Emit('page:Cola'); 3: Emit('page:Ajustes'); end;
-      end else if (Y>=116) and (Y<152) and (((X>=16) and (X<196)) or ((X>=204) and (X<384))) and Singing then
-      begin CommitEdit; if X<200 then Focus:=-6 else Focus:=-5; ActivateFocus; end
+        for I:=0 to 3 do if Inside(TabBox(I),X,Y) then
+        begin OpenTab(I); Break; end;
+      end else if Singing and (Inside(TransportBox(false),X,Y) or Inside(TransportBox(true),X,Y)) then
+      begin CommitEdit; if Inside(TransportBox(false),X,Y) then Focus:=-6 else Focus:=-5; ActivateFocus; end
       else SelectRow(RowAt(X,Y),X,true,Y);
     end else begin CommitEdit; Focus:=-1; Result:=true; end;
   end;
@@ -885,11 +1110,13 @@ begin
       Result:=true;
     end;
   end;
+  if (Event.type_=SDL_TEXTEDITING) and not PanelCollapsed and (EditAction<>'') then
+  begin Composition:=UTF8String(PAnsiChar(@Event.edit.text[0])); Result:=true; Exit; end;
   if (Event.type_=SDL_TEXTINPUT) and PanelCollapsed then begin Result:=true; Exit; end;
   if (Event.type_=SDL_TEXTINPUT) and (EditAction<>'') then
   begin
     if EditSelectedAll then begin EditValue:=''; EditSelectedAll:=false; end;
-    if Length(EditValue)<4096 then EditValue:=EditValue+UTF8String(PAnsiChar(@Event.text.text[0])); Result:=true;
+    if Length(EditValue)<4096 then EditValue:=EditValue+UTF8String(PAnsiChar(@Event.text.text[0])); EditChanged; Result:=true;
   end;
   if (Event.type_=SDL_KEYDOWN) or (Event.type_=SDL_KEYUP) then
   begin
@@ -903,9 +1130,7 @@ begin
       if (Key=SDLK_e) and Singing then begin SetPanelCollapsed(false); Emit('end'); Exit; end;
       if (Key>=SDLK_1) and (Key<=SDLK_4) then
       begin
-        SetPanelCollapsed(false); CommitEdit; Focus:=integer(Key-SDLK_1)-10;
-        StageFocused:=false;
-        case Key of SDLK_1: Emit('page:Biblioteca'); SDLK_2: Emit('page:Buscar'); SDLK_3: Emit('page:Cola'); SDLK_4: Emit('page:Ajustes'); end;
+        SetPanelCollapsed(false); OpenTab(integer(Key-SDLK_1));
         Exit;
       end;
       if (Key=SDLK_v) and not PanelCollapsed and (EditAction<>'') then
@@ -914,7 +1139,7 @@ begin
         if Clip<>nil then
         begin
           if EditSelectedAll then EditValue:='';
-          EditValue:=Copy(EditValue+UTF8String(Clip),1,4096); EditSelectedAll:=false; SDL_free(Clip);
+          EditValue:=Copy(EditValue+UTF8String(Clip),1,4096); EditSelectedAll:=false; SDL_free(Clip); EditChanged;
         end;
       end;
       if (Key=SDLK_a) and not PanelCollapsed and (EditAction<>'') then EditSelectedAll:=true;
@@ -946,9 +1171,9 @@ begin
     else if EditAction<>'' then
     begin
       if Key=SDLK_BACKSPACE then
-      begin if EditSelectedAll then EditValue:='' else TrimLast(EditValue); EditSelectedAll:=false; end;
+      begin if EditSelectedAll then EditValue:='' else TrimLast(EditValue); EditSelectedAll:=false; EditChanged; end;
       if (Key=SDLK_LEFT) or (Key=SDLK_RIGHT) then EditSelectedAll:=false;
-      if Key=SDLK_RETURN then CommitEdit;
+      if (Key=SDLK_RETURN) and (Composition='') then CommitEdit;
       if Key=SDLK_ESCAPE then begin EditAction:=''; EditValue:=''; EditSelectedAll:=false; Focus:=-1; SDL_StopTextInput; end;
     end
     else if (Key=SDLK_RETURN) or ((Key=SDLK_SPACE) and (Focus<> -1)) then ActivateFocus
@@ -956,7 +1181,8 @@ begin
     begin
       if Assigned(View) and (Focus>=0) and (Focus<View.Arrays['rows'].Count) then
       begin R:=TJSONObject(View.Arrays['rows'][Focus]); if (R.Get('kind','')='song') and (R.Get('add_action','')<>'') and (Key<>SDLK_LEFT) then
-        begin AddFocused:=true; Emit(R.Get('add_action','')); end
+        begin AddFocused:=true; if Key=SDLK_PLUS then Emit(R.Get('add_action','')); end
+        else if (R.Get('kind','')='song') and (Key=SDLK_LEFT) then AddFocused:=false
         else if (R.Get('kind','')='slider') and (Key<>SDLK_PLUS) then begin I:=5; if Key=SDLK_LEFT then I:=-5; Emit(R.Get('action',''),IntToStr(EnsureRange(R.Get('value',0)+I,0,100))); end; end;
     end
     else if (Key=SDLK_SPACE) and Singing then ScreenSing.Pause;

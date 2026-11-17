@@ -62,8 +62,32 @@ def check_singing_cursor(data, process):
     session.event('import')
     session.wait(lambda _: bool(session.rows("SELECT id FROM songs WHERE title='Probe A'")), timeout=45)
     song = session.rows("SELECT id FROM songs WHERE title='Probe A'")[0]
-    turn = session.enqueue(song['id'])
-    session.event('start:' + turn)
+    def visible_row(page, predicate):
+        selected = {}
+        def find(_):
+            current = read_json(view)
+            if current.get('page') != page:
+                return False
+            for row in current.get('rows', []):
+                if predicate(row):
+                    selected.update(row)
+                    return True
+            return False
+        session.wait(find)
+        return selected
+
+    # Search merges local songs synchronously. External catalogues are unreachable in
+    # this smoke test, and all actions below come from controls advertised by the UI.
+    session.event('page:Buscar')
+    field = visible_row('Buscar', lambda r: r.get('action') == 'field:query')
+    session.event(field['action'], 'Probe A')
+    hit = visible_row('Buscar', lambda r: r.get('label') == 'Probe A' and r.get('add_action'))
+    session.event(hit['add_action'])
+    session.wait(lambda _: any(turn['song_id'] == song['id'] for turn in session.queue()))
+    turn = next(item['id'] for item in session.queue() if item['song_id'] == song['id'])
+    session.event('page:Cola')
+    play = visible_row('Cola', lambda r: r.get('action') == 'start:' + turn)
+    session.event(play['action'])
     start = session.wait(lambda s: s.get('state') == 'singing' and s.get('position', 0) > 1.5)
     samples = [start]
     for collapsed in (True, False):
@@ -99,6 +123,11 @@ def main():
     environment = dict(os.environ)
     if sys.platform == 'win32':
         environment['PATH'] = os.pathsep.join([str(args.launcher.resolve().parent / 'bin'), str(Path(os.environ['WINDIR']) / 'System32'), os.environ['WINDIR']])
+    if args.check_cursor:
+        # Exercise immediate local search even on a runner that normally has Internet.
+        for name in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY'):
+            environment[name] = environment[name.lower()] = 'http://127.0.0.1:1'
+        environment['NO_PROXY'] = environment['no_proxy'] = ''
     report['path_environment'] = environment.get('PATH', '')
     report['ci_audio_driver'] = environment.get('SDL_AUDIODRIVER')
     report['ci_opengl_library'] = environment.get('SDL_OPENGL_LIBRARY')
@@ -137,6 +166,11 @@ def main():
             report['engine_state'] = state
             if args.check_cursor:
                 report['singing_cursor'] = check_singing_cursor(data, process)
+                report['local_search_journey'] = {
+                    'query': 'Probe A', 'catalogue_http_unreachable': True,
+                    'controls': ['Buscar', 'Campo de búsqueda', 'Añadir a la cola', 'Cola', 'Empezar a cantar'],
+                    'passed': True,
+                }
             commands = data / 'ipc/commands'
             command = commands / ('smoke-' + uuid.uuid4().hex + '.json')
             temporary = command.with_suffix('.tmp')

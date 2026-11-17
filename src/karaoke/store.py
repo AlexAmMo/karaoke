@@ -63,32 +63,52 @@ class Store:
 
     def save_song(self, song, source=None, variant="original", parent=None, verified=False):
         with self.lock, self.db:
-            if source:
-                self.db.execute(
-                    "UPDATE songs SET source=NULL WHERE source=? AND id!=?",
-                    (source, song["id"]),
-                )
+            self._save_song(song, source, variant, parent, verified)
+
+    def _save_song(self, song, source, variant, parent, verified):
+        if source:
             self.db.execute(
-                """INSERT INTO songs(id,source,title,artist,language,chart,audio,duration,variant,parent,verified,freestyle,created)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
-                source=coalesce(songs.source,excluded.source)""",
-                tuple(song.get(k, "") for k in ("id",))
-                + (source,)
-                + tuple(
-                    song.get(k, "")
-                    for k in ("title", "artist", "language", "chart", "audio", "duration")
-                )
-                + (variant, parent, int(verified), int(song.get("freestyle", False)), time.time()),
+                "UPDATE songs SET source=NULL WHERE source=? AND id!=?",
+                (source, song["id"]),
             )
-            if source:
+        self.db.execute(
+            """INSERT INTO songs(id,source,title,artist,language,chart,audio,duration,variant,parent,verified,freestyle,created)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
+            source=coalesce(songs.source,excluded.source),
+                verified=max(songs.verified,excluded.verified)""",
+            tuple(song.get(k, "") for k in ("id",))
+            + (source,)
+            + tuple(
+                song.get(k, "")
+                for k in ("title", "artist", "language", "chart", "audio", "duration")
+            )
+            + (variant, parent, int(verified), int(song.get("freestyle", False)), time.time()),
+        )
+        if source:
+            self.db.execute(
+                "INSERT INTO song_sources VALUES (?,?) ON CONFLICT(source) DO UPDATE SET song_id=excluded.song_id",
+                (source, song["id"]),
+            )
+            self.db.execute(
+                "UPDATE turns SET song_id=? WHERE source=? AND state='queued'",
+                (song["id"], source),
+            )
+
+    def finish_job(self, job, info, actual_source):
+        # All writes commit together. A retried group may use a different chart bound to
+        # the same recording; only the successful chart acquires a publisher alias.
+        with self.lock, self.db:
+            self._save_song(info, actual_source, "original", None,
+                            actual_source.startswith(("allkaraoke:", "usdb:", "pair:")))
+            if job["source"] != actual_source:
                 self.db.execute(
                     "INSERT INTO song_sources VALUES (?,?) ON CONFLICT(source) DO UPDATE SET song_id=excluded.song_id",
-                    (source, song["id"]),
+                    (job["source"], info["id"]),
                 )
-                self.db.execute(
-                    "UPDATE turns SET song_id=? WHERE source=? AND state='queued'",
-                    (song["id"], source),
-                )
+                self.db.execute("UPDATE turns SET song_id=? WHERE source=? AND state='queued'",
+                                (info["id"], job["source"]))
+            self.db.execute("UPDATE jobs SET state='ready',song_id=?,message='' WHERE id=?",
+                            (info["id"], job["id"]))
 
     def request(self, source: str, payload: dict, names: list[str] | None):
         with self.lock, self.db:
@@ -99,7 +119,9 @@ class Store:
             song_id = found[0] if found else None
             if not song_id:
                 self.db.execute(
-                    "INSERT OR IGNORE INTO jobs(id,source,payload,state,created) VALUES (?,?,?,'waiting',?)",
+                    """INSERT INTO jobs(id,source,payload,state,created) VALUES (?,?,?,'waiting',?)
+                       ON CONFLICT(source) DO UPDATE SET payload=excluded.payload,state='waiting',message=''
+                       WHERE jobs.state IN ('error','cancelled')""",
                     (uuid.uuid4().hex, source, json.dumps(payload), time.time()),
                 )
             if names is not None:
@@ -123,7 +145,9 @@ class Store:
     def reorder(self, turn_id, direction):
         with self.lock, self.db:
             rows = [r for r in self.queue() if r["state"] == "queued"]
-            index = next(i for i, r in enumerate(rows) if r["id"] == turn_id)
+            index = next((i for i, r in enumerate(rows) if r["id"] == turn_id), None)
+            if index is None:
+                return
             other = max(0, min(len(rows) - 1, index + direction))
             self.db.execute(
                 "UPDATE turns SET position=? WHERE id=?",

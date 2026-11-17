@@ -53,26 +53,17 @@ def test_missing_recording_can_be_paired_without_modifying_chart(package, tmp_pa
     try:
         service.add_import(str(package))
         assert service.page == "Asociar grabación"
-        service.handle({"action": "field:pair_audio", "value": str(package.parent / "audio.wav")})
-        assert "import:listen:1" in [r.get("action") for r in service.view()["rows"]]
-        with pytest.raises(SongError, match="fragmentos"):
-            service.handle({"action": "import:pair"})
-        from types import SimpleNamespace
-        from karaoke import package_import, sync_review
-
-        clock = [100.0]
-        monkeypatch.setattr(package_import, "time", SimpleNamespace(monotonic=lambda: clock[0]))
-        monkeypatch.setattr(
-            sync_review, "play_review", lambda *args: SimpleNamespace(poll=lambda: 0)
-        )
-        for i in range(len(service.pair_points)):
-            service.handle({"action": f"import:listen:{i}"})
-            clock[0] += 10
-        assert service.pair_points[0].caption == "sí"
-        service.handle({"action": "import:pair"})
+        from karaoke import acoustic
+        confirmed = []
+        monkeypatch.setattr(acoustic, "require_alignment", lambda chart, audio: confirmed.append((chart, audio)))
+        monkeypatch.setattr(service, "choose_folder", lambda _: str(package.parent / "audio.wav"))
+        service.handle({"action": "import:audio"})
+        future, callback = service.futures.pop()
+        callback(future.result(timeout=3))
         song = service.prepare(service.store.rows("select * from jobs")[0])
         assert song["title"] == "Canción de prueba"
         assert Path(song["audio"]).exists()
+        assert confirmed == [(package, package.parent / "audio.wav")]
         assert package.read_text() == data
     finally:
         service.close()

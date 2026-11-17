@@ -340,7 +340,7 @@ def _run(request: dict, session=None) -> dict:
             chart.write_text(re.sub(r"^#VIDEO:[^\n]*(?:\n|$)", "", text, flags=re.M | re.I),
                              encoding="utf-8")
         progress.write("preparing", "Recursos preparados; validando paquete")
-        return {"charts": [str(chart)]}
+        return {"charts": [str(chart)], "audio_resource": audio.file.resource}
     raise ValueError("Operación de catálogo desconocida.")
 
 
