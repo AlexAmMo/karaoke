@@ -1,0 +1,88 @@
+{
+  "revision": "19c0fd93d4391312fe68309aa70d386999d37f46",
+  "system": "macOS arm64",
+  "install": {
+    "installed": true,
+    "preserved_library_entries": 3,
+    "preserved_turns": 5,
+    "preferences_verified": true,
+    "desktop_link": true,
+    "launcher_sha256": "5503763db7afa9f263f1208e2746d05d7b7bbe4086f707d84946fab6fda909c8"
+  },
+  "same_launcher_as_smoke_and_installed": true,
+  "desktop_smoke_passed": true,
+  "synthetic_singing_cursor": [
+    {
+      "state": "singing",
+      "position": 1.549986394557823,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        375,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 1.7661961451247163,
+      "cursor_visible": true,
+      "panel_collapsed": true,
+      "scores": [
+        625,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 1.978965986394558,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        750,
+        0
+      ]
+    }
+  ],
+  "live_catalogue": {
+    "artist": "Álex Ubago",
+    "title": "Sigo Aquí",
+    "observed_in_installed_service": {
+      "page": "Asociar grabación",
+      "analysis": [
+        "Sin indicios de un desfase grande en los tres tramos. Inicio / centro / final: +0,05 s · -0,05 s · -0,10 s."
+      ],
+      "checkpoints": 3,
+      "can_save_unreviewed": false
+    },
+    "listener_confirmed": false
+  },
+  "archive_sha256": "c0eb69522c5f09cad1ce706f2cc8263f95cce0826089b3e0947b883e54dff152",
+  "installed_native_state_during_review": {
+    "state": "idle",
+    "synthetic": false,
+    "width": 1280,
+    "height": 800,
+    "cursor_visible": true,
+    "panel_collapsed": false
+  },
+  "complete_sigo_aqui_turn": {
+    "scope": "Disposable library, author-declared map and track, generated microphone input. Playback and score-path test only. User review and library were untouched.",
+    "video_id": "IA0uSub1xy4",
+    "passed": true,
+    "started": true,
+    "milestones": [
+      50.19,
+      100.27,
+      150.38,
+      200.08
+    ],
+    "engine_terminal_state": "idle",
+    "turn_state": "finished",
+    "scores_with_generated_input": [
+      1844,
+      452
+    ],
+    "recording_seconds": 224.676,
+    "completed_full_turn": true
+  }
+}

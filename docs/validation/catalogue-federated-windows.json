@@ -1,0 +1,72 @@
+{
+  "source_run": "https://github.com/AlexAmMo/karaoke/actions/runs/44188110442",
+  "source_revision": "38633022edb0861e262271422080955fcc82c787",
+  "workflow_conclusion": "success",
+  "windows_build_job": "success",
+  "artifacts": {
+    "windows-desktop-smoke": {
+      "id": 14374224993,
+      "sha256": "a2de0dab91b223c6c8e6377e17509ccf6eb85a874bdd7cc643df2ced3e661739"
+    },
+    "karaoke-windows-x86_64": {
+      "id": 14375747783,
+      "sha256": "32bf66b2110b41e3f433e898f6748f44abf1e94f1ed380c24589fc52d0810442"
+    }
+  },
+  "smoke_result_sha256": "0179e0775adccc0a8cbd144d3238f157e3d32d517f06b15a6dba6fc19aa2acdb",
+  "platform": "Windows-2022Server-10.0.20348-SP0",
+  "package_sha256": "a7d65c6e6d26f7965872c6533043cc7ecd81fbdd4a8a1727a0a5522d4e76b3a8",
+  "launcher_sha256": "305eb9c0c9a05aef50c0a3ccf5b37e3e5e19d82cb687832a0d658a560ad06f39",
+  "elapsed_seconds": 12.47,
+  "frozen_provider_stdin": true,
+  "passed": true,
+  "audio_driver": "dummy",
+  "engine": {
+    "state": "idle",
+    "synthetic": true,
+    "width": 1280,
+    "height": 800,
+    "drawable_width": 1280,
+    "drawable_height": 800,
+    "cursor_visible": true
+  },
+  "singing_cursor": [
+    {
+      "state": "singing",
+      "position": 1.560984126984127,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        375,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 1.7631972789115644,
+      "cursor_visible": true,
+      "panel_collapsed": true,
+      "scores": [
+        625,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 2.1787369614512473,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        875,
+        0
+      ]
+    }
+  ],
+  "scope": "Final empaquetado para Windows x64, inicio y cierre del ejecutable, operación por stdin del proveedor y canto de una pista de prueba con cursor visible al plegar y restaurar el panel. Entorno de CI con Mesa por software y audio sintético. La prueba no reproduce una grabación comercial ni mide sincronía física o latencia de un micrófono real.",
+  "earlier_attempt": {
+    "source_run": "https://github.com/AlexAmMo/karaoke/actions/runs/44186664133",
+    "source_revision": "19c0fd93d4391312fe68309aa70d386999d37f46",
+    "conclusion": "failure",
+    "reason": "El primer ensayo envió la ruta y la acción de importación consecutivamente, sin esperar a que el formulario reflejara la ruta. El proceso arrancó pero la prueba no importó el fixture. El segundo ensayo comprueba el estado del formulario antes de continuar."
+  }
+}
