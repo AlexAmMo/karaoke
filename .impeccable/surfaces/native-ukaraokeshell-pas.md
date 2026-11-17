@@ -14,9 +14,9 @@ THESIS: La canción elegida ocupa el escenario con su portada, título, artista 
 
 OWN-WORLD: Grafito, texto claro, metadatos suaves y acción principal frambuesa. La imagen validada de la grabación identifica a la canción en biblioteca, búsqueda y cola. Cuando falta imagen se dibujan iniciales sobre un color estable por artista, con el título como alternativa.
 
-STORY: Buscar una canción, comprobar su edición y añadirla a la cola. En una fila musical, Tab y Mayús+Tab permiten recorrer detalle y botón de añadir. Comenzar el turno desde la cola y plegar con Cmd/Ctrl+B. La flecha del sistema permanece visible durante el canto. El panel conserva alimentación de audio, cola y edición al plegar.
+STORY: Buscar una canción, añadirla a la cola y dejar que la aplicación resuelva la edición compatible. En una fila musical, Tab y Mayús+Tab permiten recorrer detalle y botón de añadir. Comenzar el turno desde la cola y plegar con Cmd/Ctrl+B. La flecha del sistema permanece visible durante el canto. El panel conserva alimentación de audio, cola y edición al plegar.
 
-FIRST VIEWPORT: Cabecera «Mi repertorio» y recuento. Portada grande a la izquierda, información y botón a la derecha, hasta cinco miniaturas debajo. La biblioteca vacía ofrece «Buscar canciones». En el lateral, miniaturas de 48 unidades, título y metadatos en la misma fila. Panel abierto de 340–440 puntos y acceso «Mostrar panel» al plegarlo. Canto y letra conservan el lienzo 4:3 de Deluxe.
+FIRST VIEWPORT: Cabecera «Mi repertorio» y recuento sobre la tira de portadas. Portada grande a la izquierda, información y botón a la derecha, hasta cinco miniaturas debajo. Al abrir la biblioteca vacía, la búsqueda recibe el foco y el escenario muestra una secuencia de notas. En el lateral, miniaturas de 46 unidades, título y metadatos en la misma fila. Panel abierto de 340–440 puntos y acceso «Mostrar panel» al plegarlo. Canto y letra conservan el lienzo 4:3 de Deluxe.
 
 FORM: seed: none (pinned). La solicitud «Implementa el plan» se refiere a docs/research/PLAN-CATALOGO-E-INTERFAZ.md. La ventana única y la selección por flechas conservan la continuidad del producto; el sistema de grafito con arte real define el aspecto actual.
 

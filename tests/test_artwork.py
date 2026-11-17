@@ -167,3 +167,33 @@ def test_portrait_from_artist_identity_preserves_author_and_license(
         assert Path(art["path"]).is_file() and art["url"].endswith("File:Band.jpg")
     finally:
         resolver.close()
+
+
+def test_current_search_precedes_starter_thumbnails_without_starving_library(tmp_path, monkeypatch):
+    resolver = artwork.ArtworkResolver(tmp_path)
+    started, release = threading.Event(), threading.Event()
+    calls = []
+
+    def resolve(song):
+        calls.append(song["title"])
+        started.set()
+        assert release.wait(3)
+
+    def request(title, search=""):
+        resolver.get({"artist": "Band", "title": title}, search=search)
+
+    monkeypatch.setattr(resolver, "_resolve", resolve)
+    try:
+        request("Active")
+        assert started.wait(2)
+        request("Library")
+        request("Previous query", "old")
+        for i in range(4):
+            request(str(i), "new")
+        release.set()
+        with resolver.condition:
+            assert resolver.condition.wait_for(lambda: not resolver.active and not resolver.queue, 4)
+        assert calls == ["Active", "0", "1", "2", "Library", "3", "Previous query"]
+    finally:
+        release.set()
+        resolver.close()

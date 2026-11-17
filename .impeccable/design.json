@@ -7,77 +7,27 @@
       "raspberry": {
         "role": "primary",
         "displayName": "Raspberry",
-        "canonical": "rgb(64% 8% 28%)",
-        "tonalRamp": [
-          "oklch(15% 0.06133 7.81)",
-          "oklch(26% 0.11391 7.81)",
-          "oklch(38% 0.14895 7.81)",
-          "oklch(49% 0.17524 7.81)",
-          "oklch(61% 0.17524 7.81)",
-          "oklch(72% 0.14895 7.81)",
-          "oklch(84% 0.10514 7.81)",
-          "oklch(95% 0.03505 7.81)"
-        ]
+        "canonical": "#ab174f"
       },
       "focus-pink": {
         "role": "primary",
         "displayName": "Focus pink",
-        "canonical": "rgb(97% 25% 48%)",
-        "tonalRamp": [
-          "oklch(15% 0.07718 6.89)",
-          "oklch(26% 0.14333 6.89)",
-          "oklch(38% 0.18744 6.89)",
-          "oklch(49% 0.22051 6.89)",
-          "oklch(61% 0.22051 6.89)",
-          "oklch(72% 0.18744 6.89)",
-          "oklch(84% 0.13231 6.89)",
-          "oklch(95% 0.04410 6.89)"
-        ]
+        "canonical": "#fca8c7"
       },
       "row-focus": {
         "role": "primary",
         "displayName": "Row focus",
-        "canonical": "rgb(99% 57% 72%)",
-        "tonalRamp": [
-          "oklch(15% 0.04739 357.88)",
-          "oklch(26% 0.08801 357.88)",
-          "oklch(38% 0.11509 357.88)",
-          "oklch(49% 0.13540 357.88)",
-          "oklch(61% 0.13540 357.88)",
-          "oklch(72% 0.11509 357.88)",
-          "oklch(84% 0.08124 357.88)",
-          "oklch(95% 0.02708 357.88)"
-        ]
+        "canonical": "#fca8c7"
       },
       "add-focus": {
         "role": "primary",
         "displayName": "Add focus",
-        "canonical": "rgb(100% 66% 78%)",
-        "tonalRamp": [
-          "oklch(15% 0.03785 356.96)",
-          "oklch(26% 0.07030 356.96)",
-          "oklch(38% 0.09193 356.96)",
-          "oklch(49% 0.10815 356.96)",
-          "oklch(61% 0.10815 356.96)",
-          "oklch(72% 0.09193 356.96)",
-          "oklch(84% 0.06489 356.96)",
-          "oklch(95% 0.02163 356.96)"
-        ]
+        "canonical": "#fca8c7"
       },
       "stage-focus": {
         "role": "primary",
         "displayName": "Stage focus",
-        "canonical": "rgb(100% 72% 82%)",
-        "tonalRamp": [
-          "oklch(15% 0.03089 355.96)",
-          "oklch(26% 0.05736 355.96)",
-          "oklch(38% 0.07501 355.96)",
-          "oklch(49% 0.08825 355.96)",
-          "oklch(61% 0.08825 355.96)",
-          "oklch(72% 0.07501 355.96)",
-          "oklch(84% 0.05295 355.96)",
-          "oklch(95% 0.01765 355.96)"
-        ]
+        "canonical": "#fca8c7"
       },
       "sleeve-selection": {
         "role": "primary",
@@ -97,107 +47,37 @@
       "stage-graphite": {
         "role": "neutral",
         "displayName": "Stage graphite",
-        "canonical": "rgb(8% 8% 9.1%)",
-        "tonalRamp": [
-          "oklch(15% 0.00196 285.87)",
-          "oklch(26% 0.00363 285.87)",
-          "oklch(38% 0.00475 285.87)",
-          "oklch(49% 0.00559 285.87)",
-          "oklch(61% 0.00559 285.87)",
-          "oklch(72% 0.00475 285.87)",
-          "oklch(84% 0.00335 285.87)",
-          "oklch(95% 0.00112 285.87)"
-        ]
+        "canonical": "#13141a"
       },
       "panel-graphite": {
         "role": "neutral",
         "displayName": "Panel graphite",
-        "canonical": "rgb(10.5% 10.6% 11.9%)",
-        "tonalRamp": [
-          "oklch(15% 0.00224 282.36)",
-          "oklch(26% 0.00416 282.36)",
-          "oklch(38% 0.00544 282.36)",
-          "oklch(49% 0.00640 282.36)",
-          "oklch(61% 0.00640 282.36)",
-          "oklch(72% 0.00544 282.36)",
-          "oklch(84% 0.00384 282.36)",
-          "oklch(95% 0.00128 282.36)"
-        ]
+        "canonical": "#1b1d24"
       },
       "control-dark": {
         "role": "neutral",
         "displayName": "Control dark",
-        "canonical": "rgb(15.3% 15.4% 17.2%)",
-        "tonalRamp": [
-          "oklch(15% 0.00294 283.30)",
-          "oklch(26% 0.00546 283.30)",
-          "oklch(38% 0.00714 283.30)",
-          "oklch(49% 0.00840 283.30)",
-          "oklch(61% 0.00840 283.30)",
-          "oklch(72% 0.00714 283.30)",
-          "oklch(84% 0.00504 283.30)",
-          "oklch(95% 0.00168 283.30)"
-        ]
+        "canonical": "#2e3038"
       },
       "control-hover": {
         "role": "neutral",
         "displayName": "Control hover",
-        "canonical": "rgb(21% 21% 24%)",
-        "tonalRamp": [
-          "oklch(15% 0.00467 285.66)",
-          "oklch(26% 0.00867 285.66)",
-          "oklch(38% 0.01134 285.66)",
-          "oklch(49% 0.01334 285.66)",
-          "oklch(61% 0.01334 285.66)",
-          "oklch(72% 0.01134 285.66)",
-          "oklch(84% 0.00800 285.66)",
-          "oklch(95% 0.00267 285.66)"
-        ]
+        "canonical": "#30333b"
       },
       "tab-selected": {
         "role": "neutral",
         "displayName": "Tab selected",
-        "canonical": "rgb(18% 16% 19%)",
-        "tonalRamp": [
-          "oklch(15% 0.00542 314.57)",
-          "oklch(26% 0.01006 314.57)",
-          "oklch(38% 0.01315 314.57)",
-          "oklch(49% 0.01547 314.57)",
-          "oklch(61% 0.01547 314.57)",
-          "oklch(72% 0.01315 314.57)",
-          "oklch(84% 0.00928 314.57)",
-          "oklch(95% 0.00309 314.57)"
-        ]
+        "canonical": "#423442"
       },
       "transport-dark": {
         "role": "neutral",
         "displayName": "Transport dark",
-        "canonical": "rgb(19% 18% 20%)",
-        "tonalRamp": [
-          "oklch(15% 0.00339 308.11)",
-          "oklch(26% 0.00630 308.11)",
-          "oklch(38% 0.00823 308.11)",
-          "oklch(49% 0.00969 308.11)",
-          "oklch(61% 0.00969 308.11)",
-          "oklch(72% 0.00823 308.11)",
-          "oklch(84% 0.00581 308.11)",
-          "oklch(95% 0.00194 308.11)"
-        ]
+        "canonical": "#3b303d"
       },
       "status-dark": {
         "role": "neutral",
         "displayName": "Status dark",
-        "canonical": "rgb(12.6% 12.5% 14%)",
-        "tonalRamp": [
-          "oklch(15% 0.00252 288.92)",
-          "oklch(26% 0.00468 288.92)",
-          "oklch(38% 0.00612 288.92)",
-          "oklch(49% 0.00719 288.92)",
-          "oklch(61% 0.00719 288.92)",
-          "oklch(72% 0.00612 288.92)",
-          "oklch(84% 0.00432 288.92)",
-          "oklch(95% 0.00144 288.92)"
-        ]
+        "canonical": "#1b1d24"
       },
       "add-background": {
         "role": "neutral",
@@ -217,32 +97,12 @@
       "divider": {
         "role": "neutral",
         "displayName": "Divider",
-        "canonical": "rgb(22% 22% 24%)",
-        "tonalRamp": [
-          "oklch(15% 0.00308 285.93)",
-          "oklch(26% 0.00573 285.93)",
-          "oklch(38% 0.00749 285.93)",
-          "oklch(49% 0.00881 285.93)",
-          "oklch(61% 0.00881 285.93)",
-          "oklch(72% 0.00749 285.93)",
-          "oklch(84% 0.00529 285.93)",
-          "oklch(95% 0.00176 285.93)"
-        ]
+        "canonical": "#383b42"
       },
       "slider-track": {
         "role": "neutral",
         "displayName": "Slider track",
-        "canonical": "rgb(28% 26% 29%)",
-        "tonalRamp": [
-          "oklch(15% 0.00503 314.65)",
-          "oklch(26% 0.00935 314.65)",
-          "oklch(38% 0.01223 314.65)",
-          "oklch(49% 0.01438 314.65)",
-          "oklch(61% 0.01438 314.65)",
-          "oklch(72% 0.01223 314.65)",
-          "oklch(84% 0.00863 314.65)",
-          "oklch(95% 0.00288 314.65)"
-        ]
+        "canonical": "#454752"
       },
       "text-selection": {
         "role": "primary",
@@ -277,17 +137,7 @@
       "text-muted": {
         "role": "neutral",
         "displayName": "Text muted",
-        "canonical": "rgb(72% 72% 75%)",
-        "tonalRamp": [
-          "oklch(15% 0.00375 286.15)",
-          "oklch(26% 0.00697 286.15)",
-          "oklch(38% 0.00912 286.15)",
-          "oklch(49% 0.01072 286.15)",
-          "oklch(61% 0.01072 286.15)",
-          "oklch(72% 0.00912 286.15)",
-          "oklch(84% 0.00643 286.15)",
-          "oklch(95% 0.00214 286.15)"
-        ]
+        "canonical": "#babfc9"
       },
       "initial-1": {
         "role": "secondary",
@@ -561,7 +411,7 @@
       "refersTo": "button",
       "description": "Acción lateral. Traducción estática de las medidas lógicas del motor.",
       "html": "<button class=\"control\">Importar canciones</button>",
-      "css": ".control{width:368px;height:40px;padding:0 12px;border:0;background:#27272c;color:#f7f5f7;text-align:left;font:400 18px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #f7407a}"
+      "css": ".control{border-radius:6px;width:368px;height:40px;padding:0 12px;border:0;background:#2e3038;color:#f7f5f7;text-align:left;font:400 18px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
     },
     {
       "name": "Acción del escenario",
@@ -569,7 +419,7 @@
       "refersTo": "button-stage",
       "description": "Acción del escenario. Traducción estática de las medidas lógicas del motor.",
       "html": "<button class=\"control\">Añadir a la cola</button>",
-      "css": ".control{width:178px;height:44px;padding:0 12px;border:0;background:#a31447;color:#f7f5f7;text-align:left;font:400 17px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #ffb8d1}"
+      "css": ".control{border-radius:6px;width:178px;height:44px;padding:0 12px;border:0;background:#ab174f;color:#f7f5f7;text-align:left;font:400 17px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
     },
     {
       "name": "Pestaña activa",
@@ -577,7 +427,7 @@
       "refersTo": "navigation-selected",
       "description": "Pestaña activa. Traducción estática de las medidas lógicas del motor.",
       "html": "<button class=\"control\">Biblioteca</button>",
-      "css": ".control{width:92px;height:36px;padding:0 12px;border:0;border-bottom:2px solid #f7407a;background:#2e2930;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #f7407a}"
+      "css": ".control{border-radius:6px;width:92px;height:36px;padding:0 12px;border:0;background:#423442;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
     },
     {
       "name": "Restaurar panel",
@@ -585,15 +435,15 @@
       "refersTo": "panel-restore",
       "description": "Restaurar panel. Traducción estática de las medidas lógicas del motor.",
       "html": "<button class=\"control\">Mostrar panel</button>",
-      "css": ".control{width:154px;height:40px;padding:0 12px;border:0;background:#27272c;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #f7407a}"
+      "css": ".control{border-radius:6px;width:148px;height:40px;padding:0 12px;border:0;background:#2e3038;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
     },
     {
       "name": "Control de canto",
       "kind": "button",
       "refersTo": "transport",
       "description": "Control de canto. Traducción estática de las medidas lógicas del motor.",
-      "html": "<button class=\"control\">Pausar / continuar</button>",
-      "css": ".control{width:180px;height:36px;padding:0 12px;border:0;background:#302e33;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:2px solid #f7407a}"
+      "html": "<button class=\"control\">Pausar</button>",
+      "css": ".control{border-radius:6px;width:180px;height:36px;padding:0 12px;border:0;background:#302e33;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
     },
     {
       "name": "Fila de canción",
@@ -601,15 +451,15 @@
       "refersTo": "song-row",
       "description": "Fila de canción. Traducción estática de las medidas lógicas del motor.",
       "html": "<div class=\"row\"><button class=\"detail\"><span class=\"art\">AD</span><span>Canción de prueba<small>Artista de demostración</small></span></button><button aria-label=\"Añadir a la cola\" class=\"add\">+</button></div>",
-      "css": ".row,.detail{display:flex;align-items:center;gap:12px}.row{width:368px;height:60px;border-bottom:1px solid #38383d;background:#1b1b1e}.detail,.add{border:0;background:none;color:#f7f5f7;font:18px \"Noto Sans\",sans-serif;text-align:left}.detail{flex:1;padding:6px}.art{background:#5c2e47;display:grid;place-items:center;width:48px;height:48px}small{display:block;font-size:14px;color:#b8b8bf}.add{width:38px;height:38px;background:#382e38;text-align:center}button:focus-visible{outline:2px solid #fc91b8}"
+      "css": ".row,.detail{display:flex;align-items:center;gap:12px}.row{width:368px;height:60px;border-bottom:1px solid #38383d;background:#1b1d24}.detail,.add{border:0;background:none;color:#f7f5f7;font:18px \"Noto Sans\",sans-serif;text-align:left}.detail{flex:1;padding:6px}.art{background:#5c2e47;display:grid;place-items:center;width:46px;height:46px}small{display:block;font-size:14px;color:#babfc9}.add{border-radius:20px;width:43px;height:43px;background:#382e38;text-align:center}button:focus-visible{outline:1px solid #fca8c7}"
     },
     {
       "name": "Campo de búsqueda",
       "kind": "input",
       "refersTo": "input",
       "description": "Campo de búsqueda. Traducción estática de las medidas lógicas del motor.",
-      "html": "<label>Buscar canciones<input aria-label=\"Buscar canciones\" placeholder=\"Artista o título\"></label>",
-      "css": "label{display:block;background:#27272c;width:352px;height:50px;padding:8px;color:#b8b8bf;font:16px \"Noto Sans\",sans-serif}input{display:block;width:100%;margin-top:6px;border:0;background:transparent;font-size:18px;color:#f7f5f7;caret-color:#ffa8c7}"
+      "html": "<input aria-label=\"Buscar canciones\" placeholder=\"Artista, canción o enlace de YouTube\">",
+      "css": "input{box-sizing:border-box;width:368px;height:44px;padding:0 14px;border:0;border-radius:6px;background:#2e3038;font:18px \"Noto Sans\",sans-serif;color:#f7f5f7}input:focus{outline:1px solid #fca8c7}"
     }
   ],
   "narrative": {

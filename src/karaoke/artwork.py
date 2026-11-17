@@ -171,6 +171,9 @@ class ArtworkResolver:
         except (OSError, ValueError, AttributeError, TypeError):
             self.records = OrderedDict()
         self.queue = OrderedDict()
+        self.priority_keys = OrderedDict()
+        self.priority_query = ""
+        self.priority_streak = 0
         self.active = ""
         self.condition = threading.Condition()
         self.stop = threading.Event()
@@ -181,7 +184,7 @@ class ArtworkResolver:
         self.throttled = False
         self.next_musicbrainz = 0
 
-    def get(self, song, local_cover=""):
+    def get(self, song, local_cover="", *, search=""):
         if local_cover:
             return {**MISSING, "kind": "Portada del paquete", "path": local_cover}
         if not song.get("artist") or not song.get("title") or self.stop.is_set():
@@ -195,6 +198,16 @@ class ArtworkResolver:
             if record and record["until"] > time.time():
                 self.records.move_to_end(key)
                 return record["art"].copy()
+            if search and search != self.priority_query:
+                self.priority_query = search
+                self.priority_keys.clear()
+            if self.active != key and search and key not in self.priority_keys:
+                if key not in self.queue and len(self.queue) >= 32:
+                    evict = next((k for k in reversed(self.queue) if k not in self.priority_keys), None)
+                    if evict:
+                        del self.queue[evict]
+                if key in self.queue or len(self.queue) < 32:
+                    self.priority_keys[key] = None
             if self.active != key and key not in self.queue and len(self.queue) < 32:
                 self.queue[key] = dict(song)
                 if self.worker is None:
@@ -223,7 +236,15 @@ class ArtworkResolver:
                     self.condition.wait_for(lambda: self.queue or self.stop.is_set())
                     if self.stop.is_set():
                         break
-                    key, song = self.queue.popitem(last=False)
+                    # Give the current search first choice while admitting a waiting
+                    # carousel or library thumbnail after each three search images.
+                    if self.priority_keys and (self.priority_streak < 3 or len(self.priority_keys) == len(self.queue)):
+                        key, _ = self.priority_keys.popitem(last=False)
+                        self.priority_streak += 1
+                    else:
+                        key = next(k for k in self.queue if k not in self.priority_keys)
+                        self.priority_streak = 0
+                    song = self.queue.pop(key)
                     self.active = key
                 try:
                     self.throttled = False

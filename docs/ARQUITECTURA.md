@@ -18,6 +18,6 @@ La latencia de retorno depende de dispositivo/backend y tamaño de búfer; no se
 
 ## Fuentes y confianza
 
-Un mapa necesita notas válidas, audio legible y recursos dentro de su carpeta. Se rechazan escapes de rutas, dúos de partes distintas, tiempos inválidos y audio que termine antes del mapa. El hash del contenido identifica el paquete. Una instrumental es una variante distinta, nunca una sustitución del original. Se valida duración y estructura del paquete, pero el anfitrión debe revisar la coincidencia musical.
+Un mapa necesita notas válidas, audio legible y recursos dentro de su carpeta. Se rechazan escapes de rutas, dúos de partes distintas, tiempos inválidos y audio que termine antes del mapa. El hash del contenido identifica el paquete. Cada instrumental se conserva como variante de su original. Para audio obtenido de catálogos o asociado a un mapa suelto, el proceso de preparación contrasta la grabación con el mapa en tres tramos. Una comparación dudosa o un desfase impiden publicar esa combinación. Los paquetes oficiales se comprueban contra el manifiesto de su edición y los paquetes locales completos conservan las referencias a sus propios medios.
 
 La búsqueda por enlace obtiene metadatos para localizar candidatos. Elegir un candidato conserva los medios asociados por USDB; no reutiliza el enlace como si se hubiera demostrado compatibilidad. Se distinguen error de fuente, autenticación necesaria y búsqueda sin resultados.

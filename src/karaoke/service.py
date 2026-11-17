@@ -181,8 +181,8 @@ class Service(PackageImportMixin):
         start = max(0, min(selected - 2, len(songs) - 5))
         return songs[start:start + 5], selected - start if songs else 0, len(songs)
 
-    def cover(self, song):
-        return self.artwork.get(song, local_cover=cover_path(song) if song.get("chart") else "")
+    def cover(self, song, *, search=""):
+        return self.artwork.get(song, local_cover=cover_path(song) if song.get("chart") else "", search=search)
 
     def carousel_view(self):
         window, index, total = self.library_window()
@@ -1288,7 +1288,7 @@ class Service(PackageImportMixin):
         def song_row(song, label, sub, action="", add_action=""):
             rows.append({"kind": "song", "label": label, "sub": sub, "action": action,
                          "add_action": add_action, "artist": song.get("artist") or "",
-                         "cover": self.cover(song)["path"]})
+                         "cover": self.cover(song, search=self.query if self.page == "Buscar" else "")["path"]})
 
         def field(label, key, default="", secret=False):
             rows.append(
