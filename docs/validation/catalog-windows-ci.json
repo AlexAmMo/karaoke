@@ -1,0 +1,77 @@
+{
+  "scope": "Packaged Windows startup, frozen provider and synthetic singing cursor checks during panel collapse and restoration.",
+  "source_run": "https://github.com/AlexAmMo/karaoke/actions/runs/44180509776",
+  "platform": "Windows-2022Server-10.0.20348-SP0",
+  "passed": true,
+  "elapsed_seconds": 11.97,
+  "launcher_sha256": "030e0ce93352d3a4c2d036f13881f06d349997d1a67a9c71b34e337a0d822900",
+  "package_sha256": "b3aac2970a5257041f1abfe77d0603ad413fee39a26a005186a9ddcaef086ab3",
+  "frozen_provider_stdin": true,
+  "ci_audio_driver": "dummy",
+  "graphics_audio_log": [
+    "2026-11-17 21:37:00.966 INFO:   Using dummy driver [SDL]",
+    "2026-11-17 21:37:00.966 STATUS: #Input-Devices: 0 [SDL]",
+    "2026-11-17 21:37:01.372 INFO:   Actual OpenGL version 4.6 (Core Profile) Mesa 26.2.3 [InitRenderer]",
+    "2026-11-17 21:37:01.373 INFO:   OpenGL vendor Mesa [TRenderer_OpenGLBase.Create]",
+    "2026-11-17 21:37:01.373 INFO:   OpenGL renderer llvmpipe (LLVM 22.1.8, 256 bits) [TRenderer_OpenGLBase.Create]",
+    "2026-11-17 21:37:01.373 INFO:   OpenGL version 4.6 (Core Profile) Mesa 26.2.3 [TRenderer_OpenGLBase.Create]",
+    "2026-11-17 21:37:01.373 INFO:   Using Modern OpenGL renderer [TRenderer_OpenGL3.CheckVersion]"
+  ],
+  "source_revision": "6211f2c07e503f0be7bd203c8666b4de61288f8c",
+  "workflow_conclusion": "success",
+  "artifact": "windows-desktop-smoke",
+  "artifact_result_sha256": "f8e852713d91a51b991218bb820d2174e7e9d0ed87d7b0c354a4b46db94d03bf",
+  "engine_state": {
+    "state": "idle",
+    "cursor_visible": true,
+    "width": 1280,
+    "height": 800,
+    "drawable_width": 1280,
+    "drawable_height": 800,
+    "pixel_scale_x": 1.0,
+    "pixel_scale_y": 1.0,
+    "panel_collapsed": false,
+    "panel_width": 435,
+    "stage_width": 845,
+    "synthetic": true,
+    "error": "",
+    "devices": []
+  },
+  "ci_graphics_scope": "MSYS2 Mesa llvmpipe graphics driver added only to a disposable CI copy. SDL dummy audio. Driver DLLs are absent from the release ZIP; no physical audio or GPU test.",
+  "physical_hidpi_tested": false,
+  "physical_audio_tested": false,
+  "physical_gpu_tested": false,
+  "windows_full_session_tested": false,
+  "singing_cursor": [
+    {
+      "state": "singing",
+      "position": 1.6448662131519272,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        500,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 1.858082766439909,
+      "cursor_visible": true,
+      "panel_collapsed": true,
+      "scores": [
+        750,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 2.0628480725623586,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        750,
+        0
+      ]
+    }
+  ]
+}

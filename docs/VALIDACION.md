@@ -78,9 +78,9 @@ Windows compila, empaqueta y supera el arranque/cierre del motor corregido en la
 
 ## Repertorio reproducible
 
-[REPERTORIO-VALIDACION.csv](REPERTORIO-VALIDACION.csv) contiene 40 candidatos únicos: 20 en inglés y 20 en español, incluyendo cuatro canciones de Eminem y rap en español. Es una selección de trabajo para la fase 1 del plan, no una medida de cobertura del catálogo. Todas las filas están `pendiente`; `mapa_id` y `resultado` permanecen vacíos porque todavía no se ha realizado la comprobación autenticada.
+[REPERTORIO-VALIDACION.csv](REPERTORIO-VALIDACION.csv) contiene 40 candidatos únicos: 20 en inglés y 20 en español, incluyendo cuatro canciones de Eminem y rap en español. Es una selección de trabajo para la fase 1 del plan, no una medida de cobertura del catálogo. Los resultados del ensayo autenticado del 17 de noviembre figuran en cada fila. El estado `paquete_validado` registra preparación técnica; la escucha y la comprobación de sincronía se miden por separado.
 
-Cuando se disponga de acceso a USDB, se seguirá el mismo recorrido para cada fila:
+El recorrido de validación para cada fila es el siguiente.
 
 1. Buscar artista y título; registrar en `mapa_id` el identificador y la URL de la ficha elegida. Identificar la edición o grabación concreta antes de preparar sus medios.
 2. Preparar la canción con voz original y comprobar la descarga automática, los recursos, las letras y el mapa. Revisar inicio, centro y final; un audio con el mismo título no acredita compatibilidad.
@@ -107,3 +107,19 @@ La revisión visual independiente y su veredicto se registran en [ps3-finish-rev
 La compilación final está instalada en `/Users/ton/Applications/Karaoke.app` y se ha abierto en modo normal a 1280×800. Motor SHA-256 `5c24b3c387ca64081e9aacf8859f2beb9a3a2e3a25f381a12fdf8c83da87105d`. Los dos archivos SQLite conservan sus hashes al sustituir el bundle. La copia previa a este rediseño se conserva en `build/before-ps3-install/Karaoke.app`; el paquete intermedio en `build/before-ps3-final-install/Karaoke.app`.
 
 Windows supera compilación, empaquetado, arranque/cierre y proveedor congelado en la [ejecución 43534469382](https://github.com/AlexAmMo/karaoke/actions/runs/43534469382), mismo runtime `6be1f3e`. El [informe de Windows PS3](validation/display-ps3-windows-ci.json) registra 1280×800 a escala 1×, lateral abierto de 435 y escenario de 845. Usa Mesa llvmpipe y SDL dummy en una copia desechable de CI. No acredita aspecto visual, monitor HiDPI, hardware de audio ni una sesión completa de canto en Windows.
+
+## Catálogo, carátulas y flecha del sistema · 17 de noviembre de 2026
+
+Las mismas 40 consultas libres «artista título» pasaron de 0 coincidencias exactas con los filtros anteriores a 32 con el buscador actual, 20/20 en inglés y 12/20 en español. Se comparó la primera página y se exigió coincidencia normalizada de artista y título. El resultado anterior es específico de esa sintaxis: la búsqueda antigua con guion sí encontraba buena parte de la muestra. Se registraron los identificadores por canción. [Consultas antes y después](validation/catalog-queries.json)
+
+Con cuenta real se descargó el audio asociado a una edición por título en un entorno temporal. 30/40 superaron el análisis técnico de mapa, duración, última nota y audio legible (19/20 en inglés y 11/20 en español). Para «Someone Like You» y «Rosas», el proveedor rechazó el recurso alternativo. Seis resultados de UltraStar España amplían el descubrimiento estricto a 38/40, con importación asistida. «Despacito» tiene una edición por comprobar y «Es épico» una petición documentada. La muestra de 40 no recibió escucha manual ni evaluación de sincronía durante canto. [Preparaciones por canción](validation/catalog-packages.json) · [Fuentes asistidas](validation/catalog-assisted.md)
+
+Los dos paquetes opcionales se prepararon sin cuenta, con licencia íntegra y portada en la biblioteca después de limpiar la descarga temporal. «Northern Star» se reprodujo durante 190 segundos en Deluxe y llegó a resultados con 1720 puntos de entrada sintética. [Sesión de canto](validation/catalog-starter-session.json)
+
+La suite integrada nativa de macOS superó 21 comprobaciones. Durante el canto, la consulta a SDL devolvió cursor visible con el panel abierto, plegado y reabierto, mientras continuaban audio, puntuación y cola. El reemplazo del bundle mantuvo tres IDs de biblioteca, preferencias y turnos. En el arranque normal las tres canciones existentes obtuvieron su carátula de USDB. Se inspeccionaron las vistas de biblioteca, búsqueda y panel plegado en Retina. La prueba física del puntero y micrófono queda pendiente. [Sesión con el motor actualizado](validation/catalog-ui-native-macos.json)
+
+USDB invalida la sesión anterior de una cuenta cuando se autentica de nuevo. La app reutiliza una sesión efímera para búsquedas y preparaciones. En el ensayo real, dos búsquedas simultáneas encontraron sus mapas. Mientras se preparaba «Lose Yourself», otra búsqueda encontró «Dancing Queen» y el paquete terminó correctamente. [Prueba concurrente con cuenta real](validation/catalog-concurrent-search.json)
+
+El paquete macOS arm64 de la revisión `6211f2c` pasó la verificación de firma y se instaló conservando los tres temas, cinco turnos, preferencias y acceso directo del escritorio. El paquete comprimido ocupa 192 MB y sus binarios requieren macOS 26. Al arrancar desde Finder, macOS solicitó de nuevo el permiso de micrófono asociado a esta compilación con firma ad hoc. Las pruebas de software suman 92 casos aprobados. [Auditoría del paquete instalado](validation/catalog-macos-package.json)
+
+Windows x64 compiló y arrancó el paquete de la misma revisión. Durante canto con entrada sintética, el cursor SDL estuvo visible con el panel abierto, plegado y abierto de nuevo. La reproducción avanzó en los tres estados. El entorno de CI empleó gráficos por software y audio simulado. [Informe del cursor en Windows](validation/catalog-windows-ci.json) · [Ejecución en GitHub](https://github.com/AlexAmMo/karaoke/actions/runs/44180509776)

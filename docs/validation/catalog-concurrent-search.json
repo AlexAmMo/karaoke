@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-17",
+  "scope": "Actual provider subprocesses and authentication. Scratch data directory, local database read-only. Media disposed after validation, no listener assessment.",
+  "simultaneous_searches": {
+    "english_map": 24968,
+    "spanish_map": 17402,
+    "passed": true
+  },
+  "search_during_preparation": {
+    "search_map": 3289,
+    "prepared_map": 24968,
+    "duration_seconds": 328.26,
+    "overlap_seconds": 0.566,
+    "passed": true
+  },
+  "elapsed_seconds": 11.81
+}

@@ -1,0 +1,22 @@
+{
+  "installed": true,
+  "preserved_library_entries": 3,
+  "preserved_turns": 5,
+  "preferences_verified": true,
+  "desktop_link": true,
+  "launcher_sha256": "9941acd7fe003a8a9702d40f25be4615348be3c8b0fec678e2a8177b7bfcccce",
+  "runtime": "6211f2c",
+  "archive_bytes": 191621781,
+  "audit": {
+    "high_resolution_capable": {
+      "launcher": true,
+      "engine": true
+    },
+    "mach_o_files": 189,
+    "external_absolute_references": [],
+    "minimum_macos_from_binaries": "26.0",
+    "arch": "arm64",
+    "physical_audio_validated": false
+  },
+  "archive_sha256": "4a3419641c4b3ff02b551ed89d2d803f06f4174bd920406059bcbe64787a3fe5"
+}

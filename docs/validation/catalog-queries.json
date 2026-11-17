@@ -1,0 +1,490 @@
+{
+  "date": "2026-11-17",
+  "method": "40 consultas autenticadas artista título sin guion. Primera página por filtro; coincidencia por artista y título normalizados. Comparación anterior reusa los dos filtros originales y su corte a 100. La consulta con guion es una referencia adicional. Cuenta fichas, no audio ni validación de canto.",
+  "results": [
+    {
+      "artist": "Eminem",
+      "title": "Lose Yourself",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        24968
+      ],
+      "explicit_query_ids": [
+        "24968"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Eminem",
+      "title": "Without Me",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        28912
+      ],
+      "explicit_query_ids": [
+        "28912"
+      ],
+      "candidates_seen": 2
+    },
+    {
+      "artist": "Eminem",
+      "title": "The Real Slim Shady",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        28851
+      ],
+      "explicit_query_ids": [
+        "28851"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Eminem",
+      "title": "Mockingbird",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        443
+      ],
+      "explicit_query_ids": [
+        "443"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Queen",
+      "title": "Bohemian Rhapsody",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        3715
+      ],
+      "explicit_query_ids": [
+        "3715"
+      ],
+      "candidates_seen": 2
+    },
+    {
+      "artist": "Queen",
+      "title": "Don't Stop Me Now",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        6040
+      ],
+      "explicit_query_ids": [],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "ABBA",
+      "title": "Dancing Queen",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        3289
+      ],
+      "explicit_query_ids": [
+        "3289"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "ABBA",
+      "title": "Mamma Mia",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        4977
+      ],
+      "explicit_query_ids": [
+        "4977"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Adele",
+      "title": "Rolling in the Deep",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        25579
+      ],
+      "explicit_query_ids": [
+        "25579"
+      ],
+      "candidates_seen": 2
+    },
+    {
+      "artist": "Adele",
+      "title": "Someone Like You",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        14953
+      ],
+      "explicit_query_ids": [
+        "14953"
+      ],
+      "candidates_seen": 2
+    },
+    {
+      "artist": "The Beatles",
+      "title": "Hey Jude",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        2362
+      ],
+      "explicit_query_ids": [
+        "2362"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "The Beatles",
+      "title": "Let It Be",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        3839
+      ],
+      "explicit_query_ids": [
+        "3839"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Michael Jackson",
+      "title": "Billie Jean",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        3638
+      ],
+      "explicit_query_ids": [
+        "3638"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Oasis",
+      "title": "Wonderwall",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        3695
+      ],
+      "explicit_query_ids": [
+        "3695"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Coldplay",
+      "title": "Viva La Vida",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        25173
+      ],
+      "explicit_query_ids": [
+        "25173"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Linkin Park",
+      "title": "In the End",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        4738
+      ],
+      "explicit_query_ids": [
+        "4738"
+      ],
+      "candidates_seen": 5
+    },
+    {
+      "artist": "Bon Jovi",
+      "title": "Livin' on a Prayer",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        3309
+      ],
+      "explicit_query_ids": [],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Ed Sheeran",
+      "title": "Perfect",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        21179
+      ],
+      "explicit_query_ids": [
+        "21179"
+      ],
+      "candidates_seen": 3
+    },
+    {
+      "artist": "Rihanna",
+      "title": "Diamonds",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        14739
+      ],
+      "explicit_query_ids": [
+        "14739"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Lady Gaga",
+      "title": "Bad Romance",
+      "language": "inglés",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        11052
+      ],
+      "explicit_query_ids": [
+        "11052"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Estopa",
+      "title": "Como Camarón",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        17402
+      ],
+      "explicit_query_ids": [
+        "17402"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Melendi",
+      "title": "Caminando por la vida",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [],
+      "explicit_query_ids": [],
+      "candidates_seen": 0
+    },
+    {
+      "artist": "La Oreja de Van Gogh",
+      "title": "Rosas",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        1086
+      ],
+      "explicit_query_ids": [
+        "1086"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "El Canto del Loco",
+      "title": "Zapatillas",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        5217
+      ],
+      "explicit_query_ids": [
+        "5217"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Fito & Fitipaldis",
+      "title": "Soldadito marinero",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [],
+      "explicit_query_ids": [],
+      "candidates_seen": 0
+    },
+    {
+      "artist": "Héroes del Silencio",
+      "title": "Entre dos tierras",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        2650
+      ],
+      "explicit_query_ids": [
+        "2650"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Hombres G",
+      "title": "Devuélveme a mi chica",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [],
+      "explicit_query_ids": [],
+      "candidates_seen": 0
+    },
+    {
+      "artist": "Mecano",
+      "title": "Hijo de la luna",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        15462
+      ],
+      "explicit_query_ids": [
+        "15462"
+      ],
+      "candidates_seen": 2
+    },
+    {
+      "artist": "Shakira",
+      "title": "Antología",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        23546
+      ],
+      "explicit_query_ids": [
+        "23546"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Shakira",
+      "title": "Suerte",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        325
+      ],
+      "explicit_query_ids": [
+        "325"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Juanes",
+      "title": "La camisa negra",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        367
+      ],
+      "explicit_query_ids": [
+        "367"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Maná",
+      "title": "Rayando el sol",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        25609
+      ],
+      "explicit_query_ids": [
+        "25609"
+      ],
+      "candidates_seen": 3
+    },
+    {
+      "artist": "Luis Fonsi",
+      "title": "Despacito",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [],
+      "explicit_query_ids": [],
+      "candidates_seen": 2
+    },
+    {
+      "artist": "Daddy Yankee",
+      "title": "Gasolina",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        22590
+      ],
+      "explicit_query_ids": [
+        "22590"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Nino Bravo",
+      "title": "Libre",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [],
+      "explicit_query_ids": [],
+      "candidates_seen": 0
+    },
+    {
+      "artist": "Joan Manuel Serrat",
+      "title": "Mediterráneo",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [],
+      "explicit_query_ids": [],
+      "candidates_seen": 0
+    },
+    {
+      "artist": "Amaral",
+      "title": "Sin ti no soy nada",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        82
+      ],
+      "explicit_query_ids": [
+        "82"
+      ],
+      "candidates_seen": 1
+    },
+    {
+      "artist": "Nach",
+      "title": "Efectos vocales",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [],
+      "explicit_query_ids": [],
+      "candidates_seen": 0
+    },
+    {
+      "artist": "Canserbero",
+      "title": "Es épico",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [],
+      "explicit_query_ids": [],
+      "candidates_seen": 0
+    },
+    {
+      "artist": "Celia Cruz",
+      "title": "La vida es un carnaval",
+      "language": "español",
+      "previous_free_query_exact": 0,
+      "current_free_query_map_ids": [
+        9777
+      ],
+      "explicit_query_ids": [
+        "9777"
+      ],
+      "candidates_seen": 1
+    }
+  ]
+}
