@@ -40,6 +40,9 @@ var
   PanelToggleFocused: boolean = false;
   StageFocused: boolean = false;
   AddFocused: boolean = false;
+  KeyboardFocusVisible: boolean = true;
+  HeldAdd, HoverAdd, PendingAdd, PendingAddToken, ConfirmedAdd: string;
+  ConfirmedAt: cardinal;
   ResultsDismissed: boolean = false;
   CoverTimes: array[0..31] of qword;
   CoverUse: qword = 0;
@@ -83,6 +86,7 @@ procedure PublishSearch; forward;
 procedure SetPanelCollapsed(Collapsed: boolean);
 begin
   if PanelCollapsed=Collapsed then Exit;
+  HeldAdd:=''; HoverAdd:='';
   PanelCollapsed:=Collapsed; PanelHover:=false; Hover:=-1; StageFocused:=false;
   // Hiding the panel is not submitting/cancelling an edit. Keep its value and
   // action-based focus while suspending text input until it becomes visible.
@@ -121,6 +125,27 @@ begin
     SaveJSON(Root+'/events/'+Format('%.10d-%.8d',[SDL_GetTicks,Sequence])+'.json',J);
   finally J.Free; end;
 end;
+function AddAction(const Action: string): boolean;
+begin
+  Result:=(Action='enqueue') or (Pos('enqueue:',Action)=1) or
+    (Pos('result:best:',Action)=1) or (Pos('result:queue:',Action)=1);
+end;
+function RowAddKey(const Action: string): string;
+begin Result:=Page+'/'+Action; end;
+procedure RequestAdd(const Action,Control: string);
+var ID:TGUID;
+begin
+  if not AddAction(Action) then Exit;
+  if CreateGUID(ID)<>0 then Exit;
+  PendingAddToken:=GUIDToString(ID);
+  PendingAdd:=Control; ConfirmedAdd:='';
+  Emit(Action,PendingAddToken);
+end;
+function AddConfirmed(const Control: string): boolean;
+begin Result:=(Control<>'') and (ConfirmedAdd=Control) and (SDL_GetTicks-ConfirmedAt<1000); end;
+function AddHeld(const Control: string): boolean;
+begin Result:=(Control<>'') and (HeldAdd=Control) and (HoverAdd=Control); end;
+
 procedure ShellCaptureStart;
 var I: integer; Fmt: TAudioFormatInfo;
 begin
@@ -301,12 +326,16 @@ begin
       EnterSearch:=(J.Get('page','')='Buscar') and (Page<>'Buscar');
       if J.Get('page','')<>Page then
       begin
-        Page:=J.Get('page','');
+        Page:=J.Get('page',''); HeldAdd:=''; HoverAdd:=''; ConfirmedAdd:='';
         // Tabs keep their focus on navigation. Page-local controls do not.
         if (Focus< -10) or (Focus> -7) then begin Focus:=-1; StageFocused:=false; FocusKey:=''; end;
         EditAction:=''; EditValue:=''; Composition:=''; EditSelectedAll:=false; Scroll:=0; SDL_StopTextInput;
       end;
       View.Free; View:=J;
+      if (PendingAddToken<>'') and (View.Get('added_token','')=PendingAddToken) then
+      begin
+        ConfirmedAdd:=PendingAdd; ConfirmedAt:=NowTick; PendingAddToken:='';
+      end;
       if EnterSearch and not PanelCollapsed then
         for I:=0 to View.Arrays['rows'].Count-1 do
         begin
@@ -416,6 +445,13 @@ begin
 end;
 function HasCarousel: boolean;
 begin Result:=Assigned(Carousel) and (Carousel.Arrays['songs'].Count>0); end;
+function HeroAddAction: string;
+var C:TJSONObject; A:TJSONArray; I:integer;
+begin
+  Result:=''; if not HasCarousel then Exit;
+  C:=Carousel; A:=C.Arrays['songs']; I:=EnsureRange(C.Get('index',0),0,A.Count-1);
+  Result:='enqueue:'+TJSONObject(A[I]).Get('id','');
+end;
 function ShowingResults: boolean;
 begin Result:=(Token<>'') and not ResultsDismissed; end;
 type
@@ -545,6 +581,11 @@ begin
   Renderer.DrawLine(X-D*3,Y-6,X+D*3,Y,0,2,0.95,0.94,0.94,1);
   Renderer.DrawLine(X+D*3,Y,X-D*3,Y+6,0,2,0.95,0.94,0.94,1);
 end;
+procedure DrawAddCheck(X,Y:single);
+begin
+  Renderer.DrawLine(X-7,Y,X-2,Y+5,0,2.2,1,0.91,0.94,1);
+  Renderer.DrawLine(X-2,Y+5,X+7,Y-5,0,2.2,1,0.91,0.94,1);
+end;
 procedure PrimaryButton(const B: TBox; const Caption: UTF8String; Focused: boolean);
 begin
   if Focused then FocusInset(B);
@@ -610,7 +651,12 @@ begin
     B:=HeroButton(W); X:=B.X; TextW:=W-X-34; TitleSize:=Min(45,TextW/6.3);
     LabelAt(X,Art.Y+Art.H*0.17,Min(20,TextW/10),Song.Get('artist',''),TextW,true);
     TitleAt(X,Art.Y+Art.H*0.30,TitleSize,TextW,Song.Get('title',''));
-    PrimaryButton(B,'Añadir a la cola',StageFocused);
+    if StageFocused and KeyboardFocusVisible then FocusInset(B);
+    if AddHeld('hero/'+HeroAddAction) then Surface(B,7,0.52,0.08,0.25)
+    else Surface(B,7,0.67,0.09,0.31);
+    if AddConfirmed('hero/'+HeroAddAction) then
+    begin DrawAddCheck(B.X+23,B.Y+B.H/2); LabelAt(B.X+39,B.Y+13,16,'En la cola',B.W-47,false,true); end
+    else LabelAt(B.X+17,B.Y+13,16,'Añadir a la cola',B.W-25,false,true);
     CountText:=IntToStr(C.Get('total',Songs.Count));
     if CountText='1' then CountText:=CountText+' canción' else CountText:=CountText+' canciones';
     Rect(40,SleeveBox(W,0).Y-44,W-80,1,0.18,0.19,0.22);
@@ -719,20 +765,28 @@ begin
   Result:=Copy(Value,L,Length(Value));
 end;
 procedure SongRow(R: TJSONObject; Y: single; Focused,Hovered: boolean);
-var B:TBox; TextW:single;
+var B:TBox; TextW:single; Control:string;
 begin
+  Control:=RowAddKey(R.Get('add_action',''));
   B:=Box(16,Y,368,56);
   if Focused and not AddFocused then FocusInset(B);
-  if (Focused and not AddFocused) or Hovered then Surface(B,6,0.18,0.19,0.22)
+  if (Focused and not AddFocused) or (Hovered and (HoverAdd<>Control)) then Surface(B,6,0.18,0.19,0.22)
   else Rect(82,Y+58,296,1,0.19,0.20,0.23);
   Artwork(R,Box(22,Y+5,46,46));
   TextW:=295;
   if R.Get('add_action','')<>'' then
   begin
     TextW:=246; B:=AddBox(Y);
-    if Focused and AddFocused then FocusInset(B);
-    Surface(B,20,0.22,0.18,0.23);
-    Rect(B.X+14,B.Y+20,15,2,1,0.76,0.83); Rect(B.X+20.5,B.Y+13.5,2,15,1,0.76,0.83);
+    if Focused and AddFocused and KeyboardFocusVisible then
+      Surface(Box(B.X-1.5,B.Y-1.5,B.W+3,B.H+3),(B.W+3)/2,0.99,0.66,0.78);
+    if AddHeld(Control) then Surface(B,B.W/2,0.35,0.19,0.27)
+    else if HoverAdd=Control then Surface(B,B.W/2,0.30,0.21,0.27)
+    else Surface(B,B.W/2,0.22,0.18,0.23);
+    if AddConfirmed(Control) then DrawAddCheck(B.X+B.W/2,B.Y+B.H/2)
+    else begin
+      Rect(B.X+14,B.Y+20.5,15,2,1,0.76,0.83);
+      Rect(B.X+20.5,B.Y+14,2,15,1,0.76,0.83);
+    end;
   end;
   LabelAt(82,Y+7,17,R.Get('label',''),TextW,false,true);
   LabelAt(82,Y+32,14,R.Get('sub',''),TextW,true);
@@ -774,7 +828,7 @@ begin
 end;
 
 procedure DrawControl(R:TJSONObject; Y:single; H:integer; Focused,Hovered:boolean);
-var Kind,Style,Sub: UTF8String; B:TBox; X,Value:single;
+var Kind,Style,Sub,Caption,Control: UTF8String; B:TBox; X,Value:single;
 begin
   Kind:=R.Get('kind',''); Style:=R.Get('style',''); Sub:=R.Get('sub','');
   if Kind='song' then begin SongRow(R,Y,Focused,Hovered); Exit; end;
@@ -798,13 +852,20 @@ begin
     Exit;
   end;
   B:=Box(16,Y,368,H-6); X:=26;
-  if Focused then FocusInset(B);
-  if Style='primary' then Surface(B,6,0.63,0.085,0.29)
+  Control:=RowAddKey(R.Get('action','')); Caption:=R.Get('label','');
+  if Focused and (KeyboardFocusVisible or not AddAction(R.Get('action',''))) then FocusInset(B);
+  if (Style='primary') and AddHeld(Control) then Surface(B,6,0.52,0.08,0.25)
+  else if Style='primary' then Surface(B,6,0.63,0.085,0.29)
   else if Hovered or Focused then Surface(B,6,0.19,0.20,0.23)
   else if Style='' then Rect(22,Y+H-5,356,1,0.18,0.19,0.22);
   if Style='back' then begin Chevron(X+3,Y+16,false); X:=X+18; end;
   if (Style='link') or (Style='back') then LabelAt(X,Y+9,15,R.Get('label',''),340,true)
-  else if Style='primary' then LabelAt(X,Y+9,17,R.Get('label',''),341,false,true)
+  else if Style='primary' then
+  begin
+    if AddConfirmed(Control) then begin DrawAddCheck(X+8,Y+18); Caption:='En la cola'; end;
+    if AddConfirmed(Control) then LabelAt(X+24,Y+9,17,Caption,317,false,true)
+    else LabelAt(X,Y+9,17,Caption,341,false,true);
+  end
   else begin
     LabelAt(X,Y+9,16,R.Get('label',''),321);
     Chevron(367,Y+(H-6)/2,true);
@@ -941,13 +1002,16 @@ begin
   end;
   if Kind='song' then
   begin
-    if AddFocused or (R.Get('action','')='') then Emit(R.Get('add_action',''))
+    if AddFocused or (R.Get('action','')='') then RequestAdd(R.Get('add_action',''),RowAddKey(R.Get('add_action','')))
     else Emit(R.Get('action',''));
     Exit;
   end;
   if Kind='input' then
   begin EditAction:=R.Get('action',''); EditValue:=R.Get('value',''); LastSubmitted:=EditValue; Composition:=''; SDL_StartTextInput; end
-  else if Kind='button' then Emit(R.Get('action',''))
+  else if Kind='button' then begin
+    if AddAction(R.Get('action','')) then RequestAdd(R.Get('action',''),RowAddKey(R.Get('action','')))
+    else Emit(R.Get('action',''));
+  end
   else if (Kind='slider') and PointerAction then Emit(R.Get('action',''),IntToStr(Round(EnsureRange((X-24)/290*100,0.0,100.0))));
 end;
 procedure OpenTab(I:integer);
@@ -968,7 +1032,7 @@ begin
   if Focus= -12 then
   begin
     if ShowingResults then ResultsDismissed:=true
-    else if HasCarousel then Emit('carousel:enqueue')
+    else if HasCarousel then RequestAdd(HeroAddAction,'hero/'+HeroAddAction)
     else begin SetPanelCollapsed(false); Emit('page:Buscar'); end;
     Exit;
   end;
@@ -1043,21 +1107,46 @@ begin
     begin SetPanelCollapsed(false); StageFocused:=false; Emit('page:Buscar'); end;
     Exit;
   end;
-  if Inside(HeroButton(W),PX,PY) then
-  begin Emit('carousel:enqueue'); Exit; end;
   C:=Carousel; A:=C.Arrays['songs'];
   if C.Get('has_previous',false) and Inside(ArrowBox(W,false),PX,PY) then Emit('carousel:previous')
   else if C.Get('has_next',false) and Inside(ArrowBox(W,true),PX,PY) then Emit('carousel:next')
   else for I:=0 to A.Count-1 do if Inside(SleeveBox(W,I),PX,PY) then
   begin Emit('carousel:select:'+TJSONObject(A[I]).Get('id','')); Exit; end;
 end;
+// Resolve the exact visible control again on release: scrolling, sorting, or an
+// asynchronous search can replace the song under a stationary pointer.
+function PointerAdd(PX,PY:integer; out Action:string; out Row:integer):string;
+var W,I,TopY:integer; X,Y:single; R:TJSONObject;
+begin
+  Action:=''; Result:=''; Row:=-1; W:=ScreenW-SideWidth;
+  if PX<W then begin
+    if not Singing and not ShowingResults and HasCarousel and Inside(HeroButton(W),PX,PY) then
+    begin Action:=HeroAddAction; Result:='hero/'+Action; end;
+    Exit;
+  end;
+  if PanelCollapsed then Exit;
+  X:=(PX-W)*400/SideWidth; Y:=PY*400/SideWidth;
+  Row:=RowAt(Round(X),Round(Y)); if Row<0 then Exit;
+  R:=TJSONObject(View.Arrays['rows'][Row]); TopY:=ContentTop-Scroll;
+  for I:=0 to Row-1 do Inc(TopY,RowHeight(TJSONObject(View.Arrays['rows'][I])));
+  if R.Get('kind','')='song' then begin
+    if Inside(AddBox(TopY),X,Y) then Action:=R.Get('add_action','');
+  end else if (R.Get('kind','')='button') and Inside(Box(16,TopY,368,RowHeight(R)-6),X,Y) then
+    Action:=R.Get('action','');
+  if AddAction(Action) then Result:=RowAddKey(Action) else Action:='';
+end;
+
 function ShellEvent(var Event: TSDL_Event): boolean;
-var X,Y,P,I: integer; A: TJSONArray; R: TJSONObject; Clip: PAnsiChar; Key: cardinal;
+var Action,Control:string; X,Y,P,I: integer; A: TJSONArray; R: TJSONObject; Clip: PAnsiChar; Key: cardinal;
 begin
   Result:=false; if not ShellEnabled or not Started then Exit;
   if (Event.type_=SDL_WINDOWEVENT) and (Event.window.event=SDL_WINDOWEVENT_FOCUS_GAINED) then Display.SetCursor;
+  if (Event.type_=SDL_WINDOWEVENT) and
+     ((Event.window.event=SDL_WINDOWEVENT_FOCUS_LOST) or (Event.window.event=SDL_WINDOWEVENT_LEAVE)) then
+  begin HeldAdd:=''; HoverAdd:=''; end;
   if Event.type_=SDL_MOUSEMOTION then
   begin
+    HoverAdd:=PointerAdd(Event.motion.x,Event.motion.y,Action,I);
     X:=Event.motion.x; Y:=Event.motion.y; PanelHover:=false; Hover:=-1;
     if PanelCollapsed then PanelHover:=Inside(RestoreBox,X,Y)
     else if X>=ScreenW-SideWidth then
@@ -1067,8 +1156,25 @@ begin
       Hover:=RowAt(X,Y);
     end;
   end;
+  if (Event.type_=SDL_MOUSEBUTTONUP) and (Event.button.button=SDL_BUTTON_LEFT) and (HeldAdd<>'') then
+  begin
+    Control:=PointerAdd(Event.button.x,Event.button.y,Action,I);
+    if Control=HeldAdd then RequestAdd(Action,Control);
+    HoverAdd:=Control; HeldAdd:=''; Result:=true; Exit;
+  end;
   if Event.type_=SDL_MOUSEBUTTONDOWN then
   begin
+    KeyboardFocusVisible:=false;
+    Control:=PointerAdd(Event.button.x,Event.button.y,Action,I);
+    if Control<>'' then begin
+      if Event.button.button=SDL_BUTTON_LEFT then begin
+        CommitEdit; HeldAdd:=Control; HoverAdd:=Control; StageFocused:=I<0;
+        PanelToggleFocused:=false; AddFocused:=(I>=0) and (TJSONObject(View.Arrays['rows'][I]).Get('kind','')='song');
+        if I<0 then Focus:=-12 else Focus:=I;
+        LastMouseX:=Event.button.x; LastMouseY:=Event.button.y; Inc(MouseClicks);
+      end;
+      Result:=true; Exit;
+    end;
     LastMouseX:=Event.button.x; LastMouseY:=Event.button.y; Inc(MouseClicks);
     if StagePointer(Event.button.x,Event.button.y) then begin Result:=true; Exit; end;
     StageFocused:=false;
@@ -1121,7 +1227,8 @@ begin
   if (Event.type_=SDL_KEYDOWN) or (Event.type_=SDL_KEYUP) then
   begin
     Result:=true; if Event.type_=SDL_KEYUP then Exit;
-    Key:=Event.key.keysym.sym;
+    Key:=Event.key.keysym.sym; KeyboardFocusVisible:=true;
+    if (Event.key._repeat<>0) and ((Key=SDLK_RETURN) or (Key=SDLK_PLUS) or (Key=SDLK_SPACE)) and (EditAction='') then Exit;
     if (Event.key.keysym._mod and (KMOD_CTRL or KMOD_GUI))<>0 then
     begin
       if Key=SDLK_q then begin Display.NextScreenWithCheck:=nil; Display.CheckOK:=true; Exit; end;
@@ -1155,7 +1262,7 @@ begin
       if (Key=SDLK_RETURN) and StageFocused then
       begin
         if ShowingResults then ResultsDismissed:=true
-        else if HasCarousel then Emit('carousel:enqueue')
+        else if HasCarousel then RequestAdd(HeroAddAction,'hero/'+HeroAddAction)
         else begin SetPanelCollapsed(false); Emit('page:Buscar'); end;
         Exit;
       end;
@@ -1181,7 +1288,7 @@ begin
     begin
       if Assigned(View) and (Focus>=0) and (Focus<View.Arrays['rows'].Count) then
       begin R:=TJSONObject(View.Arrays['rows'][Focus]); if (R.Get('kind','')='song') and (R.Get('add_action','')<>'') and (Key<>SDLK_LEFT) then
-        begin AddFocused:=true; if Key=SDLK_PLUS then Emit(R.Get('add_action','')); end
+        begin AddFocused:=true; if Key=SDLK_PLUS then RequestAdd(R.Get('add_action',''),RowAddKey(R.Get('add_action',''))); end
         else if (R.Get('kind','')='song') and (Key=SDLK_LEFT) then AddFocused:=false
         else if (R.Get('kind','')='slider') and (Key<>SDLK_PLUS) then begin I:=5; if Key=SDLK_LEFT then I:=-5; Emit(R.Get('action',''),IntToStr(EnsureRange(R.Get('value',0)+I,0,100))); end; end;
     end

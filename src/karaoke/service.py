@@ -94,6 +94,7 @@ class Service(PackageImportMixin):
                 p.unlink()
         for name in ("engine.json", "view.json"):
             (self.ipc / name).unlink(missing_ok=True)
+        self.added_token = ""
         self.page = "Buscar"
         if self.store.rows("SELECT 1 FROM songs LIMIT 1"):
             self.page = "Biblioteca"
@@ -850,6 +851,13 @@ class Service(PackageImportMixin):
             stderr=subprocess.DEVNULL,
         )
 
+    def confirm_added(self, token):
+        if token:
+            # Native controls acknowledge this exact click in place. A second
+            # announcement in the footer would also resize a scrolled list.
+            self.added_token = token
+            self.message = ""
+
     def handle(self, event):
         action = event.get("action", "")
         value = str(event.get("value", ""))[:4096]
@@ -876,6 +884,7 @@ class Service(PackageImportMixin):
             if not self.carousel_selected:
                 raise SongError("Selecciona una canción de tu biblioteca.")
             self.enqueue_song(self.carousel_selected)
+            self.confirm_added(value)
             return
         if action.startswith("carousel:"):
             window, index, _ = self.library_window()
@@ -1024,6 +1033,7 @@ class Service(PackageImportMixin):
             return
         if action.startswith("enqueue:"):
             self.enqueue_song(action.split(":", 1)[1])
+            self.confirm_added(value)
             return
         if action in ("queue:next", "queue:previous"):
             self.queue_page = max(0, self.queue_page + (1 if action == "queue:next" else -1))
@@ -1039,6 +1049,7 @@ class Service(PackageImportMixin):
                 raise SongError("La búsqueda ha cambiado. Selecciona de nuevo la canción.")
             if op == "best":
                 self.add_best(item)
+                self.confirm_added(value)
                 return
             if op == "editions":
                 self.edition_group = work_key(item)
@@ -1069,6 +1080,8 @@ class Service(PackageImportMixin):
                 self.page = "Versión"
             elif op in ("save", "queue"):
                 self.request_result(item, op == "queue")
+                if op == "queue":
+                    self.confirm_added(value)
             return
         if action.startswith("song:"):
             self.song(action[5:])
@@ -1080,6 +1093,7 @@ class Service(PackageImportMixin):
             return
         if action == "enqueue":
             self.enqueue_song(self.detail)
+            self.confirm_added(value)
             return
         if action == "instrumental":
             self.instrumental_search()
@@ -1636,6 +1650,7 @@ class Service(PackageImportMixin):
             "rows": rows,
             "message": self.message,
             "queue_count": len(queue),
+            "added_token": self.added_token,
             "singing": self.engine.get("state") == "singing",
             "title": self.engine.get("title", ""),
             "names": self.names(),

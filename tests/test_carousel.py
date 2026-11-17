@@ -151,3 +151,17 @@ def test_filter_and_stale_selection_never_enqueue_a_different_song(service):
     assert service.store.queue() == []
     assert service.store.rows("SELECT * FROM jobs") == []
     assert service.view()["carousel"]["songs"] == []
+
+
+def test_add_confirmation_follows_the_committed_turn_and_does_not_resize_footer(service):
+    save_song(service, "local-song", "My song")
+    service.carousel_selected = "local-song"
+    service.handle({"action": "carousel:enqueue", "value": "click-1"})
+    assert service.view()["added_token"] == "click-1"
+    assert service.view()["message"] == ""
+    with pytest.raises(SongError):
+        service.handle({"action": "result:best:999:missing", "value": "click-2"})
+    assert service.view()["added_token"] == "click-1"
+    service.handle({"action": "enqueue:local-song", "value": "click-3"})
+    assert service.view()["added_token"] == "click-3"
+    assert len(service.store.queue()) == 2
