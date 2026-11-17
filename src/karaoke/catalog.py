@@ -19,6 +19,53 @@ STARTERS = {
 }
 
 
+# Pages on which these named entries were verified; the title fragment scrolls to
+# the song in browsers that support text fragments. No credentials or media are fetched.
+ASSISTED_ES = {
+    "caminando-por-la-vida": (
+        "Melendi",
+        "Caminando por la vida",
+        "https://ultrastar-es.org/es/canciones?artista=Melendi",
+    ),
+    "soldadito-marinero": (
+        "Fito y Fitipaldis",
+        "Soldadito marinero",
+        "https://ultrastar-es.org/es/canciones?artista=Fito+Y+Fitipaldis&orden=3",
+    ),
+    "devuelveme-a-mi-chica": (
+        "Hombres G",
+        "Devuélveme a mi chica",
+        "https://ultrastar-es.org/es/canciones?idioma=es&orden=3&tipo=a",
+    ),
+    "libre": ("Nino Bravo", "Libre", "https://ultrastar-es.org/es/canciones?lista=10687&orden=13"),
+    "mediterraneo": (
+        "Joan Manuel Serrat",
+        "Mediterráneo",
+        "https://ultrastar-es.org/es/canciones?lista=11027&orden=2",
+    ),
+    "efectos-vocales": (
+        "Nach",
+        "Efectos vocales",
+        "https://tr.ultrastar-es.org/es/canciones?artista=Nach",
+    ),
+}
+
+
+def assisted_songs(query):
+    if not tokens(query):
+        return []
+    return [
+        {"source": "espana:" + slug, "artist": artist, "title": title, "language": "Español"}
+        for slug, (artist, title, _) in ASSISTED_ES.items()
+        if matches(query, {"artist": artist, "title": title})
+    ]
+
+
+def assisted_entry_url(key):
+    _, title, url = ASSISTED_ES[key.removeprefix("espana:")]
+    return url + "#:~:text=" + quote(title, safe="")
+
+
 def tokens(value):
     return re.findall(r"[^\W_]+", normalize(value or ""))
 
@@ -110,7 +157,7 @@ def assisted_url(provider, query):
     artist, separator, title = query.partition(" - ")
     if provider == "es":
         return "https://ultrastar-es.org/es/canciones?" + urlencode(
-            {"artista": artist, "cancion": title} if separator else {"artista": query}
+            {"artista": artist, "cancion": title} if separator else {"busqueda": query}
         )
     raise SongError("Catálogo desconocido.")
 

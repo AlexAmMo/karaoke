@@ -303,3 +303,30 @@ def test_search_remote_pages_merge_without_duplicate_or_wrong_queue_item(service
     assert len(service.results) == 15 and service.search_cursor is None
     service.handle({"action": first["add_action"]})
     assert service.store.queue()[0]["source"] == first["add_action"].split(":", 3)[-1]
+
+
+@pytest.mark.parametrize("query,slug", [
+    ("Melendi Caminando por la vida", "caminando-por-la-vida"),
+    ("Fito & Fitipaldis - Soldadito marinero", "soldadito-marinero"),
+    ("Hombres G Devuelveme a mi chica", "devuelveme-a-mi-chica"),
+    ("Nino Bravo Libre", "libre"),
+    ("Joan Manuel Serrat - Mediterraneo", "mediterraneo"),
+    ("Nach Efectos vocales", "efectos-vocales"),
+])
+def test_assisted_chart_search_opens_reviewed_entry_without_queue_or_account(
+    service, query, slug, monkeypatch
+):
+    import webbrowser
+    from karaoke import catalog
+    opened = []
+    monkeypatch.setattr(webbrowser, "open", lambda url: opened.append(url) or True)
+    service.search(query)
+    row, = [r for r in service.view()["rows"] if r["kind"] == "song"]
+    assert not row["add_action"] and "Necesita importar" in row["sub"]
+    service.handle({"action": row["action"]})
+    actions = {r["label"]: r.get("action") for r in service.view()["rows"]}
+    assert actions["Importar TXT, audio o ZIP"] == "import:open"
+    assert "Añadir a la cola" not in actions
+    service.handle({"action": actions["Abrir ficha"]})
+    assert opened == [catalog.assisted_entry_url("espana:" + slug)]
+    assert service.store.queue() == []

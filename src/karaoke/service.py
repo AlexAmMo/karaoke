@@ -272,7 +272,7 @@ class Service(PackageImportMixin):
         self.futures.append((self.pool.submit(work), callback))
 
     def local_results(self, query):
-        items = {catalog.source_key(s): s for s in catalog.starter_songs(query)}
+        items = {catalog.source_key(s): s for s in catalog.starter_songs(query) + catalog.assisted_songs(query)}
         if query and not youtube_id(query):
             for saved in self.store.rows("SELECT * FROM songs ORDER BY artist,title,id"):
                 if catalog.matches(query, saved):
@@ -348,6 +348,10 @@ class Service(PackageImportMixin):
                 key = catalog.source_key(item)
                 if key not in combined or not combined[key].get("library_id"):
                     combined[key] = item
+            if video_id:
+                for key, item in combined.items():
+                    if not key.startswith("espana:"):
+                        item["requested_video"] = video_id
             if more:
                 prior_keys = {catalog.source_key(x) for x in previous}
                 # Keep displayed pages in place when another remote batch arrives.
@@ -463,6 +467,8 @@ class Service(PackageImportMixin):
         self._request_song(song, queue)
 
     def _request_song(self, song, queue):
+        if catalog.source_key(song).startswith("espana:"):
+            raise SongError("Abre la ficha e importa el mapa antes de añadir un turno.")
         if song.get("library_id"):
             if queue:
                 self.enqueue_song(song["library_id"])
@@ -822,6 +828,11 @@ class Service(PackageImportMixin):
             item = next((x for x in self.results if catalog.source_key(x) == key), None)
             if str(self.search_generation) != generation or item is None:
                 raise SongError("La búsqueda ha cambiado. Selecciona de nuevo la canción.")
+            if op == "open" and key.startswith("espana:"):
+                import webbrowser
+                if not webbrowser.open(catalog.assisted_entry_url(key)):
+                    raise SongError("No se ha podido abrir la ficha en el navegador.")
+                return
             if op == "detail":
                 self.result_detail = item
                 self.page = "Versión"
@@ -1118,6 +1129,10 @@ class Service(PackageImportMixin):
                           "USDB" if key.startswith("usdb:") else "Biblioteca")
                 status = "Lista para cantar" if local else "Preparar"
                 token = f"{self.search_generation}:{key}"
+                if key.startswith("espana:"):
+                    song_row(song, song["title"], song["artist"] + " · Necesita importar",
+                             "result:detail:" + token)
+                    continue
                 detail_action = ("song:" + local["id"]) if local and not song.get("requested_video") else ("result:detail:" + token)
                 song_row(local or song, song["title"], f"{song['artist']} · {source} · {status}",
                          detail_action, "result:queue:" + token)
@@ -1136,13 +1151,21 @@ class Service(PackageImportMixin):
             key = catalog.source_key(song)
             token = f"{self.search_generation}:{key}"
             song_row(song, song["title"], song["artist"])
-            if key.startswith("deluxe:"):
-                text("UltraStar Deluxe Songs", "Audio original, mapa y licencia " + song["license"])
+            if key.startswith("espana:"):
+                text("UltraStar España", "Obtén el material de esta edición e importa el paquete o el mapa con su audio.")
+                button("Abrir ficha", "result:open:" + token)
+                button("Importar TXT, audio o ZIP", "import:open")
             else:
-                text("Mapa USDB", " · ".join(str(song[k]) for k in
-                                            ("language", "edition", "creator") if song.get(k)))
-            button("Añadir a la cola", "result:queue:" + token)
-            button("Guardar sin turno", "result:save:" + token)
+                if key.startswith("deluxe:"):
+                    license_name = catalog.STARTERS[key.partition(":")[2]][2]
+                    text("UltraStar Deluxe Songs", "Audio original, mapa y licencia " + license_name)
+                elif key.startswith("usdb:"):
+                    text("Mapa USDB", " · ".join(str(song[k]) for k in
+                                                ("language", "edition", "creator") if song.get(k)))
+                else:
+                    text("Versión de la biblioteca")
+                button("Añadir a la cola", "result:queue:" + token)
+                button("Guardar sin turno", "result:save:" + token)
             button("Volver a los resultados", "page:Buscar")
         elif self.page == "Confirmar versión":
             text(
@@ -1153,7 +1176,7 @@ class Service(PackageImportMixin):
             if selection:
                 text(selection["song"]["title"], selection["song"].get("artist", ""))
             text(
-                "Se usará el audio asociado por USDB",
+                "Se usará la grabación asociada al mapa",
                 "No se sustituirá automáticamente por el vídeo pegado.",
             )
             if selection:
