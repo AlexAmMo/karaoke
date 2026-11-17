@@ -1,0 +1,15 @@
+{
+  "query": "Mulán – Todo un hombre haré de ti",
+  "platform": "macOS Apple Silicon",
+  "component": "karaoke.spanish_picker.show",
+  "profile": "temporary, unauthenticated",
+  "account_credentials_entered": false,
+  "windows": 1,
+  "stage": "authentication",
+  "edition_title_found": true,
+  "password_field_present": true,
+  "provider": "ultrastar-es.org",
+  "title": "UltraStar España - Panel de Control de Usuario - Identificarse",
+  "selector_result": "cancelled",
+  "transfer_files": []
+}

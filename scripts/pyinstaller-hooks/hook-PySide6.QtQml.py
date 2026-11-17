@@ -1,0 +1,5 @@
+"""The publisher window uses Qt Widgets. It does not load application QML modules."""
+
+from PyInstaller.utils.hooks.qt import add_qt6_dependencies
+
+hiddenimports, binaries, datas = add_qt6_dependencies(__file__)

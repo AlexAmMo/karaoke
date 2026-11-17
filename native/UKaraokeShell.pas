@@ -128,7 +128,8 @@ end;
 function AddAction(const Action: string): boolean;
 begin
   Result:=(Action='enqueue') or (Pos('enqueue:',Action)=1) or
-    (Pos('result:best:',Action)=1) or (Pos('result:queue:',Action)=1);
+    (Pos('result:best:',Action)=1) or (Pos('result:queue:',Action)=1) or
+    (Pos('result:obtain:',Action)=1);
 end;
 function RowAddKey(const Action: string): string;
 begin Result:=Page+'/'+Action; end;

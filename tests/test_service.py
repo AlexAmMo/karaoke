@@ -268,23 +268,26 @@ def test_search_remote_pages_merge_without_duplicate_or_wrong_queue_item(service
     ("Joan Manuel Serrat - Mediterraneo", "mediterraneo"),
     ("Nach Efectos vocales", "efectos-vocales"),
 ])
-def test_assisted_chart_search_opens_reviewed_entry_without_queue_or_account(
-    service, query, slug, monkeypatch
-):
-    import webbrowser
+def test_spanish_search_offers_in_app_picker_without_an_account(service, query, slug, monkeypatch):
     from karaoke import catalog
-    opened = []
-    monkeypatch.setattr(webbrowser, "open", lambda url: opened.append(url) or True)
+
+    selected = []
+    monkeypatch.setattr(service, "obtain_spanish", lambda item, token: selected.append((item, token)),
+                        raising=False)
     service.search(query)
     row, = [r for r in service.view()["rows"] if r["kind"] == "song"]
-    assert not row["add_action"] and "Necesita importar" in row["sub"]
+    assert "Elegir en UltraStar España" in row["sub"]
+    assert row["add_action"] == f"result:obtain:{service.search_generation}:espana:{slug}"
+    service.handle({"action": row["add_action"], "value": "first"})
     service.handle({"action": row["action"]})
     actions = {r["label"]: r.get("action") for r in service.view()["rows"]}
-    assert actions["Importar TXT, audio o ZIP"] == "import:open"
-    assert "Añadir a la cola" not in actions
-    service.handle({"action": actions["Abrir ficha"]})
-    assert opened == [catalog.assisted_entry_url("espana:" + slug)]
-    assert service.store.queue() == []
+    assert actions["Obtener en Karaoke"] == row["add_action"]
+    service.handle({"action": actions["Obtener en Karaoke"], "value": "second"})
+    assert [(catalog.source_key(song), token) for song, token in selected] == [
+        ("espana:" + slug, "first"), ("espana:" + slug, "second")
+    ]
+    assert not any((a or "").startswith(("external:", "result:open:")) for a in actions.values())
+    assert service.store.queue() == [] and not service.view()["added_token"]
 
 
 def test_open_package_keeps_complete_original_credits_after_staging_cleanup(service, package, monkeypatch):
@@ -409,3 +412,21 @@ def test_host_secondary_workflow_device_directory_and_recovery(tmp_path, package
         assert [(turn["id"], turn["state"]) for turn in reopened.store.queue()] == [(ready, "queued")]
     finally:
         reopened.close()
+
+
+def test_paste_spanish_publisher_search_preserves_exact_song_and_stays_in_karaoke(service, monkeypatch):
+    from karaoke import community_catalog
+
+    queries = []
+    def search(query, _folder):
+        queries.append(query)
+        return [{"source": "community-es:mulan", "artist": "Mulán", "title": "Todo un hombre haré de ti"}]
+    monkeypatch.setattr(community_catalog, "search", search)
+    url = "https://ultrastar-es.org/es/canciones?artista=Mul%C3%A1n&cancion=Todo+un+hombre+har%C3%A9+de+ti"
+    service.handle({"action": "field:query", "value": url})
+    wait(service, lambda: not service.futures)
+    assert queries == ["Mulán - Todo un hombre haré de ti"]
+    field, row = service.view()["rows"]
+    assert field["value"] == url and row["label"] == "Todo un hombre haré de ti"
+    assert row["add_action"].endswith(":community-es:mulan")
+    assert "Elegir en UltraStar España" in row["sub"]

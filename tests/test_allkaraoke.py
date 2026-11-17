@@ -161,3 +161,41 @@ def test_declared_cross_reference_refuses_other_usdb_recording_even_with_matchin
         assert not list(s.library.iterdir())
     finally:
         s.close()
+
+
+def test_available_search_groups_keep_languages_and_recordings_separate(tmp_path):
+    s = Service(tmp_path)
+    try:
+        s.query = "mulan"
+        title = "Tema"
+        es = {"source": "community-es:chart", "artist": "Mulán", "title": title, "language": "Español"}
+        fr = {**es, "source": "allkaraoke:fr", "language": "French", "video_id": VIDEO}
+        direct = {**es, "source": "allkaraoke:live", "title": title + " (Live)", "video_id": VIDEO}
+        unknown = {**es, "source": "community-eu:song", "language": ""}
+        s.results = [unknown, es, fr, direct]
+        rows = s.view()["rows"]
+        songs = [r for r in rows if r["kind"] == "song"]
+        assert [(r["label"], r["add_action"].split(":")[1] if r["add_action"] else None)
+                for r in songs] == [(title, "obtain"), (title, "best"), (direct["title"], "best"), (title, None)]
+        assert "Español" in songs[0]["sub"] and "French" in songs[1]["sub"]
+        assert [r["label"] for r in rows][-2:] == ["Sin descarga integrada", title]
+        s.handle({"action": songs[1]["add_action"]})
+        assert s.store.queue()[0]["source"] == fr["source"]
+        s.handle({"action": songs[-1]["action"]})
+        assert all(not r.get("add_action") and not r.get("action", "").startswith(("result:open:", "result:queue:", "result:obtain:"))
+                   for r in s.view()["rows"])
+    finally:
+        s.close()
+
+
+def test_pasted_video_never_selects_a_name_only_spanish_chart(tmp_path):
+    s = Service(tmp_path)
+    try:
+        s.query = "https://www.youtube.com/watch?v=" + VIDEO
+        s.results = [{"source": "community-es:id", "artist": "Mulán", "title": "Tema"}]
+        row, = [r for r in s.view()["rows"] if r["kind"] == "song"]
+        assert not row["add_action"]
+        with pytest.raises(SongError, match="solicitado"):
+            s.handle({"action": "result:obtain:0:community-es:id"})
+    finally:
+        s.close()

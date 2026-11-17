@@ -156,6 +156,8 @@ def main():
     if len(sys.argv) >= 3 and sys.argv[1] == "--worker":
         if sys.argv[2] == "karaoke.provider":
             from .provider import main as worker_main
+        elif sys.argv[2] == "karaoke.spanish_picker":
+            from .spanish_picker import main as worker_main
         elif sys.argv[2] == "karaoke.picker":
             from .picker import main as worker_main
         else:

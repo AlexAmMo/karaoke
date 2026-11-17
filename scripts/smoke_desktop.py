@@ -147,6 +147,19 @@ def main():
         if response.get('error') != 'Operación de catálogo desconocida.':
             raise RuntimeError('Frozen provider did not reach operation dispatch: ' + str(response))
         report['frozen_provider_stdin'] = True
+        # Use a new response path even if this evidence directory is reused. The
+        # frozen worker must start Chromium and load the native BitTorrent binding.
+        picker_response = data / 'picker-probe.json'
+        with (output / 'picker-probe.log').open('wb') as picker_log:
+            picker = subprocess.run([str(args.launcher.resolve()), '--worker', 'karaoke.spanish_picker'],
+                input=json.dumps({'probe': True, 'response': str(picker_response)}).encode('utf-8'),
+                stdout=picker_log, stderr=subprocess.STDOUT, env=environment, timeout=45)
+        if picker.returncode != 0 or not picker_response.is_file():
+            raise RuntimeError(f'Frozen download picker probe failed: exit {picker.returncode}; inspect picker-probe.log')
+        capabilities = json.loads(picker_response.read_text(encoding='utf-8'))
+        if capabilities.get('browser') is not True or capabilities.get('torrent') is not True:
+            raise RuntimeError(f'Frozen download picker did not load its dependencies: {capabilities}')
+        report['frozen_download_picker'] = capabilities
         with (output / 'launcher.log').open('w', encoding='utf-8') as log:
             process = subprocess.Popen([str(args.launcher.resolve()), '--data-dir', str(data), '--demo'], stdout=log, stderr=log, env=environment)
             deadline = time.monotonic() + 45

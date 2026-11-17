@@ -136,11 +136,15 @@ class Service(PackageImportMixin):
         self.edition_page = 0
         self.grouped_source = None
         self.grouped_cache = []
+        self.grouped_query = None
         self.clean_catalogue_reviews()
         self.account = AccountSession()
         self.account_workers = set()
         self.children = set()
         self.download_process = None
+        self.spanish_picker = None
+        self.picker_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="edition-picker")
+        self.clean_spanish_tickets()
         self.cancelled_jobs = set()
         self.children_lock = threading.Lock()
         self.closing = False
@@ -347,10 +351,28 @@ class Service(PackageImportMixin):
         return sorted(items.values(), key=lambda s: catalog.rank(query, s))
 
     def grouped_results(self):
-        if self.grouped_source is not self.results:
+        if self.grouped_source is not self.results or self.grouped_query != self.query:
             self.grouped_source = self.results
-            self.grouped_cache = group_results(self.results)
+            self.grouped_query = self.query
+            groups = group_results(self.results)
+            # Keep relevance order among obtainable songs. A catalogue reference
+            # without a download appears after them, including across pages.
+            self.grouped_cache = sorted(groups, key=lambda group: not (
+                self.auto_choices(group) or self.spanish_choice(group)
+            ))
         return self.grouped_cache
+
+    def editions_for(self, source):
+        return next((group for group in self.grouped_results()
+                     if any(catalog.source_key(item) == source for item in group)), [])
+
+    def spanish_choice(self, group):
+        # The publisher supplies a complete package via its in-app edition picker.
+        # Its name search cannot attest to the exact recording of a pasted video.
+        if youtube_id(self.query):
+            return None
+        return next((item for item in group if is_spanish_source(catalog.source_key(item))
+                     and not item.get("requested_video")), None)
 
     def brief_search_status(self):
         if self.page != "Buscar":
@@ -395,7 +417,7 @@ class Service(PackageImportMixin):
         if more and (self.search_busy or not self.search_cursor):
             return
         if not more:
-            self.query = query.strip()
+            self.query = spanish_search_terms(query.strip()) or query.strip()
             self.page = "Buscar"
             self.results = self.local_results(self.query)
             self.result_page = 0
@@ -428,7 +450,7 @@ class Service(PackageImportMixin):
             lookup = query_snapshot
             try:
                 if not more and lookup.startswith(("http://", "https://")) and not video_id:
-                    raise SongError("Introduce un enlace de YouTube válido.")
+                    raise SongError("Introduce un enlace de YouTube o una búsqueda de UltraStar España.")
                 if video_id and not more:
                     from yt_dlp import YoutubeDL
 
@@ -488,10 +510,116 @@ class Service(PackageImportMixin):
         future.catalogue_search = True
         self.futures.append((future, done))
 
+    def clean_spanish_tickets(self):
+        tickets = self.root / "spanish-packages"
+        if not tickets.is_dir():
+            return
+        needed = {r["source"].split(":", 1)[1] for r in self.store.rows(
+            "SELECT source FROM jobs WHERE source LIKE 'spanish-package:%' AND state!='ready'"
+        )}
+        for path in tickets.iterdir():
+            if path.name.startswith("picker-") and path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path, ignore_errors=True)
+            elif path.suffix in (".torrent", ".zip") and path.stem not in needed:
+                path.unlink(missing_ok=True)
+
+    def obtain_spanish(self, song, token=""):
+        if self.spanish_picker:
+            self.message = "Ya hay una edición abierta en el selector de Karaoke."
+            return
+        tickets = self.root / "spanish-packages"
+        tickets.mkdir(mode=0o700, exist_ok=True)
+        names = self.names()
+
+        def select():
+            with tempfile.TemporaryDirectory(prefix="picker-", dir=tickets) as tmp:
+                stage = Path(tmp)
+                response = stage / "result.json"
+                request = {"song": {"artist": song["artist"], "title": song["title"]},
+                           "destination": tmp, "response": str(response),
+                           "profile": str(self.root / "ultrastar-es-session")}
+                with self.children_lock:
+                    if self.closing:
+                        return None
+                    child = subprocess.Popen(child_command("karaoke.spanish_picker"),
+                                             stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                             stderr=subprocess.DEVNULL, text=True)
+                    self.children.add(child)
+                try:
+                    child.communicate(json.dumps(request))
+                finally:
+                    with self.children_lock:
+                        self.children.discard(child)
+                if child.returncode or not response.is_file():
+                    raise SongError("No se pudo abrir el selector de UltraStar España en Karaoke.")
+                result = json.loads(response.read_text(encoding="utf-8"))
+                if result.get("status") == "cancelled":
+                    return None
+                kind = result.get("kind")
+                if result.get("status") != "selected" or kind not in ("zip", "torrent"):
+                    raise SongError("UltraStar España no ha entregado un paquete compatible.")
+                selected = stage / ("edition." + kind)
+                if not selected.is_file() or selected.is_symlink() or not selected.stat().st_size:
+                    raise SongError("La descarga de la edición está vacía.")
+                with selected.open("rb") as file:
+                    digest = hashlib.file_digest(file, "sha256").hexdigest()
+                # Bind the publisher's package to the requested artist/title. A
+                # selection for another result must still pass that result's checks.
+                key = hashlib.sha256((catalog.source_key(song) + "/" + digest).encode()).hexdigest()
+                selected.replace(tickets / (key + "." + kind))
+                return key, kind
+
+        def finish(result):
+            if result is None:
+                self.message = "Selección cancelada."
+                return
+            key, kind = result
+            source = "spanish-package:" + key
+            self.store.request(source, {"kind": "spanish-package", "format": kind,
+                "song": {"title": song["title"], "artist": song["artist"]}}, names)
+            self.message = "Edición añadida a la cola."
+            self.confirm_added(token)
+            if self.store.rows("SELECT 1 FROM song_sources WHERE source=?", (source,)):
+                (tickets / (key + "." + kind)).unlink(missing_ok=True)
+
+        future = self.picker_pool.submit(select)
+        self.spanish_picker = future
+        self.futures.append((future, finish))
+        self.message = "Elige la edición en la ventana de Karaoke."
+
+    def prepare_spanish(self, job, payload):
+        from .torrent_package import prepare_torrent, prepare_zip
+
+        directory = self.root / "spanish-packages"
+        key = job["source"].removeprefix("spanish-package:")
+        kind = payload["format"]
+        if not re.fullmatch("[0-9a-f]{64}", key) or kind not in ("zip", "torrent"):
+            raise SongError("La solicitud de esta edición no es válida.")
+        ticket = directory / (key + "." + kind)
+        if not ticket.is_file():
+            raise SongError("Vuelve a elegir el paquete de esta edición en Karaoke.")
+
+        def progress(message):
+            if self.closing or job["id"] in self.cancelled_jobs:
+                raise SongError("Preparación cancelada.")
+            self.space_guard(None)
+            atomic_json(self.root / "download-progress.json", {"message": message})
+
+        with tempfile.TemporaryDirectory(dir=self.library) as stage:
+            progress("Preparando la edición de UltraStar España…")
+            if kind == "torrent":
+                chart = prepare_torrent(ticket, Path(stage), payload["song"], progress)
+            else:
+                chart = prepare_zip(ticket, Path(stage), payload["song"])
+            progress("Comprobando el paquete de la edición…")
+            return import_package(chart, self.library)
+
     def prepare(self, job):
         payload = json.loads(job["payload"])
         if shutil.disk_usage(self.library).free < 512 * 1024**2:
             raise SongError("Preparación detenida: quedan menos de 512 MB libres.")
+        if payload["kind"] == "spanish-package":
+            return self.prepare_spanish(job, payload)
         if payload["kind"] in ("archive", "paired"):
             return prepare_local(payload, self.library)
         if payload["kind"] == "import":
@@ -637,6 +765,9 @@ class Service(PackageImportMixin):
             required = song.get("requested_video") or selected_video
             if required and song.get("video_id") != required:
                 continue
+            if (key.startswith("allkaraoke:") and not song.get("library_id")
+                    and not re.fullmatch(r"[A-Za-z0-9_-]{11}", song.get("video_id") or "")):
+                continue
             if not song.get("library_id") and (not key.startswith(("usdb:", "allkaraoke:", "deluxe:"))
                                                 or (song.get("tracks") or 1) > 1):
                 continue
@@ -651,7 +782,7 @@ class Service(PackageImportMixin):
         return sorted(choices, key=preference)
 
     def add_best(self, item):
-        group = next((g for g in self.grouped_results() if work_key(g[0]) == work_key(item)), [])
+        group = self.editions_for(catalog.source_key(item))
         choices = self.auto_choices(group)
         if not choices:
             raise SongError("Esta canción requiere el paquete de su edición.")
@@ -1010,7 +1141,7 @@ class Service(PackageImportMixin):
             self.store.configure("latency", milliseconds)
             return
         if action in ("editions:previous", "editions:next"):
-            editions = [song for song in self.results if work_key(song) == self.edition_group]
+            editions = self.editions_for(self.edition_group)
             self.edition_page = min(max(0, (len(editions) - 1) // 12),
                                     max(0, self.edition_page + (1 if action.endswith(":next") else -1)))
             return
@@ -1051,8 +1182,13 @@ class Service(PackageImportMixin):
                 self.add_best(item)
                 self.confirm_added(value)
                 return
+            if op == "obtain":
+                if not self.spanish_choice([item]):
+                    raise SongError("Esta edición no ofrece el paquete solicitado.")
+                self.obtain_spanish(item, value)
+                return
             if op == "editions":
-                self.edition_group = work_key(item)
+                self.edition_group = key
                 self.edition_page = 0
                 self.page = "Ediciones"
                 return
@@ -1186,6 +1322,8 @@ class Service(PackageImportMixin):
         for future, callback in list(self.futures):
             if future.done():
                 self.futures.remove((future, callback))
+                if future is self.spanish_picker:
+                    self.spanish_picker = None
                 if (
                     getattr(future, "search_generation", self.search_generation)
                     != self.search_generation
@@ -1248,6 +1386,9 @@ class Service(PackageImportMixin):
                 actual_source = info.get("edition_source", job["source"])
                 self.store.finish_job(job, info, actual_source)
                 payload = json.loads(job["payload"])
+                if payload["kind"] == "spanish-package":
+                    key = job["source"].partition(":")[2]
+                    (self.root / "spanish-packages" / (key + "." + payload["format"])).unlink(missing_ok=True)
                 if job["source"].startswith("allkaraoke:") and payload.get("chart"):
                     stage = Path(payload["chart"]).parent
                     if stage.parent == self.root / "catalogue-review" and stage.name.startswith("edition-"):
@@ -1350,7 +1491,7 @@ class Service(PackageImportMixin):
                 button("Buscar una canción", "page:Buscar", style="primary")
             button("Importar canciones", "import:open", style="link")
         elif self.page == "Buscar":
-            field("Artista, canción o enlace de YouTube", "query")
+            field("Artista, canción o enlace", "query")
             grouped = self.grouped_results()
             start = self.result_page * 12
             visible = grouped[start:start + 12]
@@ -1374,20 +1515,31 @@ class Service(PackageImportMixin):
                 params = ",".join("?" for _ in batch)
                 saved_keys.update(row["source"] for row in self.store.rows(
                     f"SELECT source FROM song_sources WHERE source IN ({params})", batch))
+            references_shown = False
             for group in visible:
-                song = group[0]
+                possible = self.auto_choices(group)
+                spanish = self.spanish_choice(group)
+                song = possible[0] if possible else spanish or group[0]
                 key = catalog.source_key(song)
                 token = f"{self.search_generation}:{key}"
-                local = next((item for item in group if item.get("library_id")), None)
                 sub = song["artist"]
-                possible = self.auto_choices(group)
-                if local or any(catalog.source_key(item) in saved_keys for item in possible):
-                    sub += " · En biblioteca"
-                elif not possible:
-                    sub += " · Necesita importar" if all(is_assisted(catalog.source_key(i)) for i in group) else " · Ver edición"
+                language = song.get("language")
+                if language:
+                    sub += " · " + str(language)
                 detail_action = "result:editions:" + token if len(group) > 1 else "result:detail:" + token
-                song_row(local or song, song["title"], sub, detail_action,
-                         "result:best:" + token if possible else "")
+                if possible:
+                    if song.get("library_id") or key in saved_keys:
+                        sub += " · En biblioteca"
+                    add_action = "result:best:" + token
+                elif spanish:
+                    sub += " · Elegir en UltraStar España"
+                    add_action = "result:obtain:" + token
+                else:
+                    if not references_shown:
+                        text("Sin descarga integrada")
+                        references_shown = True
+                    add_action = ""
+                song_row(song, song["title"], sub, detail_action, add_action)
             if start:
                 button("Resultados anteriores", "search:previous", style="link")
             if start + len(visible) < len(grouped):
@@ -1404,7 +1556,7 @@ class Service(PackageImportMixin):
             else:
                 button("Volver a buscar", "page:Buscar", style="back")
         elif self.page == "Ediciones":
-            editions = [song for song in self.results if work_key(song) == self.edition_group]
+            editions = self.editions_for(self.edition_group)
             start = self.edition_page * 12
             for song in editions[start:start + 12]:
                 key = catalog.source_key(song)
@@ -1421,8 +1573,15 @@ class Service(PackageImportMixin):
                     song_row(song, song["title"], " · ".join(details), "song:" + local_id, "enqueue:" + local_id)
                 else:
                     possible = self.auto_choices([song])
-                    song_row(song, song["title"], " · ".join(details), action,
-                             f"result:queue:{self.search_generation}:{key}" if possible else "")
+                    if possible:
+                        add_action = f"result:queue:{self.search_generation}:{key}"
+                    elif self.spanish_choice([song]):
+                        details.append("Elegir paquete")
+                        add_action = f"result:obtain:{self.search_generation}:{key}"
+                    else:
+                        details.append("Sin descarga integrada")
+                        add_action = ""
+                    song_row(song, song["title"], " · ".join(details), action, add_action)
             if start:
                 button("Ediciones anteriores", "editions:previous")
             if start + 12 < len(editions):
@@ -1437,15 +1596,19 @@ class Service(PackageImportMixin):
                 text("Edición de AllKaraoke", " · ".join(filter(None, (song.get("language"), song.get("creator")))))
                 if (song.get("tracks") or 1) > 1:
                     text("Esta edición requiere varias melodías", "Elige un mapa de una sola voz.")
-                else:
+                elif self.auto_choices([song]):
                     button("Añadir a la cola", "result:queue:" + token, style="primary")
                     button("Guardar en biblioteca", "result:save:" + token, style="link")
                     if song.get("reference_duration"):
                         button("Usar mi copia de esta edición", "result:file:" + token, style="link")
+                else:
+                    text("La grabación del enlace no coincide con esta edición.")
+            elif self.spanish_choice([song]):
+                text("UltraStar España", "Elige el torrent de esta edición. Karaoke descargará su mapa y su grabación.")
+                button("Obtener en Karaoke", "result:obtain:" + token, style="primary")
             elif key.startswith(("espana:", "community-")):
-                text(source_name(key), "Obtén el material de esta edición e importa el paquete o el mapa con su audio.")
-                button("Abrir ficha", "result:open:" + token)
-                button("Importar TXT, audio o ZIP", "import:open")
+                text(source_name(key), "Esta ficha carece de un paquete descargable desde Karaoke.")
+                button("Importar un paquete local", "import:open", style="link")
             else:
                 if key.startswith("deluxe:"):
                     license_name = catalog.STARTERS[key.partition(":")[2]][2]
@@ -1460,7 +1623,7 @@ class Service(PackageImportMixin):
                     button("Guardar en biblioteca", "result:save:" + token, style="link")
                 else:
                     text("La grabación del enlace no coincide con esta edición.")
-            if self.edition_group == work_key(song):
+            if self.edition_group and song in self.editions_for(self.edition_group):
                 button("Ver otras ediciones", "page:Ediciones")
             button("Volver a los resultados", "page:Buscar", style="back")
         elif self.page == "Cola":
@@ -1666,6 +1829,7 @@ class Service(PackageImportMixin):
             for child in self.children:
                 if child.poll() is None:
                     child.terminate()
+        self.picker_pool.shutdown(wait=True, cancel_futures=True)
         self.usdb_search_pool.shutdown(wait=True, cancel_futures=True)
         self.catalogue_pool.shutdown(wait=True, cancel_futures=True)
         self.pool.shutdown(wait=True, cancel_futures=True)
@@ -1674,11 +1838,33 @@ class Service(PackageImportMixin):
         self.store.close()
 
 
+def spanish_search_terms(url):
+    """Only named searches can identify a song; never forward a private RSS URL."""
+    from urllib.parse import parse_qs, urlsplit
+
+    if not url.startswith(("https://", "http://")):
+        return ""
+    try:
+        target = urlsplit(url)
+    except ValueError:
+        return ""
+    if (target.netloc not in ("ultrastar-es.org", "www.ultrastar-es.org")
+            or not re.fullmatch(r"/(?:es|en|gl|pt|fr|de)/canciones/?", target.path)):
+        return ""
+    params = parse_qs(target.query)
+    artist = params.get("artista", [""])[0].strip()
+    title = params.get("cancion", [""])[0].strip()
+    return " - ".join(filter(None, (artist, title)))
+
+
 def youtube_id(url):
     from urllib.parse import urlparse, parse_qs
 
-    parsed = urlparse(url)
-    host = (parsed.hostname or "").lower()
+    try:
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+    except ValueError:
+        return None
     if host == "youtu.be":
         candidate = parsed.path.strip("/").split("/")[0]
     elif host in ("youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"):
@@ -1700,20 +1886,34 @@ def source_name(key):
             "allkaraoke": "AllKaraoke"}.get(key.partition(":")[0], "Biblioteca")
 
 
-def is_assisted(key):
-    return key.startswith(("allkaraoke:", "community-", "espana:"))
+def is_spanish_source(key):
+    return key.startswith(("espana:", "community-es:"))
 
 
 def work_key(song):
-    # Loose grouping for display only. Queue and preparation always use the edition source ID.
-    artist = re.split(r"\s+(?:feat\.?|ft\.?|featuring)\s+", normalize(song["artist"]), maxsplit=1)[0]
-    title = re.sub(r"\s*[([](?:live|directo|studio|remix|radio edit|duet|duett|dueto|instrumental)\b[^)\]]*[)\]]",
-                   "", normalize(song["title"]))
-    return tuple(catalog.tokens(artist.replace("&", " y "))), tuple(catalog.tokens(title))
+    # A remix, a featured singer and a translated title can identify different
+    # recordings. Keep those qualifiers when matching titles across publishers.
+    return (tuple(catalog.tokens(song["artist"].replace("&", " y "))),
+            tuple(catalog.tokens(song["title"])))
 
 
 def group_results(results):
-    groups = {}
+    by_work = {}
     for song in results:
-        groups.setdefault(work_key(song), []).append(song)
-    return list(groups.values())
+        by_work.setdefault(work_key(song), []).append(song)
+    groups = []
+    aliases = {"es": "spanish", "espanol": "spanish", "en": "english", "ingles": "english",
+               "fr": "french", "frances": "french", "francais": "french"}
+    for editions in by_work.values():
+        by_language = {}
+        for item in editions:
+            names = normalize(item.get("language") or "").split(",")
+            languages = tuple(sorted(aliases.get(n.strip(), n.strip()) for n in names if n.strip()))
+            by_language.setdefault(languages, []).append(item)
+        # Unknown language may share a display row when supplied metadata agrees.
+        # With competing languages it gets its own row rather than a guessed dub.
+        if sum(bool(lang) for lang in by_language) <= 1:
+            groups.append(editions)
+        else:
+            groups.extend(by_language.values())
+    return groups

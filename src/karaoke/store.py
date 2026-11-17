@@ -99,7 +99,7 @@ class Store:
         # the same recording; only the successful chart acquires a publisher alias.
         with self.lock, self.db:
             self._save_song(info, actual_source, "original", None,
-                            actual_source.startswith(("allkaraoke:", "usdb:", "pair:")))
+                            actual_source.startswith(("allkaraoke:", "usdb:", "pair:", "spanish-package:")))
             if job["source"] != actual_source:
                 self.db.execute(
                     "INSERT INTO song_sources VALUES (?,?) ON CONFLICT(source) DO UPDATE SET song_id=excluded.song_id",
