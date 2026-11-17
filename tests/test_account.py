@@ -126,4 +126,6 @@ def test_disconnected_account_keeps_open_catalogue(service):
     with pytest.raises(SongError, match="Conecta"):
         service.provider("details", song_id=1)
     service.handle({"action": "page:Buscar"})
-    assert len([r for r in service.view()["rows"] if r["kind"] == "song"]) == 2
+    displayed = [r for r in service.view()["rows"] if r["kind"] == "song"]
+    assert displayed and all(":deluxe:" in row["action"] for row in displayed)
+    assert len(service.results) == 39

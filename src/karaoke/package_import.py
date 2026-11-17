@@ -7,10 +7,12 @@ import re
 import shutil
 import stat
 import tempfile
+import time
 import zipfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-from .songs import SongError, import_package, read_chart, resource
+from . import sync_review
+from .songs import SongError, duration, import_package, read_chart, resource
 
 MAX_BYTES = 2 * 1024**3
 MAX_MEMBERS = 4096
@@ -79,7 +81,11 @@ def chart_index(path):
 
 def prepare_local(payload, library):
     if payload["kind"] == "paired":
-        return import_pair(Path(payload["chart"]), Path(payload["audio"]), library)
+        chart, audio = Path(payload["chart"]), Path(payload["audio"])
+        stamps = payload.get("review_signatures")
+        if stamps and stamps != [signature(chart), signature(audio)]:
+            raise SongError("El mapa o el audio han cambiado desde la revisión.")
+        return import_pair(chart, audio, library, stamps)
     path = Path(payload["archive"])
     if signature(path) != payload["signature"]:
         raise SongError("El ZIP ha cambiado. Vuelve a elegir los mapas.")
@@ -114,7 +120,7 @@ def prepare_local(payload, library):
         return import_package(chart, library)
 
 
-def import_pair(chart, audio, library):
+def import_pair(chart, audio, library, expected_signatures=None):
     text, meta = read_chart(chart)
     if not audio.is_file():
         raise SongError("Selecciona un archivo de audio.")
@@ -139,6 +145,8 @@ def import_pair(chart, audio, library):
             raise SongError("No hay espacio suficiente para asociar la grabación.")
         for src, name in media:
             shutil.copyfile(src, dest / name)
+        if expected_signatures and expected_signatures != [signature(chart), signature(audio)]:
+            raise SongError("El mapa o el audio han cambiado durante la importación.")
         text = re.sub(
             r"^#(?:AUDIO|MP3|COVER|VIDEO|BACKGROUND):[^\n]*(?:\n|$)", "", text, flags=re.M | re.I
         )
@@ -150,10 +158,45 @@ def import_pair(chart, audio, library):
 
 class PackageImportMixin:
     def open_pair(self, path):
+        self.stop_preview()
+        self.pair_analysis_note = ""
+        self.pair_catalog_source = None
+        self.pair_catalog_audio = None
         self.pair_chart = path
+        self.pair_points = sync_review.review_points(path)
+        self.pair_chart_stamp = signature(path)
+        self.pair_review_id = None
+        self.pair_heard = set()
+        self.pair_playback = None
         self.fields["pair_audio"] = ""
         self.page = "Asociar grabación"
         self.message = "Elige el audio de la misma edición que el mapa."
+
+    def pair_recording(self):
+        audio = Path(self.fields.get("pair_audio", "").strip().strip('"')).expanduser().resolve()
+        if not audio.is_file() or (self.pair_catalog_source and audio != self.pair_catalog_audio):
+            raise SongError("Elige la grabación correspondiente a esta edición.")
+        if signature(self.pair_chart) != self.pair_chart_stamp:
+            raise SongError("El mapa ha cambiado. Vuelve a abrirlo para revisar sus frases.")
+        review_id = (audio, signature(audio))
+        if review_id != self.pair_review_id:
+            self.pair_heard.clear()
+            self.pair_playback = None
+            self.pair_review_id = review_id
+        return audio
+
+    def collect_pair_preview(self):
+        if self.pair_playback:
+            process, review_id, i, earliest = self.pair_playback
+            status = process.poll()
+            if status is not None:
+                if (
+                    status == 0
+                    and review_id == self.pair_review_id
+                    and time.monotonic() >= earliest
+                ):
+                    self.pair_heard.add(i)
+                self.pair_playback = None
 
     def open_zip(self, path):
         stamp = signature(path)
@@ -181,7 +224,11 @@ class PackageImportMixin:
             self.submit(
                 lambda: self.choose_folder("package"), lambda p: self.add_import(p) if p else None
             )
-        elif action == "import:audio":
+        elif (
+            action == "import:audio"
+            and self.page == "Asociar grabación"
+            and not self.pair_catalog_source
+        ):
             chart = self.pair_chart
 
             def done(p):
@@ -207,20 +254,41 @@ class PackageImportMixin:
                 self.store.request(f"zip:{self.zip_path}:{self.zip_stamp}:{member}", payload, None)
             self.page, self.message = "Cola", "Preparando las canciones elegidas."
         elif action.startswith("import:listen:") and self.page == "Asociar grabación":
-            self.listen(self.fields.get("pair_audio", ""), float(action.rsplit(":", 1)[1]))
-        elif action == "import:pair" and self.page == "Asociar grabación":
-            audio = (
-                Path(self.fields.get("pair_audio", "").strip().strip('"')).expanduser().resolve()
+            if self.engine.get("state") == "singing":
+                raise SongError("Puedes revisar la sincronía cuando termine la canción actual.")
+            audio = self.pair_recording()
+            i = int(action.rsplit(":", 1)[1])
+            if not 0 <= i < len(self.pair_points):
+                raise SongError("Este fragmento no está disponible.")
+            self.collect_pair_preview()
+            self.stop_preview()
+            point = self.pair_points[i]
+            seconds = duration(audio)
+            if point.onset >= seconds:
+                raise SongError("La grabación termina antes de la frase del mapa.")
+            self.preview = sync_review.play_review(audio, point)
+            self.pair_playback = (
+                self.preview,
+                self.pair_review_id,
+                i,
+                time.monotonic() + min(seconds - point.start, point.onset - point.start + 0.15),
             )
-            if not audio.is_file():
-                raise SongError("Elige un archivo de audio para continuar.")
+            self.message = "La primera sílaba debe coincidir con el pitido: " + point.caption
+        elif action == "import:pair" and self.page == "Asociar grabación":
+            audio = self.pair_recording()
+            self.collect_pair_preview()
+            if len(self.pair_heard) != len(self.pair_points):
+                raise SongError(
+                    "Escucha completos los fragmentos de la edición antes de confirmar."
+                )
             self.stop_preview()
             chart = self.pair_chart
-            source = hashlib.sha256(
-                f"{chart}:{signature(chart)}:{audio}:{signature(audio)}".encode()
-            ).hexdigest()
+            stamps = [self.pair_chart_stamp, self.pair_review_id[1]]
+            source = hashlib.sha256(f"{chart}:{stamps[0]}:{audio}:{stamps[1]}".encode()).hexdigest()
             self.store.request(
-                "pair:" + source, dict(kind="paired", chart=str(chart), audio=str(audio)), None
+                self.pair_catalog_source or ("pair:" + source),
+                dict(kind="paired", chart=str(chart), audio=str(audio), review_signatures=stamps),
+                None,
             )
             self.page, self.message = "Cola", "Validando el mapa con la grabación elegida."
         else:
@@ -246,13 +314,35 @@ class PackageImportMixin:
                 self.pair_chart.name,
                 "Escucha la grabación y comprueba que corresponde a la edición del mapa.",
             )
-            button("Elegir audio", "import:audio")
-            field("Archivo de audio", "pair_audio")
+            if self.pair_analysis_note:
+                text("Análisis de sincronía", self.pair_analysis_note)
+            if self.pair_catalog_source:
+                text("Grabación de esta edición", self.pair_catalog_audio.name)
+            else:
+                button("Elegir audio", "import:audio")
+                field("Archivo de audio", "pair_audio")
             if self.fields.get("pair_audio"):
-                for label, fraction in (("Inicio", 0), ("Mitad", 0.5), ("Final", 0.9)):
-                    button("Escuchar · " + label, f"import:listen:{fraction}")
+                self.collect_pair_preview()
+                text(
+                    "Comprobar sincronía",
+                    "La primera sílaba indicada debe coincidir con el pitido en cada fragmento.",
+                )
+                for i, point in enumerate(self.pair_points):
+                    label = (
+                        "Inicio"
+                        if i == 0
+                        else "Final"
+                        if i == len(self.pair_points) - 1
+                        else "Mitad"
+                    )
+                    button(
+                        label + (" · Escuchado" if i in self.pair_heard else " · Escuchar"),
+                        f"import:listen:{i}",
+                        point.caption,
+                    )
                 button("Detener preescucha", "stop-preview")
-                button("Confirmar edición y guardar", "import:pair")
+                if len(self.pair_heard) == len(self.pair_points):
+                    button("La voz coincide en los fragmentos · Guardar", "import:pair")
         else:
             return False
         button("Volver a la biblioteca", "page:Biblioteca")

@@ -315,14 +315,30 @@ def _run(request: dict, session=None) -> dict:
                 raise ValueError(
                     "Syncer utilizó un audio alternativo de los comentarios. Requiere comprobar GAP/BPM y grabación; no se marcará como lista automáticamente."
                 )
+            accepted = (db.JobStatus.SUCCESS, db.JobStatus.SUCCESS_UNCHANGED)
+            audio = finished.sync_meta.audio
+            if audio.status not in accepted or not audio.file:
+                raise ValueError("No se ha obtenido la grabación principal asociada al mapa.")
         # SyncMeta is authoritative. Do not scan unrelated/retried TXT files and
         # accidentally import a different map when an earlier preparation failed.
         txt_resource = finished.sync_meta.txt
-        if not txt_resource or not txt_resource.file:
+        if not txt_resource or txt_resource.status not in accepted or not txt_resource.file:
             raise ValueError("La preparación no ha producido un mapa TXT.")
         chart = (finished.sync_meta.path.parent / txt_resource.file.fname).resolve()
         if not chart.is_relative_to(destination) or not chart.is_file():
             raise ValueError("El mapa preparado no se encuentra dentro de la carpeta de descarga.")
+        from .songs import read_chart, resource
+
+        text, meta = read_chart(chart)
+        if resource(chart.parent, meta.get("AUDIO") or meta.get("MP3", "")).name != audio.file.fname:
+            raise ValueError("La grabación del mapa difiere del audio confirmado por USDB.")
+        video = finished.sync_meta.video
+        if meta.get("VIDEO") and (not video or video.status not in accepted or not video.file
+                                  or meta["VIDEO"] != video.file.fname):
+            # The verified main audio remains usable if only a substitute visual was found.
+            import re
+            chart.write_text(re.sub(r"^#VIDEO:[^\n]*(?:\n|$)", "", text, flags=re.M | re.I),
+                             encoding="utf-8")
         progress.write("preparing", "Recursos preparados; validando paquete")
         return {"charts": [str(chart)]}
     raise ValueError("Operación de catálogo desconocida.")

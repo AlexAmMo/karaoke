@@ -1,0 +1,488 @@
+{
+  "date": "2026-11-17",
+  "revision": "c9246c799050acec96a03183df4b85493d283d51",
+  "upstream": "https://github.com/UltraStar-Deluxe/songs/tree/c9246c799050acec96a03183df4b85493d283d51/Creative%20Commons",
+  "scope": "Each main song was downloaded directly with the application provider, checked against its pinned SHA-256 manifest, parsed, imported and probed with FFprobe. Timings and all note rows were compared with the upstream chart. Seven optional instrumentals were probed separately and excluded from the primary downloads. Synchronisation and vocal presence were not independently assessed by ear. FFmpeg decoded every selected audio stream to the end without reporting errors, and the parser counted pitch-scored notes in all 46 charts.",
+  "original_packages": 39,
+  "optional_instrumentals_excluded": 7,
+  "packages": [
+    {
+      "key": "on-the-run",
+      "artist": "Joshua Morin",
+      "title": "On the run",
+      "audio": "audio.ogg",
+      "duration_seconds": 288.29,
+      "last_note_seconds": 273.69,
+      "license_sha256": "c46831d76c79fc917a40e940d5b20fb29f59d733a2fa74c94b051888dd376630",
+      "pitched_notes": 333,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "northern-star",
+      "artist": "Steven Dunston",
+      "title": "Northern Star",
+      "audio": "audio.ogg",
+      "duration_seconds": 190.17,
+      "last_note_seconds": 165.53,
+      "license_sha256": "4c472b28ae06676b622ba6ae5e4278efdd32b202e6dc0ea9ca4806d535d0e2d1",
+      "pitched_notes": 238,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "dead-smiling-pirates-i-18",
+      "artist": "Dead Smiling Pirates",
+      "title": "I 18",
+      "audio": "audio.ogg",
+      "duration_seconds": 222.67,
+      "last_note_seconds": 213.75,
+      "license_sha256": "b68c1d50567c91734ec160aaa812402a1a20c28d43ba0af6cd9303880bd6e523",
+      "pitched_notes": 256,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "fairy-bot-orchestra-heaven-can-t-wait",
+      "artist": "Fairy Bot Orchestra",
+      "title": "Heaven can't wait",
+      "audio": "audio.ogg",
+      "duration_seconds": 188.95,
+      "last_note_seconds": 150.46,
+      "license_sha256": "8b2217b3c36f97b553ac9d8d8b3a90d666cddf27d6116cab1fb3848ac9f0a98c",
+      "pitched_notes": 210,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-a-talk-with-george",
+      "artist": "Jonathan Coulton",
+      "title": "A Talk with George",
+      "audio": "audio.mp3",
+      "duration_seconds": 184.19,
+      "last_note_seconds": 162.51,
+      "license_sha256": "a2cde0a4f1eccae069a1218cab27b9a271d8843c946937274378ca6de869c224",
+      "pitched_notes": 376,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-better",
+      "artist": "Jonathan Coulton",
+      "title": "Better",
+      "audio": "audio.mp3",
+      "duration_seconds": 194.61,
+      "last_note_seconds": 182.96,
+      "license_sha256": "6a4ea6cec5bc2faa16fceffc54c840939d1e9b00b6ae75a367a34bb3fb4a898c",
+      "pitched_notes": 408,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-big-bad-world-one",
+      "artist": "Jonathan Coulton",
+      "title": "Big Bad World One",
+      "audio": "audio.mp3",
+      "duration_seconds": 170.48,
+      "last_note_seconds": 164.95,
+      "license_sha256": "3dd8187fc974bd1b1cd2b2888ea932996564d8d181a48f3cf81d02a9b051ba0f",
+      "pitched_notes": 340,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-chiron-beta-prime",
+      "artist": "Jonathan Coulton",
+      "title": "Chiron Beta Prime",
+      "audio": "audio.mp3",
+      "duration_seconds": 170.68,
+      "last_note_seconds": 168.52,
+      "license_sha256": "982aad7077bf60fb73724e62d48f46ef1ad006cc644a8f52038bbfd83acf69eb",
+      "pitched_notes": 380,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-code-monkey",
+      "artist": "Jonathan Coulton",
+      "title": "Code Monkey",
+      "audio": "audio.mp3",
+      "duration_seconds": 189.34,
+      "last_note_seconds": 185.93,
+      "license_sha256": "dce7d72dc27bf0a2b7229b85b9a08fcecbec112bc26a40ca4dda34b7fdae10b5",
+      "pitched_notes": 436,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-creepy-doll",
+      "artist": "Jonathan Coulton",
+      "title": "Creepy Doll",
+      "audio": "audio.mp3",
+      "duration_seconds": 240.14,
+      "last_note_seconds": 233.63,
+      "license_sha256": "c8656864688b8f28593a25cc1379e380d96d9f2c247f485a88a7a1d74e0ed659",
+      "pitched_notes": 508,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-dance-soterios-johnson-dance",
+      "artist": "Jonathan Coulton",
+      "title": "Dance, Soterios Johnson, Dance",
+      "audio": "audio.mp3",
+      "duration_seconds": 231.37,
+      "last_note_seconds": 205.31,
+      "license_sha256": "581bfce0d12641e8e383af5740717082abaa57ad4e3b6935b57a0ec3fbf6125c",
+      "pitched_notes": 528,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-first-of-may",
+      "artist": "Jonathan Coulton",
+      "title": "First of May",
+      "audio": "audio.mp3",
+      "duration_seconds": 250.49,
+      "last_note_seconds": 243.86,
+      "license_sha256": "1a6f960475c0069f6ffb5457699b7be0466965532be7c1cdf6590d277847246d",
+      "pitched_notes": 587,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-flickr",
+      "artist": "Jonathan Coulton",
+      "title": "Flickr",
+      "audio": "audio.mp3",
+      "duration_seconds": 167.97,
+      "last_note_seconds": 146.92,
+      "license_sha256": "a50804b8bef100c2cf140051e4d5c49d099dba1194c42ac84add4305caf768d2",
+      "pitched_notes": 276,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-furry-old-lobster",
+      "artist": "Jonathan Coulton",
+      "title": "Furry Old Lobster",
+      "audio": "audio.mp3",
+      "duration_seconds": 122.12,
+      "last_note_seconds": 110.51,
+      "license_sha256": "480ef0182d9e7d1c4f1a89f84fd00d3d5a0a1d7ca871802956a103f0d4a88792",
+      "pitched_notes": 255,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-i-crush-everything",
+      "artist": "Jonathan Coulton",
+      "title": "I Crush Everything",
+      "audio": "audio.mp3",
+      "duration_seconds": 282.88,
+      "last_note_seconds": 269.95,
+      "license_sha256": "99c11f85ddecffceafcbd9a48ea3b466c4b4f1d3f40a55d52c765135d9006486",
+      "pitched_notes": 394,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-i-feel-fantastic",
+      "artist": "Jonathan Coulton",
+      "title": "I Feel Fantastic",
+      "audio": "audio.mp3",
+      "duration_seconds": 183.07,
+      "last_note_seconds": 182.64,
+      "license_sha256": "87729bf7700dbb5b5bc9f72f431e48ad4a61b58a7057530220dbf3bc5aac523f",
+      "pitched_notes": 666,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-i-m-your-moon",
+      "artist": "Jonathan Coulton",
+      "title": "I'm Your Moon",
+      "audio": "audio.mp3",
+      "duration_seconds": 192.65,
+      "last_note_seconds": 180.05,
+      "license_sha256": "1bea3f5d8562e00cd0d2cda8487765adf08cd8a39c6d310b95dc03cf55ed70f4",
+      "pitched_notes": 289,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-ikea",
+      "artist": "Jonathan Coulton",
+      "title": "Ikea",
+      "audio": "audio.mp3",
+      "duration_seconds": 183.59,
+      "last_note_seconds": 171.43,
+      "license_sha256": "d7daf8f7b8f6d3d170df42d9fb0024f11b10e47cd91f7d09c41df3ba72eaa583",
+      "pitched_notes": 390,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-monkey-shines",
+      "artist": "Jonathan Coulton",
+      "title": "Monkey Shines",
+      "audio": "audio.mp3",
+      "duration_seconds": 51.07,
+      "last_note_seconds": 47.08,
+      "license_sha256": "97361bd1a636619142cd02f48ef4331f1c8bdb923824d5abb0df2324199fac34",
+      "pitched_notes": 101,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-mr-fancy-pants",
+      "artist": "Jonathan Coulton",
+      "title": "Mr. Fancy Pants",
+      "audio": "audio.mp3",
+      "duration_seconds": 79.52,
+      "last_note_seconds": 73.52,
+      "license_sha256": "58286f841ae7854370923979f3936cf1f1c368ef3815b29feb90868050a76c68",
+      "pitched_notes": 244,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-my-beige-bear",
+      "artist": "Jonathan Coulton",
+      "title": "My Beige Bear",
+      "audio": "audio.mp3",
+      "duration_seconds": 197.77,
+      "last_note_seconds": 190.38,
+      "license_sha256": "62db34159b27b0f10adb8a3c84277a6ad3bab68d5f10dee4e0cab47ccf8ab2b5",
+      "pitched_notes": 309,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-not-about-you",
+      "artist": "Jonathan Coulton",
+      "title": "Not About You",
+      "audio": "audio.mp3",
+      "duration_seconds": 132.47,
+      "last_note_seconds": 121.59,
+      "license_sha256": "3252792ac52fad913692167b243e5f09442916ce38a792e0ee933d4e8b47e5f1",
+      "pitched_notes": 320,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-re-your-brains",
+      "artist": "Jonathan Coulton",
+      "title": "Re: Your Brains",
+      "audio": "audio.mp3",
+      "duration_seconds": 272.82,
+      "last_note_seconds": 266.77,
+      "license_sha256": "00274ba666e1a8d70dc2a6c8acd62cdbe62e5facd9b8ae13e57923ffe50d14fd",
+      "pitched_notes": 525,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-shop-vac",
+      "artist": "Jonathan Coulton",
+      "title": "Shop Vac",
+      "audio": "audio.mp3",
+      "duration_seconds": 211.41,
+      "last_note_seconds": 200.79,
+      "license_sha256": "f8a4115e798cc46eea739363f382cc0daf0388eb612e622b699c99c981fafa3f",
+      "pitched_notes": 509,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-skullcrusher-mountain",
+      "artist": "Jonathan Coulton",
+      "title": "Skullcrusher Mountain",
+      "audio": "audio.mp3",
+      "duration_seconds": 256.44,
+      "last_note_seconds": 243.74,
+      "license_sha256": "0ee417ea9508cdf5b991c055fc002aebb488ee544781f22cfefe3d863a587dde",
+      "pitched_notes": 567,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-that-spells-dna",
+      "artist": "Jonathan Coulton",
+      "title": "That Spells DNA",
+      "audio": "audio.mp3",
+      "duration_seconds": 191.06,
+      "last_note_seconds": 181.94,
+      "license_sha256": "df525e9ac173bccc8d761923a0dddb30f41bb456b073c7efe5f951974e77665e",
+      "pitched_notes": 500,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-the-future-soon",
+      "artist": "Jonathan Coulton",
+      "title": "The Future Soon",
+      "audio": "audio.mp3",
+      "duration_seconds": 228.88,
+      "last_note_seconds": 221.13,
+      "license_sha256": "8a74a1cb8e583b01ec0e69af698e0b2f32d9cce02452f1af291592dc5a9e8592",
+      "pitched_notes": 519,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "jonathan-coulton-when-you-go",
+      "artist": "Jonathan Coulton",
+      "title": "When You Go",
+      "audio": "audio.mp3",
+      "duration_seconds": 233.25,
+      "last_note_seconds": 219.44,
+      "license_sha256": "d168c94e228fd30437e4e99e92748306d12c24bb0801bf5078f133cdcbbb3614",
+      "pitched_notes": 261,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "pornophonique-space-invaders",
+      "artist": "Pornophonique",
+      "title": "Space Invaders",
+      "audio": "audio.mp3",
+      "duration_seconds": 206.18,
+      "last_note_seconds": 204.57,
+      "license_sha256": "7ef3dd9970b832ed198345f2bc411471e0132d3cb32c50ed1d089a1ffdda6f0d",
+      "separate_instrumental": {
+        "filename": "instrumental.mp3",
+        "duration_seconds": 205.69,
+        "last_note_seconds": 204.57,
+        "pitched_notes": 394,
+        "full_audio_decoded": true
+      },
+      "pitched_notes": 394,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "shearer-69",
+      "artist": "Shearer",
+      "title": "69",
+      "audio": "audio.mp3",
+      "duration_seconds": 185.74,
+      "last_note_seconds": 179.18,
+      "license_sha256": "48e5fdccc79cc2814ada77d23043e0b7ea48d3461ba9cd98ba0d7484326ce799",
+      "separate_instrumental": {
+        "filename": "instrumental.ogg",
+        "duration_seconds": 185.61,
+        "last_note_seconds": 179.18,
+        "pitched_notes": 151,
+        "full_audio_decoded": true
+      },
+      "pitched_notes": 151,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "shearer-can-t-stop-it",
+      "artist": "Shearer",
+      "title": "Can't stop it",
+      "audio": "audio.mp3",
+      "duration_seconds": 169.52,
+      "last_note_seconds": 160.16,
+      "license_sha256": "63ce9f855bcf3c1bb470e5225a5dab966e4b2f4aa4914e53171f5a4c90213794",
+      "separate_instrumental": {
+        "filename": "instrumental.mp3",
+        "duration_seconds": 169.26,
+        "last_note_seconds": 160.16,
+        "pitched_notes": 237,
+        "full_audio_decoded": true
+      },
+      "pitched_notes": 237,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "shearer-consequence-of-dawn",
+      "artist": "Shearer",
+      "title": "Consequence Of Dawn",
+      "audio": "audio.mp3",
+      "duration_seconds": 248.59,
+      "last_note_seconds": 241.83,
+      "license_sha256": "3bb2aa0775c585ab98254bb70276ec301ca981796c36c2f41517e0bb5a57b027",
+      "pitched_notes": 193,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "shearer-in-my-hand",
+      "artist": "Shearer",
+      "title": "In My Hand",
+      "audio": "audio.mp3",
+      "duration_seconds": 237.99,
+      "last_note_seconds": 235.77,
+      "license_sha256": "5db0bdbfe469833726379090f21233d03a9a6c6d43dca768dc9d4dc5799095e8",
+      "pitched_notes": 371,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "shearer-man-song",
+      "artist": "Shearer",
+      "title": "Man Song",
+      "audio": "audio.mp3",
+      "duration_seconds": 225.96,
+      "last_note_seconds": 219.53,
+      "license_sha256": "63ce9f855bcf3c1bb470e5225a5dab966e4b2f4aa4914e53171f5a4c90213794",
+      "separate_instrumental": {
+        "filename": "instrumental.ogg",
+        "duration_seconds": 225.81,
+        "last_note_seconds": 219.53,
+        "pitched_notes": 255,
+        "full_audio_decoded": true
+      },
+      "pitched_notes": 255,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "shearer-stay-with-me",
+      "artist": "Shearer",
+      "title": "Stay with me",
+      "audio": "audio.ogg",
+      "duration_seconds": 210.96,
+      "last_note_seconds": 205.21,
+      "license_sha256": "98e1dc6a63a652a61eabf715d1c7ef5116269225e161fc3adaa52b198054cec4",
+      "separate_instrumental": {
+        "filename": "instrumental.ogg",
+        "duration_seconds": 210.91,
+        "last_note_seconds": 205.21,
+        "pitched_notes": 364,
+        "full_audio_decoded": true
+      },
+      "pitched_notes": 364,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "silver-note-chasing-marks",
+      "artist": "Silver Note",
+      "title": "Chasing Marks",
+      "audio": "song.mp3",
+      "duration_seconds": 194.93,
+      "last_note_seconds": 180.68,
+      "license_sha256": "188d226f1c06cf5430b09ad05061eb497ab06ed0477f16141c1177a4aecb5c1b",
+      "separate_instrumental": {
+        "filename": "instrumental.mp3",
+        "duration_seconds": 194.93,
+        "last_note_seconds": 180.68,
+        "pitched_notes": 241,
+        "full_audio_decoded": true
+      },
+      "pitched_notes": 241,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "silver-note-sonic-rainboom-vip",
+      "artist": "Silver Note",
+      "title": "Sonic Rainboom VIP",
+      "audio": "song.mp3",
+      "duration_seconds": 210.16,
+      "last_note_seconds": 195.52,
+      "license_sha256": "b542f18e69a4fa421c468a810e87c70c9b3d229cbbc5144942eb6575b5a60dd6",
+      "separate_instrumental": {
+        "filename": "instrumental.mp3",
+        "duration_seconds": 210.16,
+        "last_note_seconds": 195.52,
+        "pitched_notes": 273,
+        "full_audio_decoded": true
+      },
+      "pitched_notes": 273,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "systemabsturz-verdachtig",
+      "artist": "Systemabsturz",
+      "title": "Verdächtig",
+      "audio": "audio.ogg",
+      "duration_seconds": 210.08,
+      "last_note_seconds": 207.91,
+      "license_sha256": "96fe18b723691db1898ebaaaacf82a6b1690f45565f1e49e57a56fb5ee98bfb6",
+      "pitched_notes": 550,
+      "full_audio_decoded": true
+    },
+    {
+      "key": "wasteland-wailers-dare-master",
+      "artist": "Wasteland Wailers",
+      "title": "Dare Master",
+      "audio": "audio.mp3",
+      "duration_seconds": 298.0,
+      "last_note_seconds": 292.91,
+      "license_sha256": "f9e138ccb8fcb1d62ac3ad8f556ed5c73c1d20af9cc79004ecaf2e7a7ffd3bdb",
+      "pitched_notes": 501,
+      "full_audio_decoded": true
+    }
+  ]
+}

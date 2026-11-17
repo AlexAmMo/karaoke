@@ -10,6 +10,7 @@ dependencies = [
   "pillow>=13,<14",
   "requests>=2.32,<3",
   "mutagen>=1.47,<2",
+  "numpy>=2,<3",
 ]
 
 [project.scripts]

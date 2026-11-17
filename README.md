@@ -34,11 +34,11 @@ Los instaladores verifican SHA-256 y conservan la biblioteca y los ajustes fuera
 4. Añade un turno. La preparación ocurre en segundo plano. En **Cola**, pulsa **Empezar turno** cuando esté listo.
 5. Al terminar verás los resultados. Tú decides cuándo empieza la siguiente canción.
 
-En la versión de desarrollo puedes escribir `Eminem Lose Yourself`, `Eminem - Lose Yourself` o pegar un enlace de YouTube. Las flechas de página recorren los resultados cargados y **Buscar más en USDB** obtiene la siguiente página. Consultar UltraStar España o USDB.eu abre su catálogo en el navegador. Para un paquete obtenido allí, selecciona **Importar TXT, audio o ZIP**. Puedes elegir mapas de un ZIP o asociar el audio de la misma edición a un TXT suelto y escucharlo antes de guardar.
+En la versión de desarrollo **Buscar** reúne la biblioteca, AllKaraoke, UltraStar España, USDB.eu, UltraStar Deluxe Songs y, si conectas tu cuenta, USDB Animux. Escribe artista y título en cualquier orden o pega la URL del vídeo. Una fila agrupa las fuentes que comparten artista y título. En **Ediciones** eliges el mapa y la grabación. Los resultados públicos se consultan por primera vez con conexión y sus índices se guardan en el ordenador.
 
-Al abrir **Buscar** tienes dos canciones de inicio que se preparan desde UltraStar Deluxe Songs sin cuenta. El crédito y la licencia acompañan a cada paquete. El botón **+** prepara la canción y la añade a la cola.
+Para probarlo, busca **Álex Ubago Sigo aquí**, abre **Ediciones**, elige **AllKaraoke** y pulsa el botón para preparar la grabación exacta. La app obtiene el mapa y el audio del vídeo indicado por su autor. Si el vídeo deja de estar disponible, puedes elegir una copia local de la misma edición. Durante la revisión, escucha los fragmentos de inicio, mitad y final. Un pitido marca cuándo debe entrar la primera sílaba indicada. Confirma la edición si coincide en los fragmentos. Las entradas de UltraStar España y USDB.eu permiten abrir la ficha e importar el material local que tengas.
 
-La voz original del paquete se conserva. **Buscar instrumental existente** obtiene candidatos; permite preescucha al principio, centro y final y exige confirmar la correspondencia. Ni el título ni una duración parecida certifican la afinación o la sincronía. No se generan notas ni se separa voz con IA.
+Al abrir **Buscar** tienes 39 canciones de UltraStar Deluxe Songs que se preparan sin cuenta. Las grabaciones principales conservan la voz y cada paquete incluye sus créditos y licencia. El botón **+** prepara la canción y la añade a la cola. Las variantes instrumentales se gestionan por separado. El proyecto utiliza mapas de notas existentes.
 
 ## Interfaz y controles
 

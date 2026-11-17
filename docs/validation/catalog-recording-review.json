@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-17",
+  "catalogue_revision": "978f076b8b8b6641057ba16a66693155aedc2cf2",
+  "runtime": "karaoke.allkaraoke.prepare_review with yt-dlp and ffmpeg on macOS arm64",
+  "scope": "Technical preparation for a host review. Authentic video identity, supported notes, decodable audio and duration bounds. The host listening check and a sung session were not performed in this test.",
+  "tracks": [
+    {
+      "source": "allkaraoke:alex-ubago-sigo-aqui",
+      "video": "IA0uSub1xy4",
+      "reference_seconds": 225,
+      "audio_prepared": true,
+      "notes_accepted": true,
+      "reference_onsets_s": [
+        20.15,
+        102.54,
+        199.97
+      ],
+      "measured_seconds": 224.676292,
+      "artist": "Álex Ubago",
+      "title": "Sigo Aquí",
+      "listed_tracks": 1,
+      "source_url": "https://www.youtube.com/watch?v=IA0uSub1xy4",
+      "audio_delta_seconds": -0.324,
+      "chart_sha256": "0dce7a4b8c7c89184f7ae42b56230753d1f413e6c669ebb6c24b4f6dabadbce5",
+      "end_of_last_note_s": 204.45,
+      "note_events": 414,
+      "charted_phrases": 55,
+      "media_origin": "exact #VIDEO ID in pinned TXT, no alternate recording selected"
+    },
+    {
+      "source": "allkaraoke:adele-someone-like-you",
+      "video": "hLQl3WQQoQ0",
+      "reference_seconds": 285,
+      "notes_accepted": true,
+      "audio_prepared": true,
+      "reference_onsets_s": [
+        14.06,
+        145.01,
+        266.29
+      ],
+      "measured_seconds": 284.920458,
+      "artist": "Adele",
+      "title": "Someone Like You",
+      "listed_tracks": 1,
+      "source_url": "https://ultrastar-es.org/pl/canciones?artista=Adele&cancion=Someone%20Like%20You%20(Studio)",
+      "audio_delta_seconds": -0.08,
+      "chart_sha256": "bf51725f43f723aacbc8edacd7c9ad84b018205e41c2aa0a88efc883b371fed4",
+      "end_of_last_note_s": 268.343,
+      "note_events": 555,
+      "charted_phrases": 85,
+      "media_origin": "exact #VIDEO ID in pinned TXT, no alternate recording selected"
+    },
+    {
+      "source": "allkaraoke:la-oreja-de-van-gogh-rosas",
+      "video": "nYnLVWXmRm8",
+      "reference_seconds": 232,
+      "notes_accepted": true,
+      "audio_prepared": true,
+      "reference_onsets_s": [
+        11.81,
+        135.18,
+        222.38
+      ],
+      "measured_seconds": 231.886083,
+      "artist": "La Oreja de Van Gogh",
+      "title": "Rosas",
+      "listed_tracks": 1,
+      "source_url": "https://ultrastar-es.org/pl/canciones?artista=La%20Oreja%20de%20Van%20Gogh&cancion=Rosas",
+      "audio_delta_seconds": -0.114,
+      "chart_sha256": "a601d3ad5e6864e13040609f614663f21927cde4113feedf037e8350b14008c6",
+      "end_of_last_note_s": 227.072,
+      "note_events": 578,
+      "charted_phrases": 65,
+      "media_origin": "exact #VIDEO ID in pinned TXT, no alternate recording selected"
+    }
+  ],
+  "ubago_service_flow": {
+    "tested_query": "sigo aqui alex ubago",
+    "group": "Álex Ubago · 2 ediciones y fuentes",
+    "version_id": "allkaraoke:alex-ubago-sigo-aqui",
+    "acoustic_review_note": "Sin indicios de un desfase grande en los tres tramos. Inicio / centro / final: +0,05 s · -0,05 s · -0,10 s.",
+    "acoustic_note_visible": true,
+    "account_required": false,
+    "official_recording_prepared": true,
+    "review_checkpoints": 3,
+    "unreviewed_import_rejected": true,
+    "turns_queued": 0
+  }
+}

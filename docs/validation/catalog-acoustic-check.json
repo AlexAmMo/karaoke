@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-17",
+  "song": {
+    "artist": "Álex Ubago",
+    "title": "Sigo Aquí",
+    "allkaraoke_revision": "978f076b8b8b6641057ba16a66693155aedc2cf2",
+    "source_video": "IA0uSub1xy4",
+    "decoded_file_duration_s": 224.676,
+    "chart_end_s": 204.45,
+    "chart_sha256": "0dce7a4b8c7c89184f7ae42b56230753d1f413e6c669ebb6c24b4f6dabadbce5",
+    "audited_audio_sha256": "043e2cecc28b1dbb1ed9521a32567d8c876b425160c9111f5bd1d99c149be393"
+  },
+  "method": "Melody-pitch-class match in three 45-second windows around the first, middle and last scored passages. Searches offsets from -2 to +2 seconds. Positive means the recording follows the chart. Comparing off-peak timing and rotated pitch classes rejects ambiguous matches. Ear/judgement and review of the complete song remain separate.",
+  "analysis_seconds": 0.285,
+  "diagnostic": {
+    "status": "no_large_shift_detected",
+    "message": "Sin indicios de un desfase grande en los tres tramos. Inicio / centro / final: +0,05 s · -0,05 s · -0,10 s.",
+    "windows": [
+      {
+        "from_s": 20.15,
+        "to_s": 65.15,
+        "notes": 78,
+        "reliable": true,
+        "offset_s": 0.05,
+        "peak_score": 2.071,
+        "score_at_zero": 1.941,
+        "timing_contrast": 1.243,
+        "pitch_margin": 1.242
+      },
+      {
+        "from_s": 89.8,
+        "to_s": 134.8,
+        "notes": 82,
+        "reliable": true,
+        "offset_s": -0.05,
+        "peak_score": 1.68,
+        "score_at_zero": 1.641,
+        "timing_contrast": 0.854,
+        "pitch_margin": 1.099
+      },
+      {
+        "from_s": 159.45,
+        "to_s": 204.45,
+        "notes": 71,
+        "reliable": true,
+        "offset_s": -0.1,
+        "peak_score": 1.813,
+        "score_at_zero": 1.495,
+        "timing_contrast": 0.917,
+        "pitch_margin": 1.097
+      }
+    ]
+  },
+  "fixtures": {
+    "aligned_melody": "no_large_shift_detected",
+    "audio_late_by_0_9s": "possible_shift",
+    "audio_late_only_in_final_third_by_0_9s": "possible_shift in final third",
+    "silence": "inconclusive",
+    "static_tone": "inconclusive"
+  }
+}

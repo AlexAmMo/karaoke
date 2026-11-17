@@ -46,7 +46,7 @@ def test_archive_paths_are_portable_and_contained(tmp_path, name):
         chart_index(z)
 
 
-def test_missing_recording_can_be_paired_without_modifying_chart(package, tmp_path):
+def test_missing_recording_can_be_paired_without_modifying_chart(package, tmp_path, monkeypatch):
     data = package.read_text().replace("audio.wav", "unavailable.mp3")
     package.write_text(data)
     service = Service(tmp_path / "app")
@@ -54,7 +54,21 @@ def test_missing_recording_can_be_paired_without_modifying_chart(package, tmp_pa
         service.add_import(str(package))
         assert service.page == "Asociar grabación"
         service.handle({"action": "field:pair_audio", "value": str(package.parent / "audio.wav")})
-        assert "import:listen:0.5" in [r.get("action") for r in service.view()["rows"]]
+        assert "import:listen:1" in [r.get("action") for r in service.view()["rows"]]
+        with pytest.raises(SongError, match="fragmentos"):
+            service.handle({"action": "import:pair"})
+        from types import SimpleNamespace
+        from karaoke import package_import, sync_review
+
+        clock = [100.0]
+        monkeypatch.setattr(package_import, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+        monkeypatch.setattr(
+            sync_review, "play_review", lambda *args: SimpleNamespace(poll=lambda: 0)
+        )
+        for i in range(len(service.pair_points)):
+            service.handle({"action": f"import:listen:{i}"})
+            clock[0] += 10
+        assert service.pair_points[0].caption == "sí"
         service.handle({"action": "import:pair"})
         song = service.prepare(service.store.rows("select * from jobs")[0])
         assert song["title"] == "Canción de prueba"
@@ -62,3 +76,29 @@ def test_missing_recording_can_be_paired_without_modifying_chart(package, tmp_pa
         assert package.read_text() == data
     finally:
         service.close()
+
+
+def test_tempo_change_ignored_by_deluxe_cannot_silently_drift(package):
+    from karaoke.songs import read_chart
+
+    text = package.read_text()
+    package.write_text(text.replace("- 8", "B 8 180\n- 8"))
+    with pytest.raises(SongError, match="cambia de tempo"):
+        read_chart(package)
+    package.write_text(text.replace("- 8", "B 8 120\n- 8"))
+    assert read_chart(package)[1]["BPM"] == "120"
+
+
+def test_reviewed_files_cannot_be_swapped_while_queued(package, tmp_path):
+    from karaoke.package_import import prepare_local, signature
+
+    audio = package.with_name("audio.wav")
+    payload = dict(
+        kind="paired",
+        chart=str(package),
+        audio=str(audio),
+        review_signatures=[signature(package), signature(audio)],
+    )
+    audio.write_bytes(audio.read_bytes() + b"changed")
+    with pytest.raises(SongError, match="cambiado"):
+        prepare_local(payload, tmp_path)

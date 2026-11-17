@@ -7,7 +7,10 @@ from karaoke.songs import SongError
 
 
 @pytest.fixture
-def service(tmp_path):
+def service(tmp_path, monkeypatch):
+    from karaoke import allkaraoke, community_catalog
+    monkeypatch.setattr(allkaraoke, "search", lambda *args: [])
+    monkeypatch.setattr(community_catalog, "search", lambda *args: [])
     result = Service(tmp_path / "app")
     yield result
     result.close()
@@ -131,9 +134,13 @@ def test_native_commands_keep_order_when_windows_clock_does_not_advance(service,
     assert commands[0]["names"] == ["José"]
 
 
-def test_instrumental_is_a_separate_confirmed_variant(service, package, tmp_path):
+def test_instrumental_is_a_separate_confirmed_variant(service, package, tmp_path, monkeypatch):
+    import os
     import subprocess
+    from types import SimpleNamespace
+    from karaoke import service as service_module, sync_review
 
+    package.write_text(package.read_text().replace("\nE\n", "\n- 16\n: 16 6 21 tres\nE\n"))
     service.add_import(str(package))
     wait(service, lambda: bool(service.store.rows("SELECT * FROM songs")))
     original = service.store.rows("SELECT * FROM songs")[0]
@@ -141,6 +148,7 @@ def test_instrumental_is_a_separate_confirmed_variant(service, package, tmp_path
     mp3 = tmp_path / "instrumental.mp3"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", original["audio"], str(mp3)], check=True)
     service.detail = original["id"]
+    service.page = "Instrumental"
     service.candidate_audio = {
         "path": str(mp3),
         "song": original["id"],
@@ -148,7 +156,25 @@ def test_instrumental_is_a_separate_confirmed_variant(service, package, tmp_path
     }
     with pytest.raises(SongError, match="Preescucha"):
         service.confirm_instrumental()
-    service.candidate_audio["listened"] = True
+    clock = [100.0]
+    monkeypatch.setattr(service_module, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(sync_review, "play_review", lambda *args: SimpleNamespace(poll=lambda: 0))
+    service.handle({"action": "instrumental-cue:instrumental:0"})
+    with pytest.raises(SongError, match="Preescucha"):
+        service.confirm_instrumental()
+    for track in ("original", "instrumental"):
+        for i in range(3):
+            service.handle({"action": f"instrumental-cue:{track}:{i}"})
+            clock[0] += 9
+    assert any(r.get("action") == "confirm-instrumental" for r in service.view()["rows"])
+    before = mp3.stat()
+    os.utime(mp3, ns=(before.st_atime_ns, before.st_mtime_ns + 50_000_000))
+    with pytest.raises(SongError, match="Preescucha"):
+        service.confirm_instrumental()
+    for track in ("original", "instrumental"):
+        for i in range(3):
+            service.handle({"action": f"instrumental-cue:{track}:{i}"})
+            clock[0] += 9
     service.confirm_instrumental()
     variants = service.store.rows("SELECT * FROM songs WHERE variant='instrumental'")
     assert len(variants) == 1
@@ -260,7 +286,10 @@ def test_instrumental_selection_discards_previous_audio_and_out_of_order_complet
 def test_open_catalogue_works_without_usdb_and_rejects_stale_selection(service):
     service.handle({"action": "page:Buscar"})
     songs = [r for r in service.view()["rows"] if r["kind"] == "song"]
-    assert {r["label"] for r in songs} == {"On the run", "Northern Star"}
+    titles = {s["title"] for s in service.results}
+    assert {"On the run", "Northern Star", "Code Monkey", "Verdächtig"} <= titles
+    assert len(titles) == 39
+    assert songs and len(songs) < len(titles)
     chosen = songs[0]
     service.handle({"action": chosen["add_action"]})
     assert service.store.queue()[0]["source"].startswith("deluxe:")

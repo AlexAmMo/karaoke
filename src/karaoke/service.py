@@ -18,10 +18,10 @@ from pathlib import Path
 from PIL import Image
 from .songs import SongError, duration, import_package, normalize, read_chart, resource, validate
 from .store import Store
-from . import catalog
+from . import allkaraoke, catalog, sync_review
 from .account import AccountSession, SessionExpired
 from .artwork import ArtworkResolver
-from .package_import import PackageImportMixin, prepare_local
+from .package_import import PackageImportMixin, prepare_local, signature
 
 
 def atomic_json(path: Path, value):
@@ -123,6 +123,15 @@ class Service(PackageImportMixin):
         self.futures = []
         self.download = None
         self.search_generation = 0
+        self.catalogue_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="indices")
+        self.catalogue_status = {}
+        self.edition_group = None
+        self.edition_page = 0
+        self.grouped_source = None
+        self.grouped_cache = []
+        self.review_sequence = 0
+        self.review_busy = False
+        self.clean_catalogue_reviews()
         self.account = AccountSession()
         self.account_workers = set()
         self.children = set()
@@ -329,10 +338,58 @@ class Service(PackageImportMixin):
             for saved in self.store.rows("SELECT * FROM songs ORDER BY artist,title,id"):
                 if catalog.matches(query, saved):
                     source = saved.get("source") or ""
-                    if not source.startswith(("usdb:", "deluxe:")):
+                    if not source.startswith(("usdb:", "deluxe:", "allkaraoke:")):
                         source = "local:" + saved["id"]
                     items[source] = {**saved, "source": source, "library_id": saved["id"]}
         return sorted(items.values(), key=lambda s: catalog.rank(query, s))
+
+    def grouped_results(self):
+        if self.grouped_source is not self.results:
+            self.grouped_source = self.results
+            self.grouped_cache = group_results(self.results)
+        return self.grouped_cache
+
+    def brief_search_status(self):
+        if self.page != "Buscar":
+            return
+        count = len(self.grouped_results())
+        if count:
+            self.message = f"{count} canciones · {len(self.results)} versiones y fuentes."
+        elif self.search_busy or "Consultando" in self.catalogue_status.values():
+            self.message = "Consultando los catálogos…"
+        else:
+            self.message = "Sin coincidencias en los catálogos disponibles."
+
+    def search_indices(self, query):
+        from . import community_catalog
+
+        generation = self.search_generation
+        video = youtube_id(query)
+        directory = self.root / "catalogues"
+        sources = {"AllKaraoke": lambda: allkaraoke.search(query, directory, video)}
+        if not video:
+            sources["España y USDB.eu"] = lambda: community_catalog.search(query, directory)
+        self.catalogue_status = {name: "Consultando" for name in sources}
+
+        def request(name, fetch):
+            try:
+                return name, fetch(), ""
+            except Exception:
+                return name, [], "No disponible"
+
+        def done(value):
+            name, rows, error = value
+            self.catalogue_status[name] = error or ""
+            combined = {catalog.source_key(row): row for row in rows}
+            combined.update({catalog.source_key(row): row for row in self.results})
+            self.results = sorted(combined.values(), key=lambda row: catalog.rank(self.lookup_query, row))
+            self.brief_search_status()
+
+        for name, fetch in sources.items():
+            future = self.catalogue_pool.submit(request, name, fetch)
+            future.search_generation = generation
+            future.catalogue_search = True
+            self.futures.append((future, done))
 
     def search(self, query, *, more=False):
         if more and (self.search_busy or not self.search_cursor):
@@ -342,17 +399,24 @@ class Service(PackageImportMixin):
             self.page = "Buscar"
             self.results = self.local_results(self.query)
             self.result_page = 0
+            self.edition_group = None
             self.result_detail = None
             self.pending_result = None
             self.search_generation += 1
             self.search_cursor = None
             self.search_busy = False
             self.lookup_query = self.query
+            self.catalogue_status = {}
+            for future, _ in self.futures:
+                if getattr(future, "catalogue_search", False):
+                    future.cancel()
+            if self.query and (not self.query.startswith(("http://", "https://")) or youtube_id(self.query)):
+                self.search_indices(self.query)
         if not self.query:
             self.message = "Elige una canción de inicio o busca en el catálogo."
             return
         if not self.store.setting("username", ""):
-            self.message = "Conecta USDB en Ajustes o consulta los otros catálogos."
+            self.message = "Catálogo público. Puedes conectar USDB en Ajustes para ampliar la búsqueda."
             return
         self.search_busy = True
         self.message = "Buscando más mapas en USDB…" if more else "Consultando USDB…"
@@ -388,12 +452,13 @@ class Service(PackageImportMixin):
             lookup, result, error = response
             self.lookup_query = lookup
             if error:
-                self.message = "USDB: " + error
+                self.catalogue_status["USDB"] = error
+                self.brief_search_status()
                 return
             self.search_cursor = result.get("next_cursor") or None
             previous = self.results
             combined = {catalog.source_key(item): item for item in
-                        (previous if more else self.local_results(lookup))}
+                        (previous if more else [*self.local_results(lookup), *previous])}
             for item in result["songs"]:
                 item = {**item, "requested_video": video_id,
                         "match": "Por comprobar" if video_id else "Mapa existente"}
@@ -402,7 +467,7 @@ class Service(PackageImportMixin):
                     combined[key] = item
             if video_id:
                 for key, item in combined.items():
-                    if not key.startswith("espana:"):
+                    if key.startswith(("local:", "usdb:", "deluxe:")):
                         item["requested_video"] = video_id
             if more:
                 prior_keys = {catalog.source_key(x) for x in previous}
@@ -412,12 +477,10 @@ class Service(PackageImportMixin):
                                    key=lambda item: catalog.rank(lookup, item))
                 self.results = previous + additions
                 if additions:
-                    self.result_page = len(previous) // 12
+                    self.result_page = min(len(group_results(previous)) // 12, (len(group_results(self.results)) - 1) // 12)
             else:
                 self.results = sorted(combined.values(), key=lambda item: catalog.rank(lookup, item))
-            self.message = (f"{len(self.results)} versiones encontradas." if self.results else
-                            "Sin coincidencias en esta página." if self.search_cursor else
-                            "No se han encontrado mapas en estas fuentes.")
+            self.brief_search_status()
 
         self.submit(work, done)
         self.futures[-1][0].search_generation = generation
@@ -507,6 +570,77 @@ class Service(PackageImportMixin):
         self.message = f"{len(charts)} paquetes pendientes de validación e importación."
         self.page = "Cola"
 
+    def clean_catalogue_reviews(self):
+        # Keep the input of persistent jobs across retries and application restarts.
+        root = self.root / "catalogue-review"
+        if not root.is_dir():
+            return
+        keep = set()
+        for row in self.store.rows("SELECT payload FROM jobs WHERE state!='ready' AND source LIKE 'allkaraoke:%'"):
+            chart = json.loads(row["payload"]).get("chart")
+            if chart:
+                keep.add(Path(chart).parent)
+        for stage in root.glob("edition-*"):
+            if stage not in keep and not stage.is_symlink():
+                shutil.rmtree(stage, ignore_errors=True)
+
+    def begin_catalogue_review(self, song, *, local):
+        if (song.get("tracks") or 1) > 1:
+            raise SongError("Este mapa necesita melodías separadas. Elige una versión con una pista vocal.")
+        if self.review_busy:
+            raise SongError("Ya se está preparando una grabación para revisar.")
+        self.review_sequence += 1
+        sequence = self.review_sequence
+        self.review_busy = True
+        self.message = "Preparando la grabación de esta edición para revisar las notas…"
+        root = self.root / "catalogue-review"
+        root.mkdir(exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix="edition-", dir=root))
+
+        def work():
+            try:
+                path = self.choose_folder("audio") if local else None
+                if local and not path:
+                    return None
+                chart, audio = allkaraoke.prepare_review(song, stage, self.space_guard, path)
+            except Exception as exc:
+                shutil.rmtree(stage, ignore_errors=True)
+                return str(exc) or "No se obtuvo la grabación."
+            try:
+                from .acoustic import analyze
+                analysis_note = analyze(chart, audio)["message"]
+            except Exception:
+                # Recording and map are intact. An unavailable acoustic estimate still
+                # leaves the host's three listening checks available.
+                analysis_note = "Análisis acústico no disponible. Revisa las tres frases con la grabación."
+            return chart, audio, analysis_note
+
+        def done(pair):
+            self.review_busy = False
+            if (self.closing or sequence != self.review_sequence or self.page != "Versión"
+                    or self.result_detail != song):
+                shutil.rmtree(stage, ignore_errors=True)
+                return
+            if not pair:
+                shutil.rmtree(stage, ignore_errors=True)
+                self.message = "Selecciona una copia del mismo montaje para revisar la sincronía."
+                return
+            if isinstance(pair, str):
+                raise SongError("No se pudo preparar esta grabación. Puedes elegir una copia local de la misma edición. " + pair)
+            chart, audio, analysis_note = pair
+            try:
+                self.open_pair(chart)
+            except Exception:
+                shutil.rmtree(stage, ignore_errors=True)
+                raise
+            self.pair_catalog_source = song["source"]
+            self.pair_catalog_audio = audio.resolve()
+            self.pair_analysis_note = analysis_note
+            self.fields["pair_audio"] = str(audio)
+            self.message = "Revisa la correspondencia entre la voz y las tres frases del mapa."
+
+        self.submit(work, done)
+
     def request_result(self, index, queue):
         song = dict(self.results[index] if isinstance(index, int) else index)
         if song.get("requested_video"):
@@ -519,8 +653,7 @@ class Service(PackageImportMixin):
         self._request_song(song, queue)
 
     def _request_song(self, song, queue):
-        if catalog.source_key(song).startswith("espana:"):
-            raise SongError("Abre la ficha e importa el mapa antes de añadir un turno.")
+
         if song.get("library_id"):
             if queue:
                 self.enqueue_song(song["library_id"])
@@ -529,6 +662,8 @@ class Service(PackageImportMixin):
                 self.message = "Esta versión ya está en la biblioteca."
             return
         source = catalog.source_key(song)
+        if source.startswith(("espana:", "community-", "allkaraoke:")):
+            raise SongError("Revisa e importa esta edición antes de añadir un turno.")
         self.store.request(
             source,
             {"kind": source.split(":", 1)[0],
@@ -657,20 +792,70 @@ class Service(PackageImportMixin):
         if self.closing or shutil.disk_usage(self.root).free < 256 * 1024**2:
             raise SongError("Descarga detenida por cierre o espacio insuficiente.")
 
+    def instrumental_review(self):
+        candidate = self.candidate_audio
+        if not candidate or self.detail != candidate["song"] or self.page != "Instrumental":
+            raise SongError("Preescucha la instrumental de la canción seleccionada.")
+        song = self.song(self.detail)
+        chart, original, recording = (Path(song["chart"]), Path(song["audio"]), Path(candidate["path"]))
+        identity = (self.candidate_generation, candidate["source"], chart, original, recording,
+                    signature(chart), signature(original), signature(recording))
+        review = getattr(self, "_instrumental_review", None)
+        if review is None or review["identity"] != identity:
+            self.stop_preview()
+            points = sync_review.review_points(chart)
+            if len({point.onset for point in points}) < 3:
+                raise SongError("El mapa necesita tres entradas vocales distintas para comparar la instrumental.")
+            lengths = {"original": duration(original), "instrumental": duration(recording)}
+            if abs(lengths["original"] - lengths["instrumental"]) > 3:
+                raise SongError("La duración de la instrumental difiere de la grabación original.")
+            if any(point.onset >= min(lengths.values()) for point in points):
+                raise SongError("Una grabación termina antes de una frase de revisión.")
+            review = self._instrumental_review = {
+                "identity": identity, "points": points, "heard": set(), "playback": None,
+                "audio": {"original": original, "instrumental": recording}, "lengths": lengths,
+            }
+        if review["playback"]:
+            process, cue, ending = review["playback"]
+            status = process.poll()
+            if status is not None:
+                if status == 0 and time.monotonic() >= ending:
+                    review["heard"].add(cue)
+                review["playback"] = None
+        return review
+
+    def listen_instrumental_cue(self, track, index):
+        if self.engine.get("state") == "singing":
+            raise SongError("Compara las grabaciones cuando termine la canción actual.")
+        review = self.instrumental_review()
+        if track not in review["audio"] or not 0 <= index < len(review["points"]):
+            raise SongError("Ese fragmento de la grabación no está disponible.")
+        self.stop_preview()
+        point = review["points"][index]
+        length = min(7, review["lengths"][track] - point.start)
+        self.preview = sync_review.play_review(review["audio"][track], point)
+        review["playback"] = (self.preview, (track, index), time.monotonic() + max(0, length - 0.15))
+        self.message = "Canta esta frase desde el pitido: " + point.caption
+
     def confirm_instrumental(self):
-        if not self.candidate_audio or not self.candidate_audio.get("listened"):
-            raise SongError("Preescucha la instrumental antes de confirmarla.")
+        review = self.instrumental_review()
+        if len(review["heard"]) != len(review["points"]) * 2:
+            raise SongError("Preescucha cada frase en el original y en la instrumental antes de confirmar.")
         song = self.song(self.candidate_audio["song"])
         with tempfile.TemporaryDirectory(dir=self.library) as tmp:
             target = Path(tmp)
-            text, meta = read_chart(Path(song["chart"]))
+            text, _ = read_chart(Path(song["chart"]))
             shutil.copy2(self.candidate_audio["path"], target / "audio.mp3")
+            if self.instrumental_review() is not review:
+                raise SongError("La grabación ha cambiado. Repite la comparación.")
             text = re.sub(
                 r"^#(MP3|AUDIO|VIDEO|COVER|BACKGROUND|VIDEOGAP):.*\n?", "", text, flags=re.M
             )
             text = "#MP3:audio.mp3\n" + text
             (target / "song.txt").write_text(text, encoding="utf-8")
             info = import_package(target / "song.txt", self.library)
+        if info["id"] == song["id"]:
+            raise SongError("La grabación seleccionada ya es la versión original.")
         self.store.save_song(
             info,
             self.candidate_audio["source"] + ":" + song["id"],
@@ -865,8 +1050,13 @@ class Service(PackageImportMixin):
             self.command("latency", value=milliseconds)
             self.store.configure("latency", milliseconds)
             return
+        if action in ("editions:previous", "editions:next"):
+            editions = [song for song in self.results if work_key(song) == self.edition_group]
+            self.edition_page = min(max(0, (len(editions) - 1) // 12),
+                                    max(0, self.edition_page + (1 if action.endswith(":next") else -1)))
+            return
         if action in ("search:previous", "search:next"):
-            self.result_page = min(max(0, (len(self.results)-1) // 12),
+            self.result_page = min(max(0, (len(self.grouped_results())-1) // 12),
                                    max(0, self.result_page + (1 if action == "search:next" else -1)))
             return
         if action == "search:more":
@@ -893,12 +1083,28 @@ class Service(PackageImportMixin):
             item = next((x for x in self.results if catalog.source_key(x) == key), None)
             if str(self.search_generation) != generation or item is None:
                 raise SongError("La búsqueda ha cambiado. Selecciona de nuevo la canción.")
-            if op == "open" and key.startswith("espana:"):
+            if op == "editions":
+                self.edition_group = work_key(item)
+                self.edition_page = 0
+                self.page = "Ediciones"
+                return
+            if op in ("recording", "file") and key.startswith("allkaraoke:"):
+                if self.page != "Versión" or self.result_detail != item:
+                    raise SongError("Vuelve a elegir la edición que quieres revisar.")
+                self.begin_catalogue_review(item, local=op == "file")
+                return
+            if op == "open" and key.startswith(("espana:", "community-")):
                 import webbrowser
-                if not webbrowser.open(catalog.assisted_entry_url(key)):
+                if not webbrowser.open(item.get("catalogue_url") or catalog.assisted_entry_url(key)):
                     raise SongError("No se ha podido abrir la ficha en el navegador.")
                 return
             if op == "detail":
+                saved = self.store.rows("SELECT song_id FROM song_sources WHERE source=?", (key,))
+                if saved and not item.get("requested_video"):
+                    self.detail = saved[0]["song_id"]
+                    self.carousel_selected = self.detail
+                    self.page = "Canción"
+                    return
                 self.result_detail = item
                 self.page = "Versión"
             elif op in ("save", "queue"):
@@ -930,10 +1136,9 @@ class Service(PackageImportMixin):
         if action.startswith("candidate:"):
             self.candidate(int(action[10:]))
             return
-        if action.startswith("listen:"):
-            if self.candidate_audio:
-                self.listen(self.candidate_audio["path"], float(action[7:]))
-                self.candidate_audio["listened"] = True
+        if action.startswith("instrumental-cue:"):
+            _, track, index = action.split(":")
+            self.listen_instrumental_cue(track, int(index))
             return
         if action == "listen-original":
             self.listen(self.song(self.detail)["audio"])
@@ -1079,11 +1284,15 @@ class Service(PackageImportMixin):
                 info = future.result()
                 if job["id"] in self.cancelled_jobs:
                     raise SongError("Preparación cancelada.")
-                self.store.save_song(info, job["source"])
+                self.store.save_song(info, job["source"], verified=job["source"].startswith("allkaraoke:"))
                 self.store.execute(
                     "UPDATE jobs SET state='ready',song_id=?,message='' WHERE id=?",
                     (info["id"], job["id"]),
                 )
+                if job["source"].startswith("allkaraoke:"):
+                    stage = Path(json.loads(job["payload"])["chart"]).parent
+                    if stage.parent == self.root / "catalogue-review" and stage.name.startswith("edition-"):
+                        shutil.rmtree(stage, ignore_errors=True)
                 self.message = info["title"] + " está lista para cantar."
             except Exception as exc:
                 if job["id"] not in self.cancelled_jobs:
@@ -1181,43 +1390,85 @@ class Service(PackageImportMixin):
             button("Buscar canciones", "search")
             if not self.query:
                 text("Canciones para empezar", "Incluyen voz original y notas.")
+            grouped = self.grouped_results()
             start = self.result_page * 12
-            visible = self.results[start:start + 12]
-            keys = [catalog.source_key(x) for x in visible]
+            visible = grouped[start:start + 12]
+            keys = [catalog.source_key(group[0]) for group in visible]
             saved = {row["matched_source"]: row for row in self.store.rows(
                 f"SELECT s.*,ss.source AS matched_source FROM songs s JOIN song_sources ss ON ss.song_id=s.id WHERE ss.source IN ({','.join('?' for _ in keys)})",
                 keys,
-            )} if keys else set()
-            for song, key in zip(visible, keys):
-                local = saved.get(key) or (song if song.get("library_id") else None)
-                source = ("Deluxe" if key.startswith("deluxe:") else
-                          "USDB" if key.startswith("usdb:") else "Biblioteca")
-                status = "Lista para cantar" if local else "Preparar"
+            )} if keys else {}
+            for group, key in zip(visible, keys):
+                song = group[0]
                 token = f"{self.search_generation}:{key}"
-                if key.startswith("espana:"):
-                    song_row(song, song["title"], song["artist"] + " · Necesita importar",
+                if len(group) > 1:
+                    song_row(song, song["title"], f"{song['artist']} · {len(group)} ediciones y fuentes",
+                             "result:editions:" + token)
+                    continue
+                local = saved.get(key) or (song if song.get("library_id") else None)
+                if not local and is_assisted(key):
+                    song_row(song, song["title"], song["artist"] + " · " + source_name(key)
+                             + " · " + ("Revisar grabación" if key.startswith("allkaraoke:") else "Necesita importar"),
                              "result:detail:" + token)
                     continue
                 detail_action = ("song:" + local["id"]) if local and not song.get("requested_video") else ("result:detail:" + token)
-                song_row(local or song, song["title"], f"{song['artist']} · {source} · {status}",
-                         detail_action, "result:queue:" + token)
+                status = "Lista para cantar" if local else "Preparar"
+                song_row(local or song, song["title"], f"{song['artist']} · {source_name(key)} · {status}",
+                         detail_action, ("enqueue:" + local["id"]) if local and not song.get("requested_video") else "result:queue:" + token)
             if start:
                 button("Página anterior", "search:previous")
-            if start + len(visible) < len(self.results):
+            if start + len(visible) < len(grouped):
                 button("Página siguiente", "search:next")
             elif self.search_cursor and not self.search_busy:
                 button("Buscar más en USDB", "search:more")
+            for name, status in self.catalogue_status.items():
+                if status:
+                    text(name, status)
             if self.query and not self.search_busy:
                 button("Consultar UltraStar España", "external:es", "Abrir catálogo en el navegador")
                 button("Consultar USDB.eu", "external:eu", "Abrir catálogo en el navegador")
             button("Importar TXT, audio o ZIP", "import:open")
+        elif self.page == "Ediciones":
+            editions = [song for song in self.results if work_key(song) == self.edition_group]
+            start = self.edition_page * 12
+            for song in editions[start:start + 12]:
+                key = catalog.source_key(song)
+                details = [song["artist"], source_name(key)]
+                details.extend(str(song[x]) for x in ("edition", "language", "creator") if song.get(x))
+                local_id = song.get("library_id")
+                if not local_id:
+                    saved = self.store.rows("SELECT song_id FROM song_sources WHERE source=?", (key,))
+                    local_id = saved[0]["song_id"] if saved else None
+                if local_id:
+                    details.append("En biblioteca")
+                action = f"result:detail:{self.search_generation}:{key}"
+                if local_id and not song.get("requested_video"):
+                    song_row(song, song["title"], " · ".join(details), "song:" + local_id, "enqueue:" + local_id)
+                else:
+                    song_row(song, song["title"], " · ".join(details), action)
+            if start:
+                button("Ediciones anteriores", "editions:previous")
+            if start + 12 < len(editions):
+                button("Más ediciones", "editions:next")
+            button("Volver a los resultados", "page:Buscar")
         elif self.page == "Versión" and self.result_detail:
             song = self.result_detail
             key = catalog.source_key(song)
             token = f"{self.search_generation}:{key}"
             song_row(song, song["title"], song["artist"])
-            if key.startswith("espana:"):
-                text("UltraStar España", "Obtén el material de esta edición e importa el paquete o el mapa con su audio.")
+            if key.startswith("allkaraoke:") and not song.get("library_id"):
+                text("AllKaraoke", " · ".join(filter(None, (song.get("language"), song.get("creator")))))
+                text("Grabación del mapa", "YouTube · " + song["video_id"])
+                if (song.get("tracks") or 1) > 1:
+                    text("Mapa con varias voces", "Esta versión necesita melodías separadas. Elige otro mapa.")
+                elif not self.review_busy:
+                    button("Preparar grabación exacta", "result:recording:" + token)
+                    if song.get("reference_duration"):
+                        button("Usar una copia local de esta edición", "result:file:" + token)
+                else:
+                    text("Preparando la preescucha…")
+            elif key.startswith(("espana:", "community-")):
+                text(source_name(key), "Obtén el material de esta edición e importa el paquete o el mapa con su audio.")
                 button("Abrir ficha", "result:open:" + token)
                 button("Importar TXT, audio o ZIP", "import:open")
             else:
@@ -1231,6 +1482,8 @@ class Service(PackageImportMixin):
                     text("Versión de la biblioteca")
                 button("Añadir a la cola", "result:queue:" + token)
                 button("Guardar sin turno", "result:save:" + token)
+            if self.edition_group == work_key(song):
+                button("Ver otras ediciones", "page:Ediciones")
             button("Volver a los resultados", "page:Buscar")
         elif self.page == "Confirmar versión":
             text(
@@ -1305,6 +1558,7 @@ class Service(PackageImportMixin):
             text(
                 "Instrumental confirmada por el anfitrión"
                 if song["variant"] == "instrumental"
+                else "Grabación revisada con el mapa" if song.get("verified")
                 else "Audio original del paquete",
                 f"{round(song['duration'])} s · {song['language']}",
             )
@@ -1349,15 +1603,23 @@ class Service(PackageImportMixin):
             for index, item in enumerate(self.candidates):
                 button(item["title"], "candidate:" + str(index), "Preparar para preescucha")
             if self.candidate_audio:
-                for fraction, title in ((0, "principio"), (0.45, "centro"), (0.85, "final")):
-                    button("Escuchar " + title, "listen:" + str(fraction))
-                button("Escuchar referencia original", "listen-original")
-                button("Detener preescucha", "stop-preview")
-                button(
-                    "Confirmar estructura, tono y sincronía",
-                    "confirm-instrumental",
-                    "Solo tras revisar que coincide con este mapa.",
-                )
+                try:
+                    review = self.instrumental_review()
+                except (OSError, SongError) as error:
+                    text("Instrumental pendiente de revisión", str(error))
+                else:
+                    text(
+                        "Comprobar sincronía y tono",
+                        "Escucha cada frase del original y cántala sobre la instrumental desde el pitido.",
+                    )
+                    for i, point in enumerate(review["points"]):
+                        label = ("Inicio", "Mitad", "Final")[i]
+                        for track, name in (("original", "Original"), ("instrumental", "Instrumental")):
+                            heard = " · Escuchado" if (track, i) in review["heard"] else ""
+                            button(f"{label} · {name}{heard}", f"instrumental-cue:{track}:{i}", point.caption)
+                    button("Detener preescucha", "stop-preview")
+                    if len(review["heard"]) == len(review["points"]) * 2:
+                        button("Coinciden las tres frases y el tono · Guardar", "confirm-instrumental")
         elif self.page == "Ajustes":
             text("Cantantes y sonido", "Retorno a cero inicialmente; súbelo de forma gradual.")
             field("Nombre · jugador 1", "player1", "Cantante 1")
@@ -1440,8 +1702,10 @@ class Service(PackageImportMixin):
             for child in self.children:
                 if child.poll() is None:
                     child.terminate()
+        self.catalogue_pool.shutdown(wait=True, cancel_futures=True)
         self.pool.shutdown(wait=True, cancel_futures=True)
         self.artwork.close()
+        self.clean_catalogue_reviews()
         self.store.close()
 
 
@@ -1463,3 +1727,28 @@ def youtube_id(url):
     else:
         return None
     return candidate if re.fullmatch(r"[A-Za-z0-9_-]{11}", candidate) else None
+
+
+def source_name(key):
+    return {"usdb": "USDB", "deluxe": "Deluxe", "espana": "UltraStar España",
+            "community-es": "UltraStar España", "community-eu": "USDB.eu",
+            "allkaraoke": "AllKaraoke"}.get(key.partition(":")[0], "Biblioteca")
+
+
+def is_assisted(key):
+    return key.startswith(("allkaraoke:", "community-", "espana:"))
+
+
+def work_key(song):
+    # Loose grouping for display only. Queue and preparation always use the edition source ID.
+    artist = re.split(r"\s+(?:feat\.?|ft\.?|featuring)\s+", normalize(song["artist"]), maxsplit=1)[0]
+    title = re.sub(r"\s*[([](?:live|directo|studio|remix|radio edit|duet|duett|dueto|instrumental)\b[^)\]]*[)\]]",
+                   "", normalize(song["title"]))
+    return tuple(catalog.tokens(artist.replace("&", " y "))), tuple(catalog.tokens(title))
+
+
+def group_results(results):
+    groups = {}
+    for song in results:
+        groups.setdefault(work_key(song), []).append(song)
+    return list(groups.values())

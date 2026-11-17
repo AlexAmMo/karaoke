@@ -1,0 +1,501 @@
+{
+  "date": "2026-11-17",
+  "scope": "Karaoke Service search, edition picker and queue guards using temporary empty library on macOS. Live public metadata first, then the same on-disk catalogues with their HTTP fetch functions disabled for the 40-song audit. No local audio or pitch-scoring validation in this report.",
+  "allkaraoke_revision": "978f076b8b8b6641057ba16a66693155aedc2cf2",
+  "song": {
+    "artist": "Álex Ubago",
+    "title": "Sigo Aquí",
+    "exact_query": "Alex Ubago Sigo Aqui",
+    "empty_library": true,
+    "account": false,
+    "work_rows": 1,
+    "sources": [
+      "allkaraoke:alex-ubago-sigo-aqui",
+      "espana:sigo-aqui"
+    ],
+    "selected_chart_video_id": "IA0uSub1xy4",
+    "direct_queue_blocked": true,
+    "reference_duration_s": 225,
+    "chart_creator": "Cualquiera98",
+    "chart_origin": "https://www.youtube.com/watch?v=IA0uSub1xy4",
+    "bare_title_results": [
+      {
+        "artist": "Álex Ubago",
+        "song": "Sigo Aquí"
+      },
+      {
+        "artist": "Paulina Rubio",
+        "song": "Y yo sigo aquí"
+      }
+    ],
+    "historical_db": "https://usdb.hehoe.de/",
+    "publisher_scores": "https://tr.ultrastar-es.org/en/concursos/puntuaciones?artista=%C3%81lex+Ubago",
+    "allkaraoke_metadata_last_updated": "2026-10-15T02:37:33.423Z",
+    "previous_sample": "Sigo Aquí was outside the existing 40-title sample. The source index revision matches the preceding research.",
+    "source_index": "https://github.com/Asvarox/allkaraoke/blob/978f076b8b8b6641057ba16a66693155aedc2cf2/public/songs/index.json"
+  },
+  "community_cache_distinct_rows": {
+    "es": 18254,
+    "eu": 2552
+  },
+  "offline_no_account_sample": {
+    "method": "Artist and title equal after punctuation, accent, case and ampersand normalization. One result group per exact work. Loses some credits including featured artists unless the full credit matches. Counts discoveries, not prepared songs.",
+    "total": 40,
+    "exact": 39,
+    "exact_by_language": {
+      "inglés": 20,
+      "español": 19
+    },
+    "rows": [
+      {
+        "artist": "Eminem",
+        "title": "Lose Yourself",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "Eminem",
+        "title": "Without Me",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Eminem",
+        "title": "The Real Slim Shady",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Eminem",
+        "title": "Mockingbird",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Queen",
+        "title": "Bohemian Rhapsody",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Queen",
+        "title": "Don't Stop Me Now",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "ABBA",
+        "title": "Dancing Queen",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "ABBA",
+        "title": "Mamma Mia",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "Adele",
+        "title": "Rolling in the Deep",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "Adele",
+        "title": "Someone Like You",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 4
+      },
+      {
+        "artist": "The Beatles",
+        "title": "Hey Jude",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "The Beatles",
+        "title": "Let It Be",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Michael Jackson",
+        "title": "Billie Jean",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "Oasis",
+        "title": "Wonderwall",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Coldplay",
+        "title": "Viva La Vida",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "Linkin Park",
+        "title": "In the End",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 5
+      },
+      {
+        "artist": "Bon Jovi",
+        "title": "Livin' on a Prayer",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "Ed Sheeran",
+        "title": "Perfect",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "USDB.eu",
+          "UltraStar España"
+        ],
+        "candidate_editions": 5
+      },
+      {
+        "artist": "Rihanna",
+        "title": "Diamonds",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Lady Gaga",
+        "title": "Bad Romance",
+        "language": "inglés",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Estopa",
+        "title": "Como Camarón",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "Melendi",
+        "title": "Caminando por la vida",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "La Oreja de Van Gogh",
+        "title": "Rosas",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "El Canto del Loco",
+        "title": "Zapatillas",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Fito & Fitipaldis",
+        "title": "Soldadito marinero",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Héroes del Silencio",
+        "title": "Entre dos tierras",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Hombres G",
+        "title": "Devuélveme a mi chica",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Mecano",
+        "title": "Hijo de la luna",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Shakira",
+        "title": "Antología",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Shakira",
+        "title": "Suerte",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Juanes",
+        "title": "La camisa negra",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Maná",
+        "title": "Rayando el sol",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 3
+      },
+      {
+        "artist": "Luis Fonsi",
+        "title": "Despacito",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "USDB.eu"
+        ],
+        "candidate_editions": 4
+      },
+      {
+        "artist": "Daddy Yankee",
+        "title": "Gasolina",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Nino Bravo",
+        "title": "Libre",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Joan Manuel Serrat",
+        "title": "Mediterráneo",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Amaral",
+        "title": "Sin ti no soy nada",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "AllKaraoke",
+          "UltraStar España"
+        ],
+        "candidate_editions": 2
+      },
+      {
+        "artist": "Nach",
+        "title": "Efectos vocales",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      },
+      {
+        "artist": "Canserbero",
+        "title": "Es épico",
+        "language": "español",
+        "exact_work_rows": 0,
+        "exact_sources": [],
+        "candidate_editions": 0
+      },
+      {
+        "artist": "Celia Cruz",
+        "title": "La vida es un carnaval",
+        "language": "español",
+        "exact_work_rows": 1,
+        "exact_sources": [
+          "UltraStar España"
+        ],
+        "candidate_editions": 1
+      }
+    ],
+    "publisher_credit_review": {
+      "candidate_rows_with_matching_index_label": 39,
+      "strict_previous_credit_criterion": 38,
+      "english": 20,
+      "spanish": 18,
+      "additional_candidate": "Luis Fonsi - Despacito. The EU sitemap lists Luis Fonsi, while a linked edition credits Daddy Yankee. Keep the featured artist and maps separate by recording.",
+      "example": "https://usdb.eu/LuisFonsi/Despacito/834",
+      "missing": "Canserbero - Es épico"
+    }
+  },
+  "with_usdb_account": {
+    "provider_completed": true,
+    "animux_ids": [],
+    "public_source_keys": [
+      "allkaraoke:alex-ubago-sigo-aqui",
+      "espana:sigo-aqui"
+    ]
+  }
+}

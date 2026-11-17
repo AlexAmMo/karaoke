@@ -54,6 +54,17 @@ def read_chart(path: Path) -> tuple[str, dict]:
         raise SongError("Este mapa es un dúo con partes distintas; V1 usa una melodía común.")
     if meta.get("RELATIVE", "NO").upper() == "YES":
         raise SongError("Convierte este mapa de tiempos relativos a absolutos antes de importarlo.")
+    # This Deluxe release explicitly ignores B rows during playback. A tempo
+    # change would therefore move every subsequent note away from the recording.
+    for raw_bpm in re.findall(r"^B\s+[^\n]*?\s+([^\s]+)[ \t]*$", text, re.M):
+        try:
+            change = float(raw_bpm.replace(",", "."))
+        except ValueError:
+            raise SongError("Cambio de tempo no válido en el mapa.") from None
+        if not math.isclose(change, bpm):
+            raise SongError(
+                "Esta edición cambia de tempo durante la canción. Elige un mapa de tempo fijo compatible con Deluxe."
+            )
     notes = []
     for line in text.splitlines():
         if line[:1] in (":", "*", "F", "R", "G"):
