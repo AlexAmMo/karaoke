@@ -13,6 +13,7 @@ No UI automation, remote catalogue access or microphone capture is performed.
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -97,7 +98,7 @@ class Session:
         if not path.exists():
             return []
         # Do not instantiate Store here: its crash recovery mutates live turns.
-        with sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True) as db:
+        with closing(sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)) as db:
             db.row_factory = sqlite3.Row
             return [dict(row) for row in db.execute(sql, args)]
 

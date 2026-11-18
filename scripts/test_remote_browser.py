@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 
+import requests
 from playwright.async_api import async_playwright, expect
 
 from test_session import ROOT, Session, read_json
@@ -32,7 +33,13 @@ def row(page, title):
 async def join(browser, profile, name, url, code):
     context = await browser.new_context(**profile)
     page = await context.new_page()
-    await page.goto(url)
+    try:
+        await page.goto(url)
+    except Exception:
+        with requests.Session() as probe:
+            probe.trust_env = False
+            print("Direct LAN response after navigation failure:", probe.get(url, timeout=5).status_code, flush=True)
+        raise
     await page.get_by_label("Tu nombre").fill(name)
     await page.get_by_label("Código del ordenador").fill(code)
     await button(page, "Entrar en Karaoke").click()
@@ -97,7 +104,10 @@ async def test_phones(session, browser_type, channel):
 
     url, code = open_room()
     async with async_playwright() as playwright:
-        browser = await getattr(playwright, browser_type).launch(channel=channel)
+        # These phones join the local network directly, including on CI hosts
+        # with a system-wide web proxy configured.
+        options = {"args": ["--no-proxy-server"]} if browser_type == "chromium" else {}
+        browser = await getattr(playwright, browser_type).launch(channel=channel, **options)
         try:
             ana, luis, mar = await asyncio.gather(*(
                 join(browser, playwright.devices[model], name, url, code)
