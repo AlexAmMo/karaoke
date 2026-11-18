@@ -129,6 +129,7 @@ class Service(PackageImportMixin):
         self.futures = []
         self.download = None
         self.search_generation = 0
+        self.prefer_direct_until = 0.0
         self.catalogue_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="indices")
         self.usdb_search_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="usdb-search")
         self.catalogue_status = {}
@@ -424,6 +425,7 @@ class Service(PackageImportMixin):
             self.edition_group = None
             self.result_detail = None
             self.search_generation += 1
+            self.prefer_direct_until = time.monotonic() + 2.0
             self.search_cursor = None
             self.search_busy = False
             self.lookup_query = self.query
@@ -1539,9 +1541,10 @@ class Service(PackageImportMixin):
                     if song.get("library_id") or key in saved_keys:
                         sub += " · En biblioteca"
                     add_action = "result:best:" + token
-                elif spanish and (self.catalogue_status.get("AllKaraoke") == "Consultando" or self.search_busy):
+                elif (spanish and time.monotonic() < self.prefer_direct_until
+                      and (self.catalogue_status.get("AllKaraoke") == "Consultando" or self.search_busy)):
                     # A local reference can appear before its one-click map. Do not
-                    # send someone into a sign-in while automatic sources are answering.
+                    # send someone into sign-in immediately, or block on a slow source.
                     sub += " · Comprobando ediciones…"
                     add_action = ""
                 elif spanish:

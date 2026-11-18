@@ -277,6 +277,8 @@ def test_spanish_search_offers_in_app_picker_without_an_account(service, query, 
     service.search(query)
     pending, = [r for r in service.view()["rows"] if r["kind"] == "song"]
     assert not pending["add_action"] and "Comprobando ediciones" in pending["sub"]
+    service.prefer_direct_until = 0
+    assert next(r for r in service.view()["rows"] if r["kind"] == "song")["add_action"]
     wait(service, lambda: not service.futures)
     row, = [r for r in service.view()["rows"] if r["kind"] == "song"]
     assert "Elegir en UltraStar España" in row["sub"]
