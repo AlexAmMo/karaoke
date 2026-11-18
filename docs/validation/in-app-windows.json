@@ -1,0 +1,63 @@
+{
+  "source_run": "https://github.com/AlexAmMo/karaoke/actions/runs/44205321249",
+  "passed": true,
+  "platform": "Windows-2022Server-10.0.20348-SP0",
+  "package_sha256": "7b804ff0df4bb068864a2a23f79fa81ff631c5a5705ad41adcdca596b54fc275",
+  "launcher_sha256": "c56ebe9c9ecd1259570293f4ae7a30bcd06bdc6270a5c8d3e5854c7ea26470a3",
+  "frozen_download_picker": {
+    "browser": true,
+    "torrent": true
+  },
+  "frozen_provider_stdin": true,
+  "local_search_journey": {
+    "query": "Probe A",
+    "catalogue_http_unreachable": true,
+    "controls": [
+      "Buscar",
+      "Campo de búsqueda",
+      "Añadir a la cola",
+      "Cola",
+      "Empezar a cantar"
+    ],
+    "passed": true
+  },
+  "singing_cursor": [
+    {
+      "state": "singing",
+      "position": 1.5175430839002266,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        375,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 1.7317573696145123,
+      "cursor_visible": true,
+      "panel_collapsed": true,
+      "scores": [
+        625,
+        0
+      ]
+    },
+    {
+      "state": "singing",
+      "position": 1.946528344671202,
+      "cursor_visible": true,
+      "panel_collapsed": false,
+      "scores": [
+        750,
+        0
+      ]
+    }
+  ],
+  "elapsed_seconds": 16.91,
+  "ci_audio_driver": "dummy",
+  "source_revision": "e39120a1061efd108ff3735380dde5e27398e10b",
+  "job_url": "https://github.com/AlexAmMo/karaoke/actions/runs/44205321249/job/134469718023",
+  "smoke_artifact_id": 14384405484,
+  "smoke_result_sha256": "45c29212ac621a03fba0c52051ca9fbd2ac74d40790781359e4adfcfa2d94e6d",
+  "scope": "Paquete Windows x64, navegador y motor BitTorrent cargados en el ejecutable congelado. Búsqueda local sin red, cola y canto con gráficos y audio simulados."
+}
