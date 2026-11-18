@@ -140,3 +140,32 @@ def test_receive_real_multifile_torrent_from_local_peer(tmp_path, package, monke
         tracker.shutdown()
         tracker.server_close()
         thread.join(2)
+
+
+@pytest.mark.parametrize("cancel", (True, False))
+def test_unseeded_package_can_be_cancelled_or_retried(tmp_path, monkeypatch, cancel):
+    payload = b"an unseeded chart"
+    torrent = tmp_path / "private.torrent"
+    torrent.write_bytes(
+        lt.bencode(
+            {
+                b"announce": b"http://127.0.0.1:1/announce?passkey=private",
+                b"info": {
+                    b"name": b"song.txt",
+                    b"piece length": 16384,
+                    b"private": 1,
+                    b"pieces": hashlib.sha1(payload).digest(),
+                    b"length": len(payload),
+                },
+            }
+        )
+    )
+    monkeypatch.setattr(provider, "STALL_SECONDS", 0.40)
+
+    def report(_):
+        if cancel:
+            raise SongError("Preparación cancelada.")
+
+    with pytest.raises(SongError, match="cancelada" if cancel else "fuentes") as error:
+        provider.prepare_torrent(torrent, tmp_path, SONG, report)
+    assert "passkey" not in str(error.value)

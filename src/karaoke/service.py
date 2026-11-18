@@ -575,6 +575,7 @@ class Service(PackageImportMixin):
                 return
             key, kind = result
             source = "spanish-package:" + key
+            self.resume_cancelled_source(source)
             self.store.request(source, {"kind": "spanish-package", "format": kind,
                 "song": {"title": song["title"], "artist": song["artist"]}}, names)
             self.message = "Edición añadida a la cola."
@@ -841,13 +842,16 @@ class Service(PackageImportMixin):
             payload.update(local_audio=str(path), audio_signature=stamp)
         # An explicit retry with a fresh file or complete catalogue result replaces
         # the failed input, while waiting/in-flight jobs remain idempotent.
+        self.resume_cancelled_source(source)
+        self.store.request(source, payload, self.names() if queue else None)
+        self.message = "Añadida a la cola." if queue else "Preparando la canción."
+
+    def resume_cancelled_source(self, source):
         previous = self.store.rows("SELECT id FROM jobs WHERE source=? AND state='cancelled'", (source,))
         if previous and self.download and self.download[1]["id"] == previous[0]["id"]:
             raise SongError("La preparación anterior se está cancelando. Vuelve a añadirla en unos segundos.")
         if previous:
             self.cancelled_jobs.discard(previous[0]["id"])
-        self.store.request(source, payload, self.names() if queue else None)
-        self.message = "Añadida a la cola." if queue else "Preparando la canción."
 
     def choose_catalogue_audio(self, song):
         def done(path):
@@ -1185,7 +1189,11 @@ class Service(PackageImportMixin):
             if op == "obtain":
                 if not self.spanish_choice([item]):
                     raise SongError("Esta edición no ofrece el paquete solicitado.")
-                self.obtain_spanish(item, value)
+                if self.page == "Buscar" and self.auto_choices(self.editions_for(key)):
+                    self.add_best(item)
+                    self.confirm_added(value)
+                else:
+                    self.obtain_spanish(item, value)
                 return
             if op == "editions":
                 self.edition_group = key
@@ -1531,6 +1539,11 @@ class Service(PackageImportMixin):
                     if song.get("library_id") or key in saved_keys:
                         sub += " · En biblioteca"
                     add_action = "result:best:" + token
+                elif spanish and (self.catalogue_status.get("AllKaraoke") == "Consultando" or self.search_busy):
+                    # A local reference can appear before its one-click map. Do not
+                    # send someone into a sign-in while automatic sources are answering.
+                    sub += " · Comprobando ediciones…"
+                    add_action = ""
                 elif spanish:
                     sub += " · Elegir en UltraStar España"
                     add_action = "result:obtain:" + token

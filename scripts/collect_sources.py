@@ -137,6 +137,12 @@ def python_sources():
     for d in importlib.metadata.distributions():
         name = d.metadata.get('Name', '')
         if name.lower().replace('_', '-') in ('karaoke-local', 'usdb-syncer', 'pyside6', 'pyside6-essentials', 'pyside6-addons', 'shiboken6'): continue
+        if name.lower() == 'libtorrent' and d.version == '2.1.1':
+            items.append({'name': name, 'version': d.version, 'group': 'python',
+                          'filename': 'libtorrent-2.1.1.tar.gz',
+                          'url': 'https://codeload.github.com/arvidn/libtorrent/tar.gz/56ae8caba38bf154ffc210403cb23f91d0ecaa49',
+                          'sha256': '29127305cca0def7f5327f826957dd58c17ef0965e9d5cd899ad37bd9859320b'})
+            continue
         try:
             response = requests.get(f'https://pypi.org/pypi/{name}/{d.version}/json', timeout=20)
             response.raise_for_status()
@@ -156,14 +162,36 @@ def qt_sources(app):
     version = importlib.metadata.version('PySide6')
     parts = version.split('.')
     qt_base = f'https://download.qt.io/official_releases/qt/{parts[0]}.{parts[1]}/{version}/submodules/'
-    # Frozen build only imports QtCore and QtNetwork. Fail if more modules get bundled.
-    modules = {p.name for p in app.rglob('Qt*.framework')}
-    allowed = {'QtCore.framework', 'QtNetwork.framework', 'QtGui.framework', 'QtWidgets.framework', 'QtDBus.framework', 'QtOpenGL.framework', 'QtOpenGLWidgets.framework', 'QtSvg.framework', 'QtSvgWidgets.framework'}
-    if modules - allowed:
-        raise RuntimeError('Add source modules for additional bundled Qt frameworks: ' + str(modules-allowed))
-    urls = [qt_base+f'qtbase-everywhere-src-{version}.tar.xz', qt_base+f'qtimageformats-everywhere-src-{version}.tar.xz', f'https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-{version}-src/pyside-setup-everywhere-src-{version}.tar.xz']
-    if modules.intersection({'QtSvg.framework', 'QtSvgWidgets.framework'}):
-        urls.append(qt_base+f'qtsvg-everywhere-src-{version}.tar.xz')
+    # Match both macOS framework and Windows DLL layouts to their Qt source modules.
+    modules = {p.name.removesuffix('.framework') for p in app.rglob('Qt*.framework')}
+    modules.update('Qt'+p.stem[3:] for p in app.rglob('Qt6*.dll'))
+    modules.update({'QtCore', 'QtSvg'})
+    sources = {'qtbase', 'qtimageformats'}
+    base = {'Core', 'Concurrent', 'DBus', 'Gui', 'Network', 'OpenGL', 'OpenGLWidgets',
+            'PrintSupport', 'Sql', 'Test', 'Widgets', 'Xml'}
+    for module in sorted(modules):
+        name = module.removeprefix('Qt')
+        if name in base:
+            continue
+        # Qt ships its declarative runtime as several narrowly named libraries.
+        if name.startswith('Quick3D'):
+            sources.add('qtquick3d')
+        elif name.startswith(('Qml', 'Quick')):
+            sources.add('qtdeclarative')
+        elif name.startswith('WebEngine'):
+            sources.add('qtwebengine')
+        elif name.startswith('WebChannel'):
+            sources.add('qtwebchannel')
+        elif name.startswith('Positioning'):
+            sources.add('qtpositioning')
+        elif name == 'SerialPort':
+            sources.add('qtserialport')
+        elif name.startswith('Svg'):
+            sources.add('qtsvg')
+        else:
+            raise RuntimeError('Add source module for additional bundled Qt library: ' + module)
+    urls = [qt_base + f'{source}-everywhere-src-{version}.tar.xz' for source in sorted(sources)]
+    urls.append(f'https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-{version}-src/pyside-setup-everywhere-src-{version}.tar.xz')
     items = []
     for url in urls:
         response = requests.get(url+'.sha256', timeout=20); response.raise_for_status()
@@ -200,7 +228,7 @@ def main():
 
 Build the application with the scripts included in its companion source archive and `uv.lock`. Build native Homebrew libraries from the included archive and installed formula. The formula `install` method records the actual configure/build invocation; apply any included patch/resource archives before that invocation. Libraries are dynamically linked and may be replaced with compatible builds; do not treat an ad-hoc signature as a restriction on replacement. Re-sign the local application ad hoc after modification (`codesign --force --deep --sign - Karaoke.app`).
 
-QtCore, QtNetwork, QtGui, QtWidgets, QtDBus and QtOpenGL belong to the included qtbase module. SVG and additional image-format plugins are covered by qtsvg and qtimageformats. PySide6 and Shiboken are in the included pyside-setup source. Their source archives contain the upstream license texts and build instructions. The application uses the Qt for Python wheels locked in uv.lock and does not modify Qt. Qt's upstream build guide is https://doc.qt.io/qtforpython-6/building_from_source/index.html .
+QtCore, QtNetwork, QtGui, QtWidgets, QtDBus and QtOpenGL belong to the included qtbase module. The source manifest includes the modules used by the publisher window, including Qt WebEngine with Chromium, Qt Declarative, Qt WebChannel and Qt Positioning, plus qtsvg and qtimageformats. PySide6 and Shiboken are in the included pyside-setup source. Their source archives contain the upstream license texts and build instructions. The application uses the Qt for Python wheels locked in uv.lock and does not modify Qt. Qt's upstream build guide is https://doc.qt.io/qtforpython-6/building_from_source/index.html .
 
 Python package archives include their upstream build instructions, license files and build metadata. CPython is included separately. Developer tools present in the build environment may also be listed; inclusion in this source archive does not imply they are shipped in the application.
 

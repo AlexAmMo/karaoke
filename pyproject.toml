@@ -2,7 +2,7 @@
 name = "karaoke-local"
 version = "0.1.0"
 description = "Karaoke local con UltraStar Deluxe, biblioteca y cola integrada"
-requires-python = ">=3.12,<3.15"
+requires-python = ">=3.12,<3.14"
 license = "GPL-3.0-only"
 dependencies = [
   "usdb-syncer @ git+https://github.com/bohning/usdb_syncer.git@1690c6d7505701047b245a3470867c0b3ddae01d",

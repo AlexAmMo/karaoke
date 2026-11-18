@@ -275,6 +275,9 @@ def test_spanish_search_offers_in_app_picker_without_an_account(service, query, 
     monkeypatch.setattr(service, "obtain_spanish", lambda item, token: selected.append((item, token)),
                         raising=False)
     service.search(query)
+    pending, = [r for r in service.view()["rows"] if r["kind"] == "song"]
+    assert not pending["add_action"] and "Comprobando ediciones" in pending["sub"]
+    wait(service, lambda: not service.futures)
     row, = [r for r in service.view()["rows"] if r["kind"] == "song"]
     assert "Elegir en UltraStar España" in row["sub"]
     assert row["add_action"] == f"result:obtain:{service.search_generation}:espana:{slug}"

@@ -19,6 +19,14 @@ def test_picker_links_to_exact_song_and_accepts_publisher_downloads():
     assert not spanish_picker.publisher_url("https://ultrastar-es.org@example.org/")
     assert not spanish_picker.publisher_url("file:///etc/hosts")
     assert spanish_picker.download_kind("notes.txt", "text/plain") == ""
+    assert (
+        spanish_picker.download_kind(
+            "edition",
+            "application/octet-stream",
+            "https://ultrastar-es.org/es/canciones/descargar/torrent/ID",
+        )
+        == "torrent"
+    )
     assert spanish_picker.download_kind("edition", "application/x-bittorrent") == "torrent"
 
 
@@ -72,5 +80,27 @@ def test_picker_to_library_without_external_browser(tmp_path, package, monkeypat
             song = app.song(app.store.queue()[0]["song_id"])
             assert song["verified"] and Path(song["audio"]).is_file()
         assert not list((app.root / "spanish-packages").iterdir())
+    finally:
+        app.close()
+
+
+def test_search_waits_for_automatic_sources_before_offering_publisher_signin(tmp_path):
+    app = Service(tmp_path)
+    try:
+        app.query = "sigo aqui"
+        song = {"source": "espana:sigo-aqui", "artist": "Álex Ubago", "title": "Sigo Aquí"}
+        app.results = [song]
+        app.catalogue_status["AllKaraoke"] = "Consultando"
+        row = next(row for row in app.view()["rows"] if row["kind"] == "song")
+        assert not row["add_action"] and "Comprobando" in row["sub"]
+        app.catalogue_status["AllKaraoke"] = ""
+        row = next(row for row in app.view()["rows"] if row["kind"] == "song")
+        assert row["add_action"].startswith("result:obtain:")
+        # A late answer between rendering and clicking must still take the one-click route.
+        app.results = [song, {**song, "source": "allkaraoke:ubago", "video_id": "IA0uSub1xy4"}]
+        app.handle({"action": row["add_action"], "value": "late-click"})
+        assert app.spanish_picker is None
+        assert app.store.queue()[0]["source"] == "allkaraoke:ubago"
+        assert app.added_token == "late-click"
     finally:
         app.close()

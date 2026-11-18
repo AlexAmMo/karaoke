@@ -29,9 +29,11 @@ def publisher_url(url):
     )
 
 
-def download_kind(filename, mime):
+def download_kind(filename, mime, url=""):
     ext = Path(filename).suffix.lower()
-    if ext == ".torrent" or mime == "application/x-bittorrent":
+    path = urlsplit(url).path.split("/")
+    official_torrent = publisher_url(url) and path[2:5] == ["canciones", "descargar", "torrent"]
+    if ext == ".torrent" or mime == "application/x-bittorrent" or official_torrent:
         return "torrent"
     if ext == ".zip" or mime == "application/zip":
         return "zip"
@@ -86,10 +88,11 @@ def show(request):
     )
     result = {"status": "cancelled"}
     active = None
+    closing = False
 
     def download(item):
         nonlocal active
-        kind = download_kind(item.suggestedFileName(), item.mimeType())
+        kind = download_kind(item.suggestedFileName(), item.mimeType(), item.url().toString())
         if active or not publisher_url(item.url().toString()) or not kind:
             item.cancel()
             status.setText("Elige el torrent o ZIP de la edición completa, con audio y notas.")
@@ -105,6 +108,8 @@ def show(request):
 
         def changed():
             nonlocal active
+            if closing:
+                return
             if item.receivedBytes() > limit:
                 item.cancel()
             elif item.isFinished():
@@ -126,6 +131,8 @@ def show(request):
     browser.setUrl(QUrl(search_url(request["song"])))
     window.show()
     app.exec()
+    # Cancelling a Chromium download may emit finished after its window is gone.
+    closing = True
     if active and not active.isFinished():
         active.cancel()
     return result
