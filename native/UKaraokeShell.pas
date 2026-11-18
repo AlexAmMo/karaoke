@@ -357,7 +357,15 @@ begin
   else if Op='music' then SetAudioVolumePercent(J.Get('value',65))
   else if Op='latency' then begin if not Singing then Ini.MicDelay:=EnsureRange(J.Get('value',0),-500,500); end
   else if Op='pause' then begin if Singing then ScreenSing.Pause; end
-  else if Op='end' then begin if Singing then ScreenSing.EndSong; end
+  else if Op='set-paused' then
+  begin
+    if Singing and (Token=J.Get('token','')) and (ScreenSing.Paused<>J.Get('paused',false)) then
+      ScreenSing.Pause;
+  end
+  else if Op='end' then
+  begin
+    if Singing and (Token=J.Get('token',Token)) then ScreenSing.EndSong;
+  end
   else if Op='testinput' then
   begin
     if Singing then begin ErrorText:='Prueba los micrófonos entre canciones.'; Exit; end;
@@ -831,7 +839,8 @@ function RowHeight(Row: TJSONObject): integer;
 var Kind: string;
 begin
   Kind:=Row.Get('kind','');
-  if Kind='song' then Result:=62
+  if Kind='qr' then Result:=222
+  else if Kind='song' then Result:=62
   else if SearchField(Row) then Result:=58
   else if Kind='input' then Result:=70
   else if Kind='slider' then Result:=60
@@ -855,7 +864,7 @@ begin
   end;
   if (Page='Ediciones') or (Page='Versión') or (Page='Otros catálogos') then Result:=1
   else if (Page='Turno') or (Page='Preparaciones') or (Page='Terminar canción') then Result:=2
-  else if (Page='Micrófonos') or (Page='Descargas') or (Page='Cuenta USDB') or (Page='Entrada 1') or (Page='Entrada 2') then Result:=3
+  else if (Page='Micrófonos') or (Page='Descargas') or (Page='Móviles') or (Page='Cuenta USDB') or (Page='Entrada 1') or (Page='Entrada 2') then Result:=3
   else Result:=0;
 end;
 
@@ -974,9 +983,20 @@ begin
 end;
 
 procedure DrawControl(R:TJSONObject; Y:single; H:integer; Focused,Hovered:boolean);
-var Kind,Style,Sub,Caption,Control: UTF8String; B:TBox; X,Value:single;
+var Kind,Style,Sub,Caption,Control: UTF8String; B:TBox; X,Value:single; QR:TTexture;
 begin
   Kind:=R.Get('kind',''); Style:=R.Get('style',''); Sub:=R.Get('sub','');
+  if Kind='qr' then
+  begin
+    QR:=CachedCover(R.Get('path',''));
+    if Assigned(QR) then
+    begin
+      QR.X:=94; QR.Y:=Y+3; QR.W:=212; QR.H:=212; QR.Z:=0;
+      QR.ColR:=1; QR.ColG:=1; QR.ColB:=1; QR.Alpha:=1; QR.Reflection:=false;
+      Renderer.DrawTexture(QR);
+    end;
+    Exit;
+  end;
   if Kind='song' then begin SongRow(R,Y,Focused,Hovered); Exit; end;
   if Kind='input' then begin DrawInput(R,Y,Focused); Exit; end;
   if Kind='slider' then

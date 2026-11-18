@@ -40,6 +40,14 @@ Los 39 paquetes de UltraStar Deluxe Songs incluyen mapa, audio y licencia. Los m
 
 En **Ajustes** puedes cambiar los nombres, el volumen de la música y cuánto se oye tu micrófono en los altavoces. Deja vacío el segundo nombre para cantar solo. **Micrófonos** reúne la selección de entradas y el ajuste de latencia.
 
+## Mando desde varios móviles
+
+En **Cola** o **Ajustes**, pulsa **Conectar móviles**. Conecta los teléfonos al mismo wifi que el ordenador (el ordenador también puede estar conectado al router por cable). Cada persona escanea el QR con la cámara, abre la página y escribe su nombre. Para entrar a mano, abre la dirección que aparece bajo el QR e introduce el código. Usa una red de confianza: todos los invitados conectados pueden gestionar los turnos y la reproducción.
+
+Cada móvil tiene su buscador. La biblioteca, las descargas, la música y la cola pertenecen al ordenador. Puedes buscar mientras otra persona canta, añadir tu turno, moverlo, cambiar los cantantes, pausar, reanudar y terminar la canción desde el navegador. El micrófono sigue conectado al ordenador. Las solicitudes de UltraStar España que requieran identificación se completan en Karaoke desde la cola del ordenador.
+
+Si no se abre la página, comprueba que el teléfono esté en el wifi de casa y que el sistema permita a Karaoke recibir conexiones en la red privada. Una red de invitados puede aislar los dispositivos entre sí. Si aparecen varias direcciones, elige la de la red que compartes con los móviles. Cerrar el mando desde el PC invalida la invitación y permite continuar con la cola local.
+
 ## Interfaz y controles
 
 El escenario usa fondo grafito, acento frambuesa, portada protagonista y una tira de canciones. El lateral muestra miniatura, artista y acciones en una sola fila. Las portadas se resuelven en segundo plano desde el paquete, la ficha USDB o el sencillo y el álbum identificados en MusicBrainz. Cuando corresponde se intenta la imagen del artista en Wikimedia Commons. Sin imagen disponible se muestran iniciales. El detalle conserva la procedencia.

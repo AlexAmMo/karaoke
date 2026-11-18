@@ -34,7 +34,9 @@ class Store:
         CREATE TABLE IF NOT EXISTS song_sources(source TEXT PRIMARY KEY,
           song_id TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE);
         INSERT OR IGNORE INTO song_sources SELECT source,id FROM songs WHERE source IS NOT NULL;
-        PRAGMA user_version=1;
+        CREATE TABLE IF NOT EXISTS mobile_requests(key TEXT PRIMARY KEY,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE);
+        PRAGMA user_version=2;
         """)
         # A crash never starts playback on the next launch.
         with self.db:
@@ -110,32 +112,66 @@ class Store:
             self.db.execute("UPDATE jobs SET state='ready',song_id=?,message='' WHERE id=?",
                             (info["id"], job["id"]))
 
-    def request(self, source: str, payload: dict, names: list[str] | None):
+    def request(self, source: str, payload: dict, names: list[str] | None, *, request_key=None, initial_state="waiting"):
         with self.lock, self.db:
-            found = self.db.execute(
-                "SELECT id FROM songs WHERE id=? UNION SELECT song_id FROM song_sources WHERE source=?",
-                (source, source),
-            ).fetchone()
-            song_id = found[0] if found else None
-            if not song_id:
-                self.db.execute(
-                    """INSERT INTO jobs(id,source,payload,state,created) VALUES (?,?,?,'waiting',?)
-                       ON CONFLICT(source) DO UPDATE SET payload=excluded.payload,state='waiting',message=''
-                       WHERE jobs.state IN ('error','cancelled')""",
-                    (uuid.uuid4().hex, source, json.dumps(payload), time.time()),
-                )
-            if names is not None:
-                if not 1 <= len(names) <= 2 or any(not n.strip() for n in names):
-                    raise ValueError("Indica uno o dos cantantes.")
-                position = self.db.execute(
-                    "SELECT coalesce(max(position),0)+1 FROM turns"
-                ).fetchone()[0]
-                turn_id = uuid.uuid4().hex
-                self.db.execute(
-                    "INSERT INTO turns(id,source,song_id,names,position,created) VALUES (?,?,?,?,?,?)",
-                    (turn_id, source, song_id, json.dumps(names), position, time.time()),
-                )
-                return turn_id
+            if request_key:
+                prior = self.db.execute("SELECT turn_id FROM mobile_requests WHERE key=?", (request_key,)).fetchone()
+                if prior:
+                    return prior[0]
+            return self._request(source, payload, names, request_key, initial_state)
+
+    def _request(self, source, payload, names, request_key, initial_state):
+        found = self.db.execute(
+            "SELECT id FROM songs WHERE id=? UNION SELECT song_id FROM song_sources WHERE source=?",
+            (source, source),
+        ).fetchone()
+        song_id = found[0] if found else None
+        if not song_id:
+            self.db.execute(
+                """INSERT INTO jobs(id,source,payload,state,created) VALUES (?,?,?,?,?)
+                   ON CONFLICT(source) DO UPDATE SET payload=excluded.payload,state=excluded.state,message=''
+                   WHERE jobs.state IN ('error','cancelled')""",
+                (uuid.uuid4().hex, source, json.dumps(payload), initial_state, time.time()),
+            )
+        if names is not None:
+            if not 1 <= len(names) <= 2 or any(not n.strip() for n in names):
+                raise ValueError("Indica uno o dos cantantes.")
+            position = self.db.execute(
+                "SELECT coalesce(max(position),0)+1 FROM turns"
+            ).fetchone()[0]
+            turn_id = uuid.uuid4().hex
+            self.db.execute(
+                "INSERT INTO turns(id,source,song_id,names,position,created) VALUES (?,?,?,?,?,?)",
+                (turn_id, source, song_id, json.dumps(names), position, time.time()),
+            )
+            if request_key:
+                self.db.execute("INSERT INTO mobile_requests VALUES (?,?)", (request_key, turn_id))
+            return turn_id
+
+    def cancel_turn(self, turn_id):
+        with self.lock, self.db:
+            self.db.execute("UPDATE turns SET state='cancelled' WHERE id=? AND state='queued'", (turn_id,))
+            self.db.execute(
+                "DELETE FROM jobs WHERE state='host' AND source=(SELECT source FROM turns WHERE id=?) "
+                "AND NOT EXISTS (SELECT 1 FROM turns WHERE source=jobs.source AND state='queued')",
+                (turn_id,),
+            )
+
+    def accept_host_package(self, pending, source, payload):
+        """Attach all still-queued requests to the single selected preparation."""
+        with self.lock, self.db:
+            count = self.db.execute(
+                "SELECT count(*) FROM turns WHERE source=? AND state='queued'", (pending,)
+            ).fetchone()[0]
+            self.db.execute("DELETE FROM jobs WHERE source=? AND state='host'", (pending,))
+            if not count:
+                return False
+            self._request(source, payload, None, None, "waiting")
+            self.db.execute(
+                "UPDATE turns SET source=?,song_id=(SELECT song_id FROM song_sources WHERE source=?) "
+                "WHERE source=? AND state='queued'", (source, source, pending)
+            )
+            return True
 
     def queue(self):
         return self.rows("""SELECT t.*,s.title,s.artist,s.variant,s.chart,j.state AS preparation,j.message,j.payload AS job_payload

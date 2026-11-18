@@ -79,266 +79,24 @@ def cover_path(song: dict) -> str:
     return ""
 
 
-class Service(PackageImportMixin):
-    def __init__(self, root: Path):
-        self.root = root.resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
-        self.store = Store(root / "library.sqlite3")
-        self.library = Path(self.store.setting("library", str(root / "Songs")))
-        self.library.mkdir(parents=True, exist_ok=True)
-        self.ipc = root / "ipc"
-        self.ipc.mkdir(mode=0o700, exist_ok=True)
-        for name in ("events", "commands"):
-            (self.ipc / name).mkdir(exist_ok=True)
-            for p in (self.ipc / name).glob("*.json"):
-                p.unlink()
-        for name in ("engine.json", "view.json"):
-            (self.ipc / name).unlink(missing_ok=True)
-        self.added_token = ""
-        self.page = "Buscar"
-        if self.store.rows("SELECT 1 FROM songs LIMIT 1"):
-            self.page = "Biblioteca"
-        elif self.store.queue():
-            self.page = "Cola"
+class CatalogueSearch:
+    """Per-screen search state. Provider pools, artwork and the song store belong to the host."""
+
+    def init_search(self):
         self.query = ""
-        self.message = ""
         self.results = catalog.starter_songs()
         self.result_page = 0
         self.search_cursor = None
         self.search_busy = False
         self.lookup_query = ""
-        self.result_detail = None
-        self.turn_detail = None
-        self.queue_page = 0
-        self.artwork = ArtworkResolver(root / "artwork")
-        self.candidates = []
-        self.instrumental_busy = False
-        self.detail = None
-        self.fields = {
-            "player1": self.store.setting("player1", "Cantante 1"),
-            "player2": self.store.setting("player2", ""),
-            "username": self.store.setting("username", ""),
-        }
-        self.engine = {}
-        self.active = None
-        self.started_at = 0
-        self.was_singing = False
-        self.pool = concurrent.futures.ThreadPoolExecutor(
-            max_workers=2, thread_name_prefix="karaoke"
-        )
-        self.futures = []
-        self.download = None
         self.search_generation = 0
         self.prefer_direct_until = 0.0
-        self.catalogue_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="indices")
-        self.usdb_search_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="usdb-search")
         self.catalogue_status = {}
         self.edition_group = None
         self.edition_page = 0
         self.grouped_source = None
         self.grouped_cache = []
         self.grouped_query = None
-        self.clean_catalogue_reviews()
-        self.account = AccountSession()
-        self.account_workers = set()
-        self.children = set()
-        self.download_process = None
-        self.spanish_picker = None
-        self.picker_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="edition-picker")
-        self.clean_spanish_tickets()
-        self.cancelled_jobs = set()
-        self.children_lock = threading.Lock()
-        self.closing = False
-        self.preview = None
-        self.confirm_delete = None
-        self.candidate_generation = 0
-        self.last_view = None
-        self.pending_start = None
-        self.sent_audio = None
-        self.command_sequence = 0
-        self.carousel_selected = None
-        self.library_cache_key = None
-        self.library_cache = []
-        self.library_count = 0
-
-    def library_entries(self):
-        query = normalize(self.fields.get("local", ""))
-        with self.store.lock:
-            key = (self.store.db.total_changes, query)
-            if self.library_cache_key != key:
-                songs = self.store.rows(
-                    "SELECT id,title,artist,variant,chart,audio,source FROM songs ORDER BY artist,title,variant,id"
-                )
-                self.library_count = len(songs)
-                self.library_cache = [
-                    song for song in songs
-                    if query in normalize(song["artist"] + " " + song["title"])
-                ]
-                self.library_cache_key = key
-        return self.library_cache
-
-    def library_window(self):
-        songs = self.library_entries()
-        selected = next(
-            (index for index, song in enumerate(songs) if song["id"] == self.carousel_selected),
-            0,
-        )
-        self.carousel_selected = songs[selected]["id"] if songs else None
-        start = max(0, min(selected - 2, len(songs) - 5))
-        return songs[start:start + 5], selected - start if songs else 0, len(songs)
-
-    def cover(self, song, *, search=""):
-        return self.artwork.get(song, local_cover=cover_path(song) if song.get("chart") else "", search=search)
-
-    def carousel_view(self):
-        window, index, total = self.library_window()
-        songs = self.library_entries()
-        return {
-            "songs": [
-                {"id": song["id"], "title": song["title"], "artist": song["artist"],
-                 "cover": self.cover(song)["path"]}
-                for song in window
-            ],
-            "index": index,
-            "total": total,
-            "has_previous": bool(window and window[index]["id"] != songs[0]["id"]),
-            "has_next": bool(window and window[index]["id"] != songs[-1]["id"]),
-        }
-
-    def enqueue_song(self, song_id):
-        self.song(song_id)  # A stale carousel selection must not create a preparation job.
-        self.store.request(song_id, {}, self.names())
-        self.message = "Turno añadido a la cola."
-
-    def command(self, op, **kwargs):
-        self.command_sequence += 1
-        filename = f"{self.command_sequence:020d}-{uuid.uuid4().hex}.json"
-        atomic_json(self.ipc / "commands" / filename, {"op": op, **kwargs})
-
-    def names(self):
-        return [self.fields.get("player1", "").strip() or "Cantante 1"] + (
-            [self.fields["player2"].strip()] if self.fields.get("player2", "").strip() else []
-        )
-
-    def credentials(self):
-        import keyring
-
-        user = self.store.setting("username", "")
-        return (
-            {"username": user, "password": keyring.get_password("Karaoke/USDB", user) or ""}
-            if user
-            else {}
-        )
-
-    def _login_cookies(self, username, password):
-        result = self._provider_worker("login", private_login=True, username=username, password=password)
-        return result["cookies"]
-
-    def _change_account(self, *, pending=False):
-        generation = self.account.begin_change(pending)
-        self.search_generation += 1
-        self.search_busy = False
-        self.search_cursor = None
-        self.results = self.local_results(self.query)
-        self.result_detail = None
-        with self.children_lock:
-            for child in self.account_workers:
-                if child.poll() is None:
-                    child.terminate()
-        return generation
-
-    def provider(self, operation, **kwargs):
-        if operation == "starter":
-            return self._provider_worker(operation, **kwargs)
-        generation = self.account.generation
-        cookies = self.account.acquire(generation, self.credentials, self._login_cookies)
-        try:
-            result = self._provider_worker(operation, generation=generation, session_cookies=cookies, **kwargs)
-        except SessionExpired:
-            cookies = self.account.acquire(generation, self.credentials, self._login_cookies, expired=cookies)
-            result = self._provider_worker(operation, generation=generation, session_cookies=cookies, **kwargs)
-        self.account.check(generation)
-        return result
-
-    def _provider_worker(self, operation, *, generation=None, **kwargs):
-        response = self.root / ("response-" + uuid.uuid4().hex + ".json")
-        request = {
-            "root": str(self.root / "syncer"),
-            "response": str(response),
-            "operation": operation,
-            "progress": str(self.root / "download-progress.json"),
-            **kwargs,
-        }
-        # argv and logs contain no credentials. Use stdin, no persistent password file.
-        private_login = bool(kwargs.get("private_login"))
-        if private_login:
-            del request["response"]
-        try:
-            proc = subprocess.Popen(
-                child_command("karaoke.provider"),
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE if private_login else subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                text=True, encoding="utf-8", errors="replace",
-            )
-            with self.children_lock:
-                self.children.add(proc)
-                if operation != "starter":
-                    self.account_workers.add(proc)
-                    if generation is not None:
-                        self.account.check(generation)
-                if operation in ("download", "starter"):
-                    self.download_process = proc
-            deadline = time.monotonic() + (1800 if operation in ("download", "starter") else 90)
-            pending_input = json.dumps(request)
-            while True:
-                try:
-                    output, _ = proc.communicate(pending_input, timeout=1)
-                    break
-                except subprocess.TimeoutExpired:
-                    pending_input = None
-                    if self.closing:
-                        raise SongError("Preparación interrumpida; se reanudará al volver a abrir.")
-                    if time.monotonic() > deadline:
-                        raise SongError("La fuente ha tardado demasiado. Reintenta la operación.")
-                    if (
-                        operation in ("download", "starter")
-                        and shutil.disk_usage(self.root).free < 256 * 1024**2
-                    ):
-                        raise SongError("Descarga detenida: queda poco espacio disponible.")
-            if proc.returncode:
-                raise SongError("El servicio de catálogo se ha interrumpido. Reintenta la operación.")
-            if private_login:
-                marker = "KARAOKE_LOGIN "
-                line = next((line[len(marker):] for line in reversed((output or "").splitlines())
-                             if line.startswith(marker)), "")
-                try:
-                    result = json.loads(line)
-                except ValueError:
-                    raise SongError("No se ha podido verificar la sesión USDB.") from None
-            else:
-                if not response.exists():
-                    raise SongError("El servicio de catálogo ha fallado. Reintenta la operación.")
-                result = json.loads(response.read_text(encoding="utf-8"))
-            if result.get("expired"):
-                raise SessionExpired(result["error"])
-            if result.get("error"):
-                raise SongError(result["error"])
-            return result
-        finally:
-            if "proc" in locals():
-                if proc.poll() is None:
-                    proc.kill()
-                    proc.wait()
-                with self.children_lock:
-                    self.children.discard(proc)
-                    self.account_workers.discard(proc)
-                    if self.download_process is proc:
-                        self.download_process = None
-            response.unlink(missing_ok=True)
-
-    def submit(self, work, callback):
-        self.futures.append((self.pool.submit(work), callback))
 
     def local_results(self, query):
         items = {catalog.source_key(s): s for s in catalog.starter_songs(query) + catalog.assisted_songs(query)}
@@ -512,6 +270,283 @@ class Service(PackageImportMixin):
         future.catalogue_search = True
         self.futures.append((future, done))
 
+    def auto_choices(self, group):
+        """Return playable candidates for this search, preferring the original studio cut."""
+        selected_video = youtube_id(self.query)
+        choices = []
+        for song in group:
+            key = catalog.source_key(song)
+            required = song.get("requested_video") or selected_video
+            if required and song.get("video_id") != required:
+                continue
+            if (key.startswith("allkaraoke:") and not song.get("library_id")
+                    and not re.fullmatch(r"[A-Za-z0-9_-]{11}", song.get("video_id") or "")):
+                continue
+            if not song.get("library_id") and (not key.startswith(("usdb:", "allkaraoke:", "deluxe:"))
+                                                or (song.get("tracks") or 1) > 1):
+                continue
+            choices.append(song)
+        def preference(song):
+            key = catalog.source_key(song)
+            variant = bool(re.search(r"\b(live|directo|remix|instrumental|duet|dueto|radio edit)\b",
+                                     normalize(song["title"] + " " + str(song.get("edition") or ""))))
+            return (song.get("variant") == "instrumental", variant, not bool(song.get("library_id")),
+                    not key.startswith("deluxe:"), not key.startswith("allkaraoke:"),
+                    catalog.rank(self.lookup_query, song))
+        return sorted(choices, key=preference)
+
+
+class Service(CatalogueSearch, PackageImportMixin):
+    def __init__(self, root: Path):
+        self.root = root.resolve()
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.store = Store(root / "library.sqlite3")
+        self.library = Path(self.store.setting("library", str(root / "Songs")))
+        self.library.mkdir(parents=True, exist_ok=True)
+        self.ipc = root / "ipc"
+        self.ipc.mkdir(mode=0o700, exist_ok=True)
+        for name in ("events", "commands"):
+            (self.ipc / name).mkdir(exist_ok=True)
+            for p in (self.ipc / name).glob("*.json"):
+                p.unlink()
+        for name in ("engine.json", "view.json"):
+            (self.ipc / name).unlink(missing_ok=True)
+        self.added_token = ""
+        self.page = "Buscar"
+        if self.store.rows("SELECT 1 FROM songs LIMIT 1"):
+            self.page = "Biblioteca"
+        elif self.store.queue():
+            self.page = "Cola"
+        self.init_search()
+        self.message = ""
+        self.result_detail = None
+        self.turn_detail = None
+        self.queue_page = 0
+        self.artwork = ArtworkResolver(root / "artwork")
+        self.candidates = []
+        self.instrumental_busy = False
+        self.detail = None
+        self.fields = {
+            "player1": self.store.setting("player1", "Cantante 1"),
+            "player2": self.store.setting("player2", ""),
+            "username": self.store.setting("username", ""),
+        }
+        self.engine = {}
+        self.active = None
+        self.started_at = 0
+        self.was_singing = False
+        self.pool = concurrent.futures.ThreadPoolExecutor(
+            max_workers=2, thread_name_prefix="karaoke"
+        )
+        self.futures = []
+        self.download = None
+        self.catalogue_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="indices")
+        self.usdb_search_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="usdb-search")
+        self.clean_catalogue_reviews()
+        self.account = AccountSession()
+        self.account_workers = set()
+        self.children = set()
+        self.download_process = None
+        self.spanish_picker = None
+        self.picker_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="edition-picker")
+        self.clean_spanish_tickets()
+        self.cancelled_jobs = set()
+        self.children_lock = threading.Lock()
+        self.closing = False
+        self.preview = None
+        self.confirm_delete = None
+        self.candidate_generation = 0
+        self.last_view = None
+        self.pending_start = None
+        self.sent_audio = None
+        self.command_sequence = 0
+        self.carousel_selected = None
+        self.library_cache_key = None
+        self.library_cache = []
+        self.library_count = 0
+        from .remote_session import RemoteSession
+        self.remote = RemoteSession(self)
+
+    def library_entries(self):
+        query = normalize(self.fields.get("local", ""))
+        with self.store.lock:
+            key = (self.store.db.total_changes, query)
+            if self.library_cache_key != key:
+                songs = self.store.rows(
+                    "SELECT id,title,artist,variant,chart,audio,source FROM songs ORDER BY artist,title,variant,id"
+                )
+                self.library_count = len(songs)
+                self.library_cache = [
+                    song for song in songs
+                    if query in normalize(song["artist"] + " " + song["title"])
+                ]
+                self.library_cache_key = key
+        return self.library_cache
+
+    def library_window(self):
+        songs = self.library_entries()
+        selected = next(
+            (index for index, song in enumerate(songs) if song["id"] == self.carousel_selected),
+            0,
+        )
+        self.carousel_selected = songs[selected]["id"] if songs else None
+        start = max(0, min(selected - 2, len(songs) - 5))
+        return songs[start:start + 5], selected - start if songs else 0, len(songs)
+
+    def cover(self, song, *, search=""):
+        return self.artwork.get(song, local_cover=cover_path(song) if song.get("chart") else "", search=search)
+
+    def carousel_view(self):
+        window, index, total = self.library_window()
+        songs = self.library_entries()
+        return {
+            "songs": [
+                {"id": song["id"], "title": song["title"], "artist": song["artist"],
+                 "cover": self.cover(song)["path"]}
+                for song in window
+            ],
+            "index": index,
+            "total": total,
+            "has_previous": bool(window and window[index]["id"] != songs[0]["id"]),
+            "has_next": bool(window and window[index]["id"] != songs[-1]["id"]),
+        }
+
+    def enqueue_song(self, song_id, *, names=None, key=None):
+        self.song(song_id)  # A stale carousel selection must not create a preparation job.
+        turn = self.store.request(song_id, {}, self.names() if names is None else names, request_key=key)
+        self.message = "Turno añadido a la cola."
+        return turn
+
+    def command(self, op, **kwargs):
+        self.command_sequence += 1
+        filename = f"{self.command_sequence:020d}-{uuid.uuid4().hex}.json"
+        atomic_json(self.ipc / "commands" / filename, {"op": op, **kwargs})
+
+    def names(self):
+        return [self.fields.get("player1", "").strip() or "Cantante 1"] + (
+            [self.fields["player2"].strip()] if self.fields.get("player2", "").strip() else []
+        )
+
+    def credentials(self):
+        import keyring
+
+        user = self.store.setting("username", "")
+        return (
+            {"username": user, "password": keyring.get_password("Karaoke/USDB", user) or ""}
+            if user
+            else {}
+        )
+
+    def _login_cookies(self, username, password):
+        result = self._provider_worker("login", private_login=True, username=username, password=password)
+        return result["cookies"]
+
+    def _change_account(self, *, pending=False):
+        generation = self.account.begin_change(pending)
+        self.search_generation += 1
+        self.search_busy = False
+        self.search_cursor = None
+        self.results = self.local_results(self.query)
+        self.result_detail = None
+        with self.children_lock:
+            for child in self.account_workers:
+                if child.poll() is None:
+                    child.terminate()
+        return generation
+
+    def provider(self, operation, **kwargs):
+        if operation == "starter":
+            return self._provider_worker(operation, **kwargs)
+        generation = self.account.generation
+        cookies = self.account.acquire(generation, self.credentials, self._login_cookies)
+        try:
+            result = self._provider_worker(operation, generation=generation, session_cookies=cookies, **kwargs)
+        except SessionExpired:
+            cookies = self.account.acquire(generation, self.credentials, self._login_cookies, expired=cookies)
+            result = self._provider_worker(operation, generation=generation, session_cookies=cookies, **kwargs)
+        self.account.check(generation)
+        return result
+
+    def _provider_worker(self, operation, *, generation=None, **kwargs):
+        response = self.root / ("response-" + uuid.uuid4().hex + ".json")
+        request = {
+            "root": str(self.root / "syncer"),
+            "response": str(response),
+            "operation": operation,
+            "progress": str(self.root / "download-progress.json"),
+            **kwargs,
+        }
+        # argv and logs contain no credentials. Use stdin, no persistent password file.
+        private_login = bool(kwargs.get("private_login"))
+        if private_login:
+            del request["response"]
+        try:
+            proc = subprocess.Popen(
+                child_command("karaoke.provider"),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE if private_login else subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True, encoding="utf-8", errors="replace",
+            )
+            with self.children_lock:
+                self.children.add(proc)
+                if operation != "starter":
+                    self.account_workers.add(proc)
+                    if generation is not None:
+                        self.account.check(generation)
+                if operation in ("download", "starter"):
+                    self.download_process = proc
+            deadline = time.monotonic() + (1800 if operation in ("download", "starter") else 90)
+            pending_input = json.dumps(request)
+            while True:
+                try:
+                    output, _ = proc.communicate(pending_input, timeout=1)
+                    break
+                except subprocess.TimeoutExpired:
+                    pending_input = None
+                    if self.closing:
+                        raise SongError("Preparación interrumpida; se reanudará al volver a abrir.")
+                    if time.monotonic() > deadline:
+                        raise SongError("La fuente ha tardado demasiado. Reintenta la operación.")
+                    if (
+                        operation in ("download", "starter")
+                        and shutil.disk_usage(self.root).free < 256 * 1024**2
+                    ):
+                        raise SongError("Descarga detenida: queda poco espacio disponible.")
+            if proc.returncode:
+                raise SongError("El servicio de catálogo se ha interrumpido. Reintenta la operación.")
+            if private_login:
+                marker = "KARAOKE_LOGIN "
+                line = next((line[len(marker):] for line in reversed((output or "").splitlines())
+                             if line.startswith(marker)), "")
+                try:
+                    result = json.loads(line)
+                except ValueError:
+                    raise SongError("No se ha podido verificar la sesión USDB.") from None
+            else:
+                if not response.exists():
+                    raise SongError("El servicio de catálogo ha fallado. Reintenta la operación.")
+                result = json.loads(response.read_text(encoding="utf-8"))
+            if result.get("expired"):
+                raise SessionExpired(result["error"])
+            if result.get("error"):
+                raise SongError(result["error"])
+            return result
+        finally:
+            if "proc" in locals():
+                if proc.poll() is None:
+                    proc.kill()
+                    proc.wait()
+                with self.children_lock:
+                    self.children.discard(proc)
+                    self.account_workers.discard(proc)
+                    if self.download_process is proc:
+                        self.download_process = None
+            response.unlink(missing_ok=True)
+
+    def submit(self, work, callback):
+        self.futures.append((self.pool.submit(work), callback))
+
     def clean_spanish_tickets(self):
         tickets = self.root / "spanish-packages"
         if not tickets.is_dir():
@@ -525,7 +560,7 @@ class Service(PackageImportMixin):
             elif path.suffix in (".torrent", ".zip") and path.stem not in needed:
                 path.unlink(missing_ok=True)
 
-    def obtain_spanish(self, song, token=""):
+    def obtain_spanish(self, song, token="", *, pending=None):
         if self.spanish_picker:
             self.message = "Ya hay una edición abierta en el selector de Karaoke."
             return
@@ -578,8 +613,15 @@ class Service(PackageImportMixin):
             key, kind = result
             source = "spanish-package:" + key
             self.resume_cancelled_source(source)
-            self.store.request(source, {"kind": "spanish-package", "format": kind,
-                "song": {"title": song["title"], "artist": song["artist"]}}, names)
+            payload = {"kind": "spanish-package", "format": kind,
+                       "song": {"title": song["title"], "artist": song["artist"]}}
+            if pending:
+                if not self.store.accept_host_package(pending, source, payload):
+                    # The last request was withdrawn while the picker was open.
+                    self.clean_spanish_tickets()
+                    return
+            else:
+                self.store.request(source, payload, names)
             self.message = "Edición añadida a la cola."
             self.confirm_added(token)
             if self.store.rows("SELECT 1 FROM song_sources WHERE source=?", (source,)):
@@ -759,34 +801,12 @@ class Service(PackageImportMixin):
             if stage not in keep and not stage.is_symlink():
                 shutil.rmtree(stage, ignore_errors=True)
 
-    def auto_choices(self, group):
-        """Return playable candidates for this search, preferring the original studio cut."""
-        selected_video = youtube_id(self.query)
-        choices = []
-        for song in group:
-            key = catalog.source_key(song)
-            required = song.get("requested_video") or selected_video
-            if required and song.get("video_id") != required:
-                continue
-            if (key.startswith("allkaraoke:") and not song.get("library_id")
-                    and not re.fullmatch(r"[A-Za-z0-9_-]{11}", song.get("video_id") or "")):
-                continue
-            if not song.get("library_id") and (not key.startswith(("usdb:", "allkaraoke:", "deluxe:"))
-                                                or (song.get("tracks") or 1) > 1):
-                continue
-            choices.append(song)
-        def preference(song):
-            key = catalog.source_key(song)
-            variant = bool(re.search(r"\b(live|directo|remix|instrumental|duet|dueto|radio edit)\b",
-                                     normalize(song["title"] + " " + str(song.get("edition") or ""))))
-            return (song.get("variant") == "instrumental", variant, not bool(song.get("library_id")),
-                    not key.startswith("deluxe:"), not key.startswith("allkaraoke:"),
-                    catalog.rank(self.lookup_query, song))
-        return sorted(choices, key=preference)
-
     def add_best(self, item):
         group = self.editions_for(catalog.source_key(item))
         choices = self.auto_choices(group)
+        return self.request_choices(choices)
+
+    def request_choices(self, choices, *, names=None, key=None, search=None):
         if not choices:
             raise SongError("Esta canción requiere el paquete de su edición.")
         def identity(song):
@@ -799,13 +819,11 @@ class Service(PackageImportMixin):
                     or candidate.get("video_id") != first["video_id"] or identity(candidate) != identity(first)):
                 continue
             if candidate.get("library_id"):
-                self.enqueue_song(candidate["library_id"])
-                return
+                return self.enqueue_song(candidate["library_id"], names=names, key=key)
             saved = self.store.rows("SELECT song_id FROM song_sources WHERE source=?",
                                     (catalog.source_key(candidate),))
             if saved:
-                self.enqueue_song(saved[0]["song_id"])
-                return
+                return self.enqueue_song(saved[0]["song_id"], names=names, key=key)
 
         # A common title is only a grouping hint. A fallback must use the very same
         # recording. USDB's media identity is checked after its worker resolves it.
@@ -817,18 +835,18 @@ class Service(PackageImportMixin):
                     continue
                 if candidate.get("video_id") == video or allkaraoke.source_usdb_id(first) == catalog.source_key(candidate):
                     alternatives.append(candidate)
-        self._request_song(first, True, alternatives)
+        return self._request_song(first, True, alternatives, names=names, key=key, search=search)
 
     def request_result(self, index, queue):
         self._request_song(self.results[index] if isinstance(index, int) else index, queue)
 
-    def _request_song(self, song, queue, alternatives=(), local_audio=None):
-        if not self.auto_choices([song]):
+    def _request_song(self, song, queue, alternatives=(), local_audio=None, *, names=None, key=None, search=None):
+        if not (search or self).auto_choices([song]):
             raise SongError("Esta edición requiere otro mapa compatible con la grabación.")
         source = catalog.source_key(song)
         if song.get("library_id"):
             if queue:
-                self.enqueue_song(song["library_id"])
+                return self.enqueue_song(song["library_id"], names=names, key=key)
             else:
                 self.message = "Esta versión ya está en tu biblioteca."
             return
@@ -845,8 +863,9 @@ class Service(PackageImportMixin):
         # An explicit retry with a fresh file or complete catalogue result replaces
         # the failed input, while waiting/in-flight jobs remain idempotent.
         self.resume_cancelled_source(source)
-        self.store.request(source, payload, self.names() if queue else None)
+        turn = self.store.request(source, payload, (self.names() if names is None else names) if queue else None, request_key=key)
         self.message = "Añadida a la cola." if queue else "Preparando la canción."
+        return turn
 
     def resume_cancelled_source(self, source):
         previous = self.store.rows("SELECT id FROM jobs WHERE source=? AND state='cancelled'", (source,))
@@ -878,6 +897,33 @@ class Service(PackageImportMixin):
         self.command("start", chart=turn["chart"], names=json.loads(turn["names"]), token=turn_id)
         self.message = "Preparando micrófonos e interpretación…"
 
+    @staticmethod
+    def find_instrumentals(song):
+        from yt_dlp import YoutubeDL
+
+        with YoutubeDL({"quiet": True, "no_warnings": True, "extract_flat": True,
+                        "socket_timeout": 20}) as dl:
+            result = dl.extract_info("ytsearch8:" + song["artist"] + " " + song["title"]
+                                     + " instrumental karaoke", download=False)
+        return [{"url": "https://www.youtube.com/watch?v=" + e["id"],
+                 "title": e.get("title", ""), "duration": e.get("duration")}
+                for e in result.get("entries", []) if e and e.get("id")]
+
+    def prepare_instrumental(self, song, candidate, cancelled):
+        video_id = youtube_id(candidate["url"])
+        if not video_id:
+            raise SongError("La pista seleccionada no tiene un vídeo disponible.")
+        with tempfile.TemporaryDirectory(dir=self.library) as temp:
+            stage = Path(temp)
+            audio = allkaraoke.download_recording({"video_id": video_id}, stage, self.space_guard)
+            if abs(duration(audio) - song["duration"]) > 2:
+                raise SongError("La instrumental tiene un montaje distinto.")
+            chart = Path(song["chart"])
+            acoustic.require_alignment(chart, audio)
+            if self.closing or cancelled():
+                raise SongError("Selección cancelada.")
+            return import_pair(chart, audio, self.library)
+
     def instrumental_search(self):
         song = self.song(self.detail)
         self.page = "Instrumental"
@@ -887,23 +933,12 @@ class Service(PackageImportMixin):
         generation = self.candidate_generation
         self.message = "Buscando instrumentales…"
 
-        def work():
-            from yt_dlp import YoutubeDL
-
-            with YoutubeDL({"quiet": True, "no_warnings": True, "extract_flat": True,
-                            "socket_timeout": 20}) as dl:
-                result = dl.extract_info("ytsearch8:" + song["artist"] + " " + song["title"]
-                                         + " instrumental karaoke", download=False)
-            return [{"url": "https://www.youtube.com/watch?v=" + e["id"],
-                     "title": e.get("title", ""), "duration": e.get("duration")}
-                    for e in result.get("entries", []) if e and e.get("id")]
-
         def done(items):
             self.instrumental_busy = False
             self.candidates = items
             self.message = "Elige una instrumental." if items else "Sin instrumentales disponibles."
 
-        self.submit(work, done)
+        self.submit(lambda: self.find_instrumentals(song), done)
         self.futures[-1][0].candidate_generation = generation
 
     def candidate(self, index):
@@ -917,21 +952,6 @@ class Service(PackageImportMixin):
         self.instrumental_busy = True
         self.message = "Preparando la instrumental…"
 
-        def work():
-            video_id = youtube_id(candidate["url"])
-            if not video_id:
-                raise SongError("La pista seleccionada no tiene un vídeo disponible.")
-            with tempfile.TemporaryDirectory(dir=self.library) as temp:
-                stage = Path(temp)
-                audio = allkaraoke.download_recording({"video_id": video_id}, stage, self.space_guard)
-                if abs(duration(audio) - song["duration"]) > 2:
-                    raise SongError("La instrumental tiene un montaje distinto.")
-                chart = Path(song["chart"])
-                acoustic.require_alignment(chart, audio)
-                if self.closing or self.candidate_generation != generation:
-                    raise SongError("Selección cancelada.")
-                return import_pair(chart, audio, self.library)
-
         def done(info):
             self.instrumental_busy = False
             if info["id"] == song["id"]:
@@ -942,7 +962,7 @@ class Service(PackageImportMixin):
             self.detail = info["id"]
             self.page = "Canción"
 
-        self.submit(work, done)
+        self.submit(lambda: self.prepare_instrumental(song, candidate, lambda: self.candidate_generation != generation), done)
         self.futures[-1][0].candidate_generation = generation
 
     def space_guard(self, _):
@@ -954,6 +974,22 @@ class Service(PackageImportMixin):
         if not rows:
             raise SongError("La canción ya no está en la biblioteca.")
         return rows[0]
+
+    def delete_song(self, song_id):
+        song = self.song(song_id)
+        if self.store.rows(
+            "SELECT id FROM turns WHERE song_id=? AND state IN ('queued','starting','singing')",
+            (song_id,),
+        ):
+            raise SongError("Quita primero los turnos de esta canción de la cola.")
+        folder = Path(song["chart"]).parent
+        # Only packages created by this app, never user-provided source folders.
+        if folder.name != song["id"]:
+            raise SongError("No se puede borrar una carpeta externa.")
+        self.command("forget", chart=song["chart"])
+        shutil.rmtree(folder)
+        self.store.execute("DELETE FROM jobs WHERE song_id=?", (song["id"],))
+        self.store.execute("DELETE FROM songs WHERE id=?", (song["id"],))
 
     def stop_preview(self):
         if self.preview and self.preview.poll() is None:
@@ -998,6 +1034,8 @@ class Service(PackageImportMixin):
     def handle(self, event):
         action = event.get("action", "")
         value = str(event.get("value", ""))[:4096]
+        if action.startswith("remote:"):
+            return self.remote.desktop_action(action)
         if action.startswith("import:") and self.import_action(action):
             return
         if action.startswith("field:"):
@@ -1257,9 +1295,7 @@ class Service(PackageImportMixin):
             self.start(action[6:])
             return
         if action.startswith("cancel:"):
-            self.store.execute(
-                "UPDATE turns SET state='cancelled' WHERE id=? AND state='queued'", (action[7:],)
-            )
+            self.store.cancel_turn(action[7:])
             return
         if action.startswith("up:") or action.startswith("down:"):
             op, turn_id = action.split(":")
@@ -1300,20 +1336,7 @@ class Service(PackageImportMixin):
         if action == "delete-confirm":
             if self.confirm_delete != self.detail:
                 return
-            song = self.song(self.detail)
-            if self.store.rows(
-                "SELECT id FROM turns WHERE song_id=? AND state IN ('queued','starting','singing')",
-                (self.detail,),
-            ):
-                raise SongError("Quita primero los turnos de esta canción de la cola.")
-            folder = Path(song["chart"]).parent
-            # Only packages created by this app, never user-provided source folders.
-            if folder.name != song["id"]:
-                raise SongError("No se puede borrar una carpeta externa.")
-            self.command("forget", chart=song["chart"])
-            shutil.rmtree(folder)
-            self.store.execute("DELETE FROM jobs WHERE song_id=?", (song["id"],))
-            self.store.execute("DELETE FROM songs WHERE id=?", (song["id"],))
+            self.delete_song(self.detail)
             self.detail = None
             self.page = "Biblioteca"
             self.message = "Canción borrada de la biblioteca."
@@ -1433,6 +1456,7 @@ class Service(PackageImportMixin):
                     (job["id"],),
                 )
                 self.download = (self.pool.submit(self.prepare, job), job)
+        self.remote.tick()
         view = self.view()
         if view != self.last_view:
             atomic_json(self.ipc / "view.json", view)
@@ -1476,7 +1500,9 @@ class Service(PackageImportMixin):
                 }
             )
 
-        if self.import_rows(text, button, field):
+        if self.page == "Móviles":
+            self.remote.desktop_view(rows, text, button)
+        elif self.import_rows(text, button, field):
             pass
         elif self.page == "Terminar canción":
             text("¿Terminar esta interpretación?", "Se mostrarán los puntos obtenidos hasta ahora.")
@@ -1658,7 +1684,7 @@ class Service(PackageImportMixin):
                 title = song.get("title") or "Preparando canción"
                 status = {"singing": "Cantando", "starting": "Empezando"}.get(turn["state"], "Lista") if turn["song_id"] else {
                     "waiting": "En espera", "working": "Preparando", "error": "Error",
-                    "cancelled": "Cancelada"}.get(turn["preparation"], "Pendiente")
+                    "cancelled": "Cancelada", "host": "Elegir edición en el ordenador"}.get(turn["preparation"], "Pendiente")
                 sub = " · ".join(filter(None, (song.get("artist"), ", ".join(json.loads(turn["names"])), status)))
                 song_row(song, f"{index + 1}. {title}", sub, "turn:" + turn["id"])
             if start:
@@ -1669,6 +1695,7 @@ class Service(PackageImportMixin):
                 (SELECT 1 FROM turns t WHERE t.source=j.source AND t.state IN ('queued','starting','singing')) LIMIT 1""")
             if pending:
                 button("Ver preparaciones", "page:Preparaciones", style="link")
+            button("Conectar móviles", "remote:start", style="link")
         elif self.page == "Preparaciones":
             jobs = self.store.rows("SELECT * FROM jobs WHERE state!='ready' ORDER BY created")
             if not jobs:
@@ -1689,6 +1716,8 @@ class Service(PackageImportMixin):
                 text(turn["title"] or json.loads(turn["job_payload"] or "{}").get("song", {}).get("title")
                      or "Preparando canción", ", ".join(json.loads(turn["names"])))
                 if turn["state"] == "queued":
+                    if turn["preparation"] == "host":
+                        button("Elegir edición en UltraStar España", "remote:assist:" + turn["id"], style="primary")
                     if turn["song_id"] and not self.active:
                         button("Empezar este turno", "start:" + turn["id"], style="primary")
                     elif turn["preparation"] in ("error", "cancelled"):
@@ -1752,6 +1781,7 @@ class Service(PackageImportMixin):
                 button(item["title"], "candidate:" + str(index), style="link")
             button("Volver a la canción", "page:Canción", style="back")
         elif self.page == "Ajustes":
+            button("Conectar móviles", "remote:start", style="link")
             field("Primer cantante", "player1", "Cantante 1")
             field("Segundo cantante (opcional)", "player2")
             slider("Volumen de música", "music", 65)
@@ -1839,6 +1869,7 @@ class Service(PackageImportMixin):
 
     def close(self):
         self.closing = True
+        self.remote.stop()
         self.account.begin_change()
         self.stop_preview()
         with self.children_lock:

@@ -221,6 +221,9 @@ jobs:
       - name: Verify live pitch on the singing screen
         timeout-minutes: 3
         run: uv run python scripts/test_live_pitch.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke/pitch
+      - name: Verify two mobile controllers against packaged Karaoke
+        timeout-minutes: 3
+        run: uv run python scripts/test_remote_session.py --launcher "$env:KARAOKE_CI_LAUNCHER"
       - name: Preserve desktop startup diagnostics
         if: always() && !cancelled() && steps.package.outcome == 'success'
         uses: actions/upload-artifact@v4

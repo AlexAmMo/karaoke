@@ -77,6 +77,7 @@ def pyinstaller(destination: Path, work: Path, name='karaoke'):
         '--additional-hooks-dir', ROOT / 'scripts/pyinstaller-hooks', '--paths', ROOT / 'src', '--hidden-import', 'karaoke.provider', '--hidden-import', 'karaoke.picker',
         '--hidden-import', 'usdb_syncer.song_loader', '--collect-data', 'usdb_syncer',
         '--copy-metadata', 'usdb-syncer', '--copy-metadata', 'yt-dlp',
+        '--add-data', str(ROOT / 'src/karaoke/remote_web') + ':karaoke/remote_web',
         '--collect-data', 'yt_dlp_ejs', '--hidden-import', 'keyring.backends.macOS' if sys.platform == 'darwin' else 'keyring.backends.Windows',
         ROOT / 'scripts/launcher.py')
 
@@ -239,6 +240,7 @@ def main():
     collect_licenses(resources / 'licenses')
     bundle_media(resources, app / 'Contents/Frameworks/Media')
     plist = {'CFBundleName': 'Karaoke', 'CFBundleDisplayName': 'Karaoke', 'CFBundleIdentifier': 'org.alexammo.karaoke', 'CFBundleExecutable': 'karaoke', 'CFBundleVersion': VERSION, 'CFBundleShortVersionString': VERSION, 'CFBundlePackageType': 'APPL', 'NSHighResolutionCapable': True, 'LSUIElement': True, 'NSMicrophoneUsageDescription': 'Karaoke usa el micrófono para mostrar tu afinación, puntuar y reproducir tu voz si activas el retorno.'}
+    plist['NSLocalNetworkUsageDescription'] = 'Karaoke conecta los móviles de tu red para elegir canciones y controlar la sesión.'
     (app / 'Contents/Info.plist').write_bytes(plistlib.dumps(plist))
     audit = audit_macos(app)
     if audit['minimum_macos_from_binaries']:

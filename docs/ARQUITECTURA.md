@@ -6,7 +6,7 @@
 
 ## Contrato de IPC
 
-Cada arranque crea canales limpios bajo `ipc/`. El servicio escribe `view.json`; el motor escribe `engine.json` (estado, token de turno, puntos, niveles, dispositivos y errores). Peticiones y acciones son archivos JSON independientes en `commands/` y `events/`, publicados por rename. Los tokens de turno evitan atribuir a un nuevo turno el estado anterior. No se expone ningún puerto de red. La carpeta de datos tiene permisos 0700 en POSIX.
+Cada arranque crea canales limpios bajo `ipc/`. El servicio escribe `view.json`; el motor escribe `engine.json` (estado, token de turno, puntos, niveles, dispositivos y errores). Peticiones y acciones son archivos JSON independientes en `commands/` y `events/`, publicados por rename. Los tokens de turno evitan atribuir a un nuevo turno el estado anterior. Este IPC permanece privado. Al activar «Conectar móviles», el servicio abre un puerto HTTP temporal en la interfaz de red elegida. La carpeta de datos tiene permisos 0700 en POSIX.
 
 Los procesos pueden cerrarse entre cualquier par de escrituras. SQLite preserva solicitudes; al reabrir, un turno en canto vuelve a pendiente y una preparación interrumpida vuelve a espera. Nada se reproduce automáticamente. Un trabajo puede dar servicio a varios turnos. Una cancelación de turno no borra la biblioteca ni cancela por sorpresa otros turnos de esa canción.
 

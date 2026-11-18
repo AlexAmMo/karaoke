@@ -12,6 +12,8 @@ dependencies = [
   "mutagen>=1.47,<2",
   "numpy>=2,<3",
   "libtorrent==2.1.1",
+  "ifaddr>=0.2,<1",
+  "qrcode>=8,<9",
 ]
 
 [project.scripts]
