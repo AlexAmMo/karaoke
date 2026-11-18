@@ -9,6 +9,7 @@ Playwright's Chromium (install it with uv run --with playwright playwright insta
 
 import argparse
 import asyncio
+import json
 import os
 from pathlib import Path
 import re
@@ -28,6 +29,46 @@ def button(page, name):
 
 def row(page, title):
     return page.locator("#list li").filter(has=page.get_by_text(title, exact=True))
+
+
+async def accepted_action(page, control, op):
+    def matches(response):
+        return (
+            response.url.endswith("/api/action")
+            and response.request.method == "POST"
+            and response.request.post_data_json.get("op") == op
+        )
+
+    async with page.expect_response(matches, timeout=15000) as pending:
+        await control.click()
+    response = await pending.value
+    result = await response.json()
+    assert response.ok and result.get("ok"), (op, response.status, result)
+
+
+async def expect_queue(page, songs):
+    await expect(page.locator('[data-tab="queue"]')).to_have_attribute("aria-current", "page")
+    await expect(page.locator("#list li")).to_have_count(len(songs), timeout=15000)
+    for title, singer in songs:
+        await expect(row(page, title)).to_contain_text(singer, timeout=15000)
+
+
+async def report_phones(phones):
+    for name, page in phones.items():
+        try:
+            snapshot = await page.evaluate("""() => ({
+              tab: document.querySelector('[data-tab][aria-current="page"]')?.textContent,
+              notice: document.querySelector('#connection').innerText,
+              feedback: document.querySelector('#feedback').innerText,
+              rows: Array.from(document.querySelectorAll('#list li'), el => el.innerText),
+              dialog: document.querySelector('dialog[open]')?.innerText,
+              closed: !document.querySelector('#closed-room').hidden,
+              hidden: document.hidden,
+              online: navigator.onLine,
+            })""")
+            print(f"{name} UI: {json.dumps(snapshot, ensure_ascii=True)}", flush=True)
+        except Exception as error:
+            print(f"{name} UI unavailable: {error}", flush=True)
 
 
 async def join(browser, profile, name, url, code):
@@ -84,9 +125,11 @@ async def late_add(page, observer, title, new_name, *, lose_first_response):
     await expect(page.locator("#feedback")).to_have_text("Turno añadido a la cola")
     await expect(dialog).to_be_visible()
     await expect(dialog.get_by_label("Cantante", exact=True)).to_have_value(new_name)
-    await button(dialog, "Guardar cantantes").click()
-    await expect(row(observer, title)).to_have_count(1)
-    await expect(row(observer, title)).to_contain_text(new_name)
+    await accepted_action(page, button(dialog, "Guardar cantantes"), "rename")
+    await expect(dialog).to_be_hidden()
+    for phone in (page, observer):
+        await expect(row(phone, title)).to_have_count(1)
+        await expect(row(phone, title)).to_contain_text(new_name)
     print(f"PASS: {'retry' if lose_first_response else 'add'} preserved the open menu and edits", flush=True)
 
 
@@ -108,27 +151,32 @@ async def test_phones(session, browser_type, channel):
         # with a system-wide web proxy configured.
         options = {"args": ["--no-proxy-server"]} if browser_type == "chromium" else {}
         browser = await getattr(playwright, browser_type).launch(channel=channel, **options)
+        phones = {}
         try:
             ana, luis, mar = await asyncio.gather(*(
                 join(browser, playwright.devices[model], name, url, code)
                 for model, name in (("iPhone 13", "Ana"), ("Pixel 7", "Luis"), ("iPhone SE", "Mar"))
             ))
+            phones = {"Ana": ana, "Luis": luis, "Mar": mar}
             await mar.locator("[data-tab=queue]").click()
             await late_add(ana, mar, "Probe A", "Ana y Mar", lose_first_response=False)
             await late_add(luis, mar, "Probe B", "Luis y Mar", lose_first_response=True)
 
+            first = ("Probe A", "Ana y Mar")
+            second = ("Probe B", "Luis y Mar")
+            await asyncio.gather(*(expect_queue(phone, (first, second)) for phone in phones.values()))
             await mar.context.set_offline(True)
             await expect(mar.locator("#connection")).to_contain_text("Reconectando", timeout=15000)
             await row(luis, "Probe B").get_by_role("button", name=re.compile("Opciones del turno")).click()
             await button(luis, "Quitar de la cola").click()
-            await button(luis, "Quitar turno").click()
-            await expect(row(ana, "Probe B")).to_have_count(0)
+            await accepted_action(luis, button(luis, "Quitar turno"), "remove")
+            await expect(luis.get_by_role("dialog")).to_be_hidden()
+            await asyncio.gather(*(expect_queue(phone, (first,)) for phone in (ana, luis)))
             await expect(button(mar, "Reintentar")).to_be_visible(timeout=25000)
             await expect(mar.locator("#connection")).to_contain_text("No se encuentra el ordenador")
             await mar.context.set_offline(False)
             await expect(mar.locator("#connection")).to_be_hidden(timeout=15000)
-            await expect(mar.locator("#list li")).to_have_count(1)
-            await expect(row(mar, "Probe A")).to_contain_text("Ana y Mar")
+            await expect_queue(mar, (first,))
             print("PASS: transient wifi loss recovered and synchronized the queue", flush=True)
 
             await row(ana, "Probe A").get_by_role("button", name=re.compile("Opciones del turno")).click()
@@ -149,6 +197,10 @@ async def test_phones(session, browser_type, channel):
             await asyncio.sleep(3)
             assert not any(url.endswith("/api/state") for url in requests_after_close)
             print("PASS: closure reached the editing guest and the returning guest; polling stopped", flush=True)
+        except Exception:
+            await report_phones(phones)
+            print("Host test turns:", session.rows("SELECT state, names FROM turns ORDER BY created"), flush=True)
+            raise
         finally:
             await browser.close()
 
