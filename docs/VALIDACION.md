@@ -165,3 +165,17 @@ Se verificó la recepción de torrent y ZIP y la cancelación a mitad de la desc
 En la instalación actualizada del Mac, escribir «Mulán, todo un hombre haré de ti» mostró una sola fila con **+** y «Elegir en UltraStar España». Se conservaron cuatro canciones, diez turnos y las preferencias. En una biblioteca temporal también se preparó «Sigo Aquí» de Álex Ubago mediante AllKaraoke y se reprodujo hasta la puntuación con un micrófono sintético. La primera petición de audio falló y el siguiente intento completó la sesión. [Evidencia de ambas búsquedas](validation/in-app-macos.json)
 
 El paquete de Windows x64 cargó el navegador y el cliente BitTorrent integrados. También pasó el recorrido de búsqueda local, cola, canto y plegado del panel. [Prueba del ejecutable Windows](validation/in-app-windows.json) · [Ejecución en GitHub](https://github.com/AlexAmMo/karaoke/actions/runs/44205321249)
+
+## Afinación en directo
+
+La prueba usa una frase con un la prolongado. Inyecta audio PCM tres semitonos por encima, tres por debajo, silencio y un La afinado. Compara los píxeles de la pantalla con una captura de referencia. Una segunda pasada usa dos cantantes con desviaciones en direcciones opuestas.
+
+En el paquete instalado de macOS pasaron las 17 comprobaciones de imagen y puntuación. En silencio se observó un hueco en el trazo y, al afinar, la barra de acierto apareció sobre la guía. También se comprobó el indicador durante la introducción, el final de la frase y la pausa. Las 21 comprobaciones de sesión pasaron con el lateral abierto y plegado y con el retorno del micrófono silenciado. Estas pruebas utilizaron micrófonos sintéticos. [Captura de la pantalla de canto](validation/afinacion-en-directo.png)
+
+Puedes repetir la prueba con el comando siguiente. Las capturas y los resultados se guardan en el directorio de salida.
+
+```sh
+uv run python scripts/test_live_pitch.py --launcher "$HOME/Applications/Karaoke.app/Contents/MacOS/karaoke" --output build/live-pitch
+```
+
+El ejecutable de Windows x64 también superó la comparación de capturas con uno y dos cantantes en el entorno de gráficos por software. [Prueba del paquete en Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44376959340)
