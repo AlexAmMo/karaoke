@@ -228,3 +228,9 @@ La prueba abre tres navegadores móviles independientes y usa el motor de escrit
 ```sh
 uv run --locked --with playwright python scripts/test_remote_browser.py --channel chrome
 ```
+
+### Instalación pública de Karaoke 0.2.0 en Windows x64
+
+En Windows Server 2022 se ejecutó el comando público de PowerShell de la versión 0.2.0. El instalador descargó el ZIP, verificó su SHA-256, creó el acceso directo de Inicio y conservó un archivo testigo de datos existentes. El ejecutable instalado devolvió `Karaoke 0.2.0`. La descarga ocupa 405.486.372 bytes. Su SHA-256 es `240b49cf24dda56e1bc05e9a59acb4cea9737144202d61e37cbec78f1b299ebd`. [Publicación](https://github.com/AlexAmMo/karaoke/releases/tag/v0.2.0)
+
+Con una copia de la instalación pública, gráficos por software y audio sintético, el motor puntuó dos voces en los tres niveles de precisión. Tres navegadores móviles comprobaron que una confirmación tardía conserva el menú y los cambios del cantante, que reintentar conserva un único turno, que la cola se recupera tras perder la red y que el cierre de la sala detiene la reconexión. La compilación también pasó la comparación de capturas de afinación con una y dos voces. La comprobación con un micrófono físico en Windows sigue pendiente. [Prueba de la instalación pública](https://github.com/AlexAmMo/karaoke/actions/runs/44413629275) · [Pruebas del paquete](https://github.com/AlexAmMo/karaoke/actions/runs/44411131713)
