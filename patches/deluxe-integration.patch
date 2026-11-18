@@ -92,9 +92,18 @@ index 6a395ce..a7e2599 100644
  
  	touch "$PREFIX/built_libs"
 diff --git a/src/base/UDraw.pas b/src/base/UDraw.pas
-index f52e478..252c00b 100644
+index f52e478..f67afd7 100644
 --- a/src/base/UDraw.pas
 +++ b/src/base/UDraw.pas
+@@ -113,7 +113,7 @@ implementation
+   UScreenSingController,
+   UScreenJukebox,
+   USong,
+-  UWebcam;
++  UWebcam, UKaraokeShell;
+ 
+ 
+ procedure SingDrawWebCamFrame;
 @@ -542,6 +542,9 @@ procedure SingDrawNoteLines(Left, Top, Right: real; LineSpacing: integer; LineTh
    for Count := 0 to 9 do
    begin
@@ -105,7 +114,40 @@ index f52e478..252c00b 100644
      Renderer.DrawLine(Left, Y, Right, Y, 0, LineThickness, Skin_P1_LinesR, Skin_P1_LinesG, Skin_P1_LinesB, 0.4);
    end;
  end;
-@@ -1380,6 +1383,13 @@ procedure SingDraw;
+@@ -714,10 +717,13 @@ procedure SingDrawPlayerLine(Left, Top, W: real; Track, PlayerIndex: integer; Li
+   Texture: TTexture;
+ //  R, G, B, A: real;
+   NotesH2:    real;
++  Karaoke, DrewNote: boolean;
+ begin
++  Karaoke := ShellEnabled;
++  DrewNote := false;
+   if (ScreenSing.Settings.InputVisible) then
+   begin
+-    //Log.LogStatus('Player notes', 'SingDraw');
++    if Karaoke then ShellDrawPitchTrace(Left, Top, W, Track, PlayerIndex, LineSpacing);
+ 
+     //if Player[NrGracza].LengthNote > 0 then
+     begin
+@@ -728,6 +734,8 @@ procedure SingDrawPlayerLine(Left, Top, W: real; Track, PlayerIndex: integer; Li
+       begin
+         with Player[PlayerIndex].Note[N] do
+         begin
++          if Karaoke and not Hit then Continue;
++          DrewNote := true;
+           // Left part of note
+           Rec.Left  := Left + (Start - CurrentSong.Tracks[Track].Lines[CurrentSong.Tracks[Track].CurrentLine].Notes[0].StartBeat) * TempR + 0.5;
+           Rec.Right := Rec.Left + NotesW[PlayerIndex];
+@@ -838,7 +846,7 @@ procedure SingDrawPlayerLine(Left, Top, W: real; Track, PlayerIndex: integer; Li
+       // actually we need a comparison here, to determine if the singing process
+       // is ahead Rec.Right even if there is no singing
+ 
+-      if (Ini.EffectSing = 1) then
++      if DrewNote and (Ini.EffectSing = 1) then
+         GoldenRec.GoldenNoteTwinkle(Rec.Top,Rec.Bottom,Rec.Right, PlayerIndex);
+     end; // if
+   end; // if
+@@ -1380,6 +1388,13 @@ procedure SingDraw;
          end;
      end;
  
@@ -342,10 +384,10 @@ index c5514a3..cd103d9 100644
        end;
        SDL_KEYDOWN, SDL_TEXTINPUT:
 diff --git a/src/base/URecord.pas b/src/base/URecord.pas
-index ea54f6b..c0384cd 100644
+index ea54f6b..2d44d96 100644
 --- a/src/base/URecord.pas
 +++ b/src/base/URecord.pas
-@@ -59,6 +59,7 @@ interface
+@@ -59,9 +59,11 @@ interface
  
    TCaptureBuffer = class
      private
@@ -353,7 +395,17 @@ index ea54f6b..c0384cd 100644
        fVoiceStream: TAudioVoiceStream; // stream for voice passthrough
        fAnalysisBufferLock: PSDL_Mutex;
        fAudioFormat: TAudioFormatInfo;
-@@ -80,6 +81,12 @@   TCaptureBuffer = class
++      LastSamplesAt: cardinal;
+       Frequencies: TFrequencyArray;
+       Delays: TDelayArray;
+ 
+@@ -75,11 +77,17 @@   TCaptureBuffer = class
+ 
+       procedure SetFrequenciesAndDelays;
+       // we call it to analyze sound by checking AMDF
+-      function AnalyzePitch(PDA: TPDAType): boolean;
++      function AnalyzePitch(PDA: TPDAType): integer;
+       // use this to check one frequency by AMDF
        function AverageMagnitudeDifference(): TCorrelationArray;
        function CircularAverageMagnitudeDifference(): TCorrelationArray;
        function ArrayIndexOfMinimum(const AValues: array of real): Integer;
@@ -366,7 +418,15 @@ index ea54f6b..c0384cd 100644
      public
        AnalysisBuffer:  array[0..4095] of smallint; // newest 4096 samples (MUST BE POWER OF TWO!)
        AnalysisBufferSize: integer; // number of samples of BufferArray to analyze
-@@ -307,18 +314,46 @@ procedure TCaptureBuffer.Clear;
+@@ -100,6 +108,7 @@   TCaptureBuffer = class
+ 
+       // use to analyze sound from buffers to get new pitch
+       procedure AnalyzeBuffer;
++      function DetectedPitch(RequireFresh: boolean): integer;
+       procedure LockAnalysisBuffer();
+       procedure UnlockAnalysisBuffer();
+ 
+@@ -307,18 +316,46 @@ procedure TCaptureBuffer.Clear;
    UnlockAnalysisBuffer();
  end;
  
@@ -415,6 +475,82 @@ index ea54f6b..c0384cd 100644
  
    // we assume that samples are in S16Int format
    // TODO: support float too
+@@ -345,6 +382,7 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
+     for i := 0 to High(AnalysisBuffer)-SampleCount do
+       AnalysisBuffer[i] := AnalysisBuffer[i+SampleCount];
+ 
++    if SampleCount > 0 then LastSamplesAt := SDL_GetTicks;
+     // copy new samples to analysis buffer
+     Move(Buffer[BufferOffset], AnalysisBuffer[Length(AnalysisBuffer)-SampleCount],
+          SampleCount * SizeOf(SmallInt));
+@@ -365,19 +403,25 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
+ end;
+ 
+ procedure TCaptureBuffer.AnalyzeBuffer;
++begin
++  ToneAbs := DetectedPitch(false);
++  ToneValid := ToneAbs >= 0;
++  Tone := ToneAbs mod 12;
++end;
++
++function TCaptureBuffer.DetectedPitch(RequireFresh: boolean): integer;
+ var
+   Volume:      single;
+   MaxVolume:   single;
+   SampleIndex: integer;
+   Threshold:   single;
+ begin
+-  ToneValid := false;
+-  ToneAbs := -1;
+-  Tone    := -1;
++  Result := -1;
+ 
+   LockAnalysisBuffer();
+   try
+ 
++    if RequireFresh and ((LastSamplesAt = 0) or (SDL_GetTicks - LastSamplesAt > 200)) then Exit;
+     // find maximum volume across the analysis buffer
+     MaxVolume := 0;
+     for SampleIndex := 0 to AnalysisBufferSize - 1 do
+@@ -396,7 +440,7 @@ procedure TCaptureBuffer.AnalyzeBuffer;
+       //ToneValid := AnalyzePitch(PDA_AMDF);
+       //Write('AMDF: ',ToneAbs:2,' (f: ',Frequencies[ToneAbs]:7:2,' Hz)');
+       //Write(Tone:2);
+-      ToneValid := AnalyzePitch(PDA_CAMDF);
++      Result := AnalyzePitch(PDA_CAMDF);
+       //Writeln('   /   CAMDF: ',ToneAbs:2,' (f: ',Frequencies[ToneAbs]:7:2,' Hz)');
+       //Writeln(' ',Tone:2);
+     end;
+@@ -432,7 +476,7 @@ procedure TCaptureBuffer.SetFrequenciesAndDelays;
+   end;
+ end;
+ 
+-function TCaptureBuffer.AnalyzePitch(PDA: TPDAType): boolean;
++function TCaptureBuffer.AnalyzePitch(PDA: TPDAType): integer;
+ var
+   Correlation: TCorrelationArray;
+ begin
+@@ -447,17 +491,16 @@ function TCaptureBuffer.AnalyzePitch(PDA: TPDAType): boolean;
+     PDA_AMDF:
+       begin
+         Correlation := AverageMagnitudeDifference();
+-        ToneAbs := ArrayIndexOfMinimum(Correlation);
++        Result := ArrayIndexOfMinimum(Correlation);
+       end;
+     PDA_CAMDF:
+       begin
+         Correlation := CircularAverageMagnitudeDifference();
+-        ToneAbs := ArrayIndexOfMinimum(Correlation);
++        Result := ArrayIndexOfMinimum(Correlation);
+       end;
+   end;
+ 
+-  Tone := ToneAbs mod 12;
+-  Result := true;
++
+ end;
+ 
+ // Average Magnitude Difference Function (AMDF) is defined as
 diff --git a/src/base/URenderer.pas b/src/base/URenderer.pas
 index 6b4359c..a67e00a 100644
 --- a/src/base/URenderer.pas
@@ -725,9 +861,18 @@ index e68a4f6..723b594 100644
      if name <> nil then
        device.UseName := true;
 diff --git a/src/menu/UDisplay.pas b/src/menu/UDisplay.pas
-index 93e1eef..2eb60a8 100644
+index 93e1eef..38b41c0 100644
 --- a/src/menu/UDisplay.pas
 +++ b/src/menu/UDisplay.pas
+@@ -106,7 +106,7 @@   TDisplay = class
+ 
+       procedure InitFadeTextures();
+ 
+-      procedure SaveScreenShot;
++      procedure SaveScreenShot(NotifyUser: boolean = true);
+       procedure HandleSDLScreenshotKey(Key: cardinal; KeyModifiers: word);
+ 
+       function  Draw: boolean;
 @@ -167,6 +167,7 @@   TDisplay = class
  implementation
  
@@ -791,15 +936,16 @@ index 93e1eef..2eb60a8 100644
            with FadeTex[S-1] do
            begin
              X := 0;
-@@ -505,6 +510,7 @@ function TDisplay.Draw: boolean;
+@@ -505,6 +510,8 @@ function TDisplay.Draw: boolean;
      if not BlackScreen then
        DrawCursor;
    end; // for
 +  ShellDraw;
++  ShellFinishFrame;
  end;
  
  { sets SDL_ShowCursor depending on options set in Ini }
-@@ -512,6 +518,13 @@ procedure TDisplay.SetCursor(ScreenHideMode: TCursorScreenHideMode);
+@@ -512,6 +519,13 @@ procedure TDisplay.SetCursor(ScreenHideMode: TCursorScreenHideMode);
  var
    Cursor: Integer;
  begin
@@ -813,7 +959,16 @@ index 93e1eef..2eb60a8 100644
    Cursor := 0;
  
    if (Ini.Mouse = 2) and
-@@ -777,7 +790,7 @@ procedure TDisplay.SaveScreenShot;
+@@ -747,7 +761,7 @@ procedure TDisplay.OnWindowResized();
+ 
+ end;
+ 
+-procedure TDisplay.SaveScreenShot;
++procedure TDisplay.SaveScreenShot(NotifyUser: boolean);
+ var
+   Num:        integer;
+   FileName:   IPath;
+@@ -777,12 +791,13 @@ procedure TDisplay.SaveScreenShot;
    // in this case one may have to add " glext, " to the list of used units
    //  glReadPixels(0, 0, ScreenW, ScreenH, GL_BGR, GL_UNSIGNED_BYTE, ScreenData);
    Surface := SDL_CreateRGBSurfaceFrom(
@@ -822,6 +977,12 @@ index 93e1eef..2eb60a8 100644
        $0000FF, $00FF00, $FF0000, 0);
  
     Success := WriteJPGImage(FileName, Surface, 95);
+   //  Success := WriteBMPImage(FileName, Surface);
+   //Success := WritePNGImage(FileName, Surface);
++  if NotifyUser then
+   if Success then
+     ScreenPopupInfo.ShowPopup(Format(Language.Translate('SCREENSHOT_SAVED'), [FileName.GetName.ToUTF8()]))
+   else
 diff --git a/src/screens/controllers/UScreenSingController.pas b/src/screens/controllers/UScreenSingController.pas
 index a682bbb..c42a339 100644
 --- a/src/screens/controllers/UScreenSingController.pas

@@ -8,13 +8,15 @@ function ShellSynthetic: boolean;
 procedure ShellTick;
 procedure ShellDraw;
 procedure ShellViewport;
+procedure ShellFinishFrame;
+procedure ShellDrawPitchTrace(Left, Top, Width: real; Track, Singer, Spacing: integer);
 function ShellEvent(var Event: TSDL_Event): boolean;
 procedure ShellCaptureStart;
 procedure ShellCaptureStop;
 implementation
 uses SysUtils, Classes, Math, fpjson, jsonparser, UGraphic, UDisplay, URenderer,
   UText, UIni, USongs, USong, UPath, UMusic, URecord, UNote, UScreenSong,
-  UCommon, UScreenSingController, UScreenScore, UThemes, UAvatars;
+  UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
 procedure SDL_free(mem: pointer); cdecl; external SDL_LibName name 'SDL_free';
 var
   Started: boolean = false;
@@ -29,6 +31,8 @@ var
   Sequence: integer = 0;
   SynthPosition: int64 = 0;
   SynthTick: cardinal;
+  SynthFrequency: array[0..1] of double = (440, 493.883);
+  CaptureTestFrame: boolean;
   Gains: array[0..1] of single;
   Hover: integer = -1;
   PendingForget: TStringList;
@@ -48,6 +52,21 @@ var
   CoverUse: qword = 0;
   CoverPaths: array[0..31] of string;
   CoverTextures: array[0..31] of TTexture;
+
+const
+  TraceColumns = 720; // native note lane width in theme coordinates
+  NoPitch = -128;
+type
+  TPitchTrace = record
+    Active: boolean;
+    Phrase: integer;
+    LastBeat: real;
+    LastTick: cardinal;
+    Column, Offset: integer;
+    Samples: array[0..TraceColumns-1] of shortint;
+  end;
+var
+  PitchTraces: array[0..1] of TPitchTrace;
 
 function Root: string;
 begin Result:=GetEnvironmentVariable('KARAOKE_IPC'); end;
@@ -147,6 +166,124 @@ begin Result:=(Control<>'') and (ConfirmedAdd=Control) and (SDL_GetTicks-Confirm
 function AddHeld(const Control: string): boolean;
 begin Result:=(Control<>'') and (HeldAdd=Control) and (HoverAdd=Control); end;
 
+{ Capture uses the same delayed song clock and pitch detector as Deluxe. The
+  ribbon is presentation-only; Player.Note remains entirely owned by scoring. }
+procedure ShellDrawPitchTrace(Left, Top, Width: real; Track, Singer, Spacing: integer);
+var
+  Line: PLine;
+  Trace: ^TPitchTrace;
+  Span, Phrase, Column, Pitch, Anchor, Offset, I, First, Count: integer;
+  Beat, StartX, EndX, Y, ColumnWidth: real;
+  Tick: cardinal;
+  Parts: TQuadList;
+  R,G,B: single;
+
+  procedure AddQuad(X, RowY, SizeX, H, Red, Green, Blue, Alpha: single);
+  begin
+    if Count = Length(Parts) then SetLength(Parts, Max(16, Count*2));
+    Parts[Count].X := X; Parts[Count].Y := RowY;
+    Parts[Count].W := SizeX; Parts[Count].H := H;
+    Parts[Count].ColR := Red; Parts[Count].ColG := Green; Parts[Count].ColB := Blue;
+    Parts[Count].Alpha := Alpha;
+    Inc(Count);
+  end;
+
+  procedure Ribbon(X1, X2: real; Steps: integer);
+  begin
+    Y := Top - Steps*Spacing/2;
+    AddQuad(X1,Y-2.5,X2-X1,5,0.025,0.08,0.14,0.50);
+    AddQuad(X1,Y-1.6,X2-X1,3.2,R,G,B,0.64);
+  end;
+
+begin
+  if (Singer < 0) or (Singer > High(PitchTraces)) then Exit;
+  Phrase := CurrentSong.Tracks[Track].CurrentLine;
+  Line := @CurrentSong.Tracks[Track].Lines[Phrase];
+  if not Line^.HasLength(Span) then Exit;
+  Trace := @PitchTraces[Singer];
+  Beat := LyricsState.MidBeatD;
+  Tick := SDL_GetTicks;
+  if not Trace^.Active or (Trace^.Phrase <> Phrase) or (Beat < Trace^.LastBeat-0.01) then
+  begin
+    FillChar(Trace^.Samples,SizeOf(Trace^.Samples),Byte(128));
+    Trace^.Active := true;
+    Trace^.Phrase := Phrase;
+    Trace^.Column := -1;
+    Trace^.Offset := NoPitch;
+    Trace^.LastTick := Tick-32;
+  end;
+
+  if not ScreenSing.Paused and (Tick-Trace^.LastTick >= 32) then
+  begin
+    if Beat < Line^.Notes[0].StartBeat then Column := -1
+    else if Beat >= Line^.EndBeat then Column := TraceColumns
+    else Column := Trunc((Beat-Line^.Notes[0].StartBeat)*TraceColumns/Span);
+    if (Trace^.Offset <> NoPitch) and (Trace^.Column >= 0) and (Trace^.Column < TraceColumns)
+      and (Column > Trace^.Column) and (Tick-Trace^.LastTick <= 160) then
+      FillChar(Trace^.Samples[Trace^.Column],Column-Trace^.Column,Byte(Trace^.Offset));
+    Pitch := AudioInputProcessor.Sound[Singer].DetectedPitch(true);
+    Offset := NoPitch;
+    if Pitch >= 0 then
+    begin
+      { Keep octave equivalence with the scorer. In a rest, retain the pitch
+        frame of the previous note so a sustained voice stays level. }
+      Anchor := Line^.Notes[0].Tone;
+      for I := 1 to Line^.HighNote do
+      begin
+        if Line^.Notes[I].StartBeat > Beat then Break;
+        Anchor := Line^.Notes[I].Tone;
+      end;
+      Pitch := Pitch mod 12;
+      Offset := (Pitch - Anchor) mod 12;
+      if Offset > 6 then Dec(Offset,12);
+      if Offset < -6 then Inc(Offset,12);
+      Offset := EnsureRange(Anchor + Offset - Line^.BaseNote,-4,19);
+      if (Column >= 0) and (Column < TraceColumns) then Trace^.Samples[Column] := Offset;
+    end;
+    Trace^.LastBeat := Beat;
+    Trace^.LastTick := Tick;
+    Trace^.Column := Column;
+    Trace^.Offset := Offset;
+  end;
+
+  if Singer = 0 then begin R := 0.34; G := 0.86; B := 1.0; end
+  else begin R := 1.0; G := 0.56; B := 0.76; end;
+  ColumnWidth := Width / TraceColumns;
+  Count := 0;
+  I := 0;
+  while I < TraceColumns do
+  begin
+    First := I;
+    Offset := Trace^.Samples[I];
+    repeat Inc(I) until (I = TraceColumns) or (Trace^.Samples[I] <> Offset);
+    if Offset <> NoPitch then Ribbon(Left+First*ColumnWidth,Left+I*ColumnWidth,Offset);
+  end;
+  { A short head is visible as soon as a voice is detected, including before
+    or after the phrase's horizontal time span. Never extend past the lane. }
+  if Trace^.Offset <> NoPitch then
+  begin
+    EndX := EnsureRange(Left+(Trace^.Column+1)*ColumnWidth,Left+6,Left+Width);
+    StartX := EndX-6;
+    Ribbon(StartX,EndX,Trace^.Offset);
+  end;
+  SetLength(Parts,Count);
+  if Count > 0 then Renderer.DrawQuads(Parts);
+end;
+
+procedure ShellFinishFrame;
+var Previous: IPath;
+begin
+  if not CaptureTestFrame then Exit;
+  CaptureTestFrame := false;
+  Previous := ScreenshotsPath;
+  try
+    ScreenshotsPath := Path(Root);
+    Display.SaveScreenShot(false);
+  finally
+    ScreenshotsPath := Previous;
+  end;
+end;
+
 procedure ShellCaptureStart;
 var I: integer; Fmt: TAudioFormatInfo;
 begin
@@ -176,6 +313,7 @@ begin
            (AudioInputProcessor.CheckPlayersConfig(N)<>0) then
         begin ErrorText:='Asigna un canal de micrófono a cada cantante en Ajustes.'; Exit; end;
       end;
+      for K := 0 to High(PitchTraces) do PitchTraces[K].Active := false;
       Ini.Players:=N-1; PlayersPlay:=N; SetLength(Player,N);
       for K:=0 to N-1 do
       begin
@@ -201,6 +339,13 @@ begin
   Op:=J.Get('op','');
   ErrorText:='';
   if Op='start' then BeginSong(J)
+  else if (Op='test-tone') and ShellSynthetic then
+  begin
+    I := J.Get('player',0);
+    if (I >= 0) and (I <= High(SynthFrequency)) then
+      SynthFrequency[I] := EnsureRange(J.Get('hz',0.0),0.0,2000.0);
+  end
+  else if (Op='test-screenshot') and ShellSynthetic then CaptureTestFrame := true
   else if Op='panel' then SetPanelCollapsed(J.Get('collapsed',not PanelCollapsed))
   else if Op='gain' then
   begin
@@ -309,7 +454,7 @@ begin
     begin
       for I:=0 to PlayersPlay-1 do
       begin
-        if I=0 then Frequency:=440 else Frequency:=493.883;
+        Frequency := SynthFrequency[I];
         for K:=0 to N-1 do Buf[K]:=Round(8000*Sin(2*Pi*Frequency*(SynthPosition+K)/48000));
         AudioInputProcessor.Sound[I].TestFeed(@Buf[0],N*2);
       end;
