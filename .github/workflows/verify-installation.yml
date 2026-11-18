@@ -15,7 +15,7 @@ jobs:
   install:
     name: Public PowerShell command on Windows Server 2022
     runs-on: windows-2022
-    timeout-minutes: 12
+    timeout-minutes: 22
     env:
       KARAOKE_VERSION: ${{ inputs.tag }}
     steps:
@@ -116,6 +116,28 @@ jobs:
             $Report | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 (Join-Path $env:REPORT_DIRECTORY 'result.json')
             Stop-Transcript | Out-Null
           }
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: msys2/setup-msys2@v2
+        id: graphics
+        with:
+          msystem: UCRT64
+          update: false
+          install: mingw-w64-ucrt-x86_64-mesa mingw-w64-ucrt-x86_64-binutils
+      - name: Prepare a software-rendered copy of the publicly installed application
+        run: |
+          uv sync --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run python scripts/prepare_ci_graphics.py --package "$env:LOCALAPPDATA/Programs/Karaoke" --tools "${{ steps.graphics.outputs.msys2-location }}/ucrt64/bin" --output build/installed-ci-runtime
+      - name: Score two singers at all three pitch precision settings
+        timeout-minutes: 5
+        run: uv run python scripts/test_pitch_precision.py --launcher "$env:KARAOKE_CI_LAUNCHER"
+      - name: Run three mobile browsers against the publicly installed application
+        timeout-minutes: 5
+        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
+        run: uv run --locked --with playwright python scripts/test_remote_browser.py --channel chrome --launcher "$env:KARAOKE_CI_LAUNCHER"
       - name: Upload installation evidence
         if: always()
         uses: actions/upload-artifact@v4
