@@ -179,3 +179,19 @@ uv run python scripts/test_live_pitch.py --launcher "$HOME/Applications/Karaoke.
 ```
 
 El ejecutable de Windows x64 también superó la comparación de capturas con uno y dos cantantes en el entorno de gráficos por software. [Prueba del paquete en Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44376959340)
+
+## Mando web en la red local
+
+Se leyó el QR de una captura de la pantalla nativa de Karaoke. Dos navegadores con sesiones distintas usaron esa invitación, buscaron canciones simultáneamente, añadieron turnos y compartieron los controles de reproducción. Pausar desde un móvil y reanudar o terminar desde el otro produjo el cambio en el motor Deluxe. Se comprobó también la entrada por código, la reconexión al recargar, la revocación de acceso y que repetir la misma petición tras perder una respuesta produce un solo turno.
+
+Las búsquedas simultáneas de «Sigo Aquí» y «Todo un hombre haré de ti» devolvieron respectivamente una edición automática de AllKaraoke y una edición de UltraStar España que requiere elegir el paquete en el PC. Los móviles conservan búsquedas independientes incluso al cambiar de página en el ordenador.
+
+El flujo de dos mandos puede repetirse en una biblioteca temporal con audio sintético.
+
+```sh
+uv run python scripts/test_remote_session.py --launcher "$HOME/Applications/Karaoke.app/Contents/MacOS/karaoke"
+```
+
+Safari en un iPhone 17 Pro simulado con iOS 26.2 y Chrome en un emulador Android entraron en la sesión por el enlace leído del QR y añadieron sendas canciones desde la biblioteca. Se verificaron doce combinaciones de vista y anchura entre 320 y 768 píxeles CSS. La suite local pasó 139 pruebas. La instalación del Mac preservó las cinco canciones, los once turnos y las preferencias existentes.
+
+En Windows x64 también pasaron las pruebas de dos mandos contra el ejecutable empaquetado, de canto y de afinación en pantalla. [Ejecución y paquete de Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44383741672)
