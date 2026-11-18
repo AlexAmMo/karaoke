@@ -15,7 +15,7 @@ procedure ShellCaptureStart;
 procedure ShellCaptureStop;
 implementation
 uses SysUtils, Classes, Math, fpjson, jsonparser, UGraphic, UDisplay, URenderer,
-  UText, UIni, USongs, USong, UPath, UMusic, URecord, UNote, UScreenSong,
+  UText, UIni, USongs, USong, UPath, UMusic, URecord, UNote, UScreenMain, UScreenSong,
   UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
 procedure SDL_free(mem: pointer); cdecl; external SDL_LibName name 'SDL_free';
 var
@@ -418,6 +418,9 @@ begin
   NowTick:=SDL_GetTicks;
   if not Started then
   begin
+    // The standalone Deluxe main menu owns this modal. In the embedded shell
+    // it would cover the singers' notes and cannot receive the shell's input.
+    WantSoftwareRenderingMsg:=false;
     Started:=true; PendingForget:=TStringList.Create; Ini.ScreenFade:=0; Ini.VoicePassthrough:=1; Ini.MicBoost:=0;
     Ini.BackgroundMusicOption:=0; Ini.PreviewVolume:=0; Ini.SavePlayback:=0; Ini.AskbeforeDel:=0;
     Ini.Mouse:=1; Display.SetCursor;
