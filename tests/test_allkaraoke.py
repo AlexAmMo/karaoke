@@ -40,7 +40,7 @@ def test_declared_video_title_and_duration_checked_before_review(package, tmp_pa
             allkaraoke.prepare_review({**SONG, **mismatch}, Path(out), lambda _: None, audio)
     with tempfile.TemporaryDirectory(dir=tmp_path) as out:
         chart, recording = allkaraoke.prepare_review(SONG, Path(out), lambda _: None, audio)
-        assert chart.read_text() == CHART and recording.read_bytes() == audio.read_bytes()
+        assert chart.read_text(encoding="utf-8") == CHART and recording.read_bytes() == audio.read_bytes()
 
 
 def test_grouped_federation_offers_one_click_for_exact_recording(tmp_path, monkeypatch):
