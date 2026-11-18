@@ -26,6 +26,28 @@ def wait(service, condition, timeout=5):
     raise AssertionError(service.view())
 
 
+def test_view_retries_after_windows_reader_releases_it(service, monkeypatch):
+    import os
+    target = service.ipc / "view.json"
+    replace = os.replace
+    attempts = []
+
+    def sharing_violation_once(source, destination):
+        if destination == target:
+            attempts.append(source)
+            if len(attempts) == 1:
+                error = PermissionError("view is open in Deluxe")
+                error.winerror = 32
+                raise error
+        return replace(source, destination)
+
+    monkeypatch.setattr(os, "replace", sharing_violation_once)
+    service.tick()
+    assert service.last_view is None and not attempts[0].exists()
+    service.tick()
+    assert json.loads(target.read_text(encoding="utf-8")) == service.last_view
+
+
 def test_import_queue_engine_handshake_and_manual_next_turn(service, package):
     service.add_import(str(package))
     wait(service, lambda: bool(service.store.rows("SELECT * FROM songs")))

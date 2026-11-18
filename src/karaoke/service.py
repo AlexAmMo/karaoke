@@ -35,7 +35,10 @@ PITCH_LEVELS = (
 def atomic_json(path: Path, value):
     temp = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
     temp.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
-    os.replace(temp, path)
+    try:
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def child_command(module):
@@ -1395,11 +1398,11 @@ class Service(CatalogueSearch, PackageImportMixin):
                         self.instrumental_busy = False
                     self.message = str(exc)
         state = self.ipc / "engine.json"
-        if state.exists():
-            try:
-                self.engine = json.loads(state.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, PermissionError):
-                pass
+        try:
+            self.engine = json.loads(state.read_text(encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError, PermissionError):
+            # Deluxe can be replacing the previous Windows snapshot.
+            pass
         if self.engine and self.sent_audio is None:
             for i in range(2):
                 self.command("gain", player=i, value=self.store.setting("gain" + str(i), 0) / 100)
@@ -1480,8 +1483,15 @@ class Service(CatalogueSearch, PackageImportMixin):
         self.remote.tick()
         view = self.view()
         if view != self.last_view:
-            atomic_json(self.ipc / "view.json", view)
-            self.last_view = view
+            try:
+                atomic_json(self.ipc / "view.json", view)
+            except PermissionError as error:
+                # Windows can deny replacement while Deluxe is reading the view.
+                # Leave last_view unchanged so the next tick publishes it.
+                if getattr(error, "winerror", None) not in (5, 32, 33):
+                    raise
+            else:
+                self.last_view = view
 
     def view(self):
         rows = []

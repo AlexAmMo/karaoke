@@ -71,16 +71,43 @@ async def report_phones(phones):
             print(f"{name} UI unavailable: {error}", flush=True)
 
 
+def host_snapshot(session, phase, *, logs=False):
+    view = read_json(session.ipc / "view.json")
+    engine = read_json(session.ipc / "engine.json")
+    process = session.process
+    print(f"Host {phase}: " + json.dumps({
+        "pid": process.pid if process else None,
+        "exit": process.poll() if process else None,
+        "view_page": view.get("page"),
+        "engine_state": engine.get("state"),
+        "engine_demo": engine.get("synthetic"),
+    }, ensure_ascii=True), flush=True)
+    if not logs:
+        return
+    for path in (session.data / f"launcher-{session.launch_count}.log",
+                 session.data / "engine.log", session.data / "last-error.txt"):
+        try:
+            with path.open("rb") as stream:
+                stream.seek(max(0, path.stat().st_size - 3500))
+                tail = stream.read().decode("utf-8", "replace")
+            tail = re.sub(r"(?i)#join=[^\s&]+|invite-[a-z0-9]+\.png|(?<![0-9])[0-9]{6}(?![0-9])", "[redacted]", tail)
+            print(f"{path.name}: " + json.dumps(tail, ensure_ascii=True), flush=True)
+        except OSError as error:
+            print(f"{path.name}: {error.__class__.__name__}", flush=True)
+
+
+def direct_lan_probe(url):
+    with requests.Session() as probe:
+        probe.trust_env = False
+        response = probe.get(url, timeout=5)
+        print("Direct LAN HTTP response:", response.status_code, flush=True)
+        response.raise_for_status()
+
+
 async def join(browser, profile, name, url, code):
     context = await browser.new_context(**profile)
     page = await context.new_page()
-    try:
-        await page.goto(url)
-    except Exception:
-        with requests.Session() as probe:
-            probe.trust_env = False
-            print("Direct LAN response after navigation failure:", probe.get(url, timeout=5).status_code, flush=True)
-        raise
+    await page.goto(url)
     await page.get_by_label("Tu nombre").fill(name)
     await page.get_by_label("Código del ordenador").fill(code)
     await button(page, "Entrar en Karaoke").click()
@@ -146,6 +173,8 @@ async def test_phones(session, browser_type, channel):
         return address["label"], code
 
     url, code = open_room()
+    host_snapshot(session, "room ready")
+    direct_lan_probe(url)
     async with async_playwright() as playwright:
         # These phones join the local network directly, including on CI hosts
         # with a system-wide web proxy configured.
@@ -153,11 +182,13 @@ async def test_phones(session, browser_type, channel):
         browser = await getattr(playwright, browser_type).launch(channel=channel, **options)
         phones = {}
         try:
+            host_snapshot(session, "before browser joins")
             ana, luis, mar = await asyncio.gather(*(
                 join(browser, playwright.devices[model], name, url, code)
                 for model, name in (("iPhone 13", "Ana"), ("Pixel 7", "Luis"), ("iPhone SE", "Mar"))
             ))
             phones = {"Ana": ana, "Luis": luis, "Mar": mar}
+            host_snapshot(session, "after browser joins")
             await mar.locator("[data-tab=queue]").click()
             await late_add(ana, mar, "Probe A", "Ana y Mar", lose_first_response=False)
             await late_add(luis, mar, "Probe B", "Luis y Mar", lose_first_response=True)
@@ -200,6 +231,10 @@ async def test_phones(session, browser_type, channel):
         except Exception:
             await report_phones(phones)
             print("Host test turns:", session.rows("SELECT state, names FROM turns ORDER BY created"), flush=True)
+            try:
+                direct_lan_probe(url)
+            except requests.RequestException as error:
+                print("Direct LAN failure:", repr(error), flush=True)
             raise
         finally:
             await browser.close()
@@ -224,6 +259,9 @@ def run():
                     session.import_chart(ROOT / f"technical-spike/fixtures/{relative}/song.txt")
                     session.wait(lambda _: bool(session.rows("SELECT id FROM songs WHERE title=?", (title,))))
             asyncio.run(test_phones(session, args.browser, args.channel))
+        except Exception:
+            host_snapshot(session, "on failure", logs=True)
+            raise
         finally:
             session.close()
 
