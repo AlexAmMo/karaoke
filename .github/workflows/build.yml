@@ -13,6 +13,10 @@ on:
         default: all
         type: choice
         options: [all, windows, macos, tests, diagnose-windows, stage-windows-release]
+      windows_source_ref:
+        description: Optional release commit to rebuild with the Windows toolchain
+        required: false
+        type: string
       artifact_run_id:
         description: Source run for Windows diagnostics or draft staging
         required: false
@@ -115,6 +119,8 @@ jobs:
       FPC_VERSION: 3.2.2
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.windows_source_ref || github.sha }}
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -145,8 +151,20 @@ jobs:
         id: fpc
         timeout-minutes: 16
         run: |
-          curl.exe --fail -L --connect-timeout 30 --max-time 600 -o fpc-installer.exe "https://sourceforge.net/projects/freepascal/files/Win32/3.2.2/fpc-3.2.2.win32.and.win64.exe/download"
-          if ($LASTEXITCODE -ne 0) { throw 'FPC installer download failed' }
+          $Expected = '8c255390544b051388b577eb61c6191a04883264afe0e3369b3600a56daf7bde'
+          $Urls = @(
+            'https://downloads.freepascal.org/fpc/dist/3.2.2/i386-win32/fpc-3.2.2.win32.and.win64.exe',
+            'https://sourceforge.net/projects/freepascal/files/Win32/3.2.2/fpc-3.2.2.win32.and.win64.exe/download'
+          )
+          $Verified = $false
+          foreach ($Url in $Urls) {
+            curl.exe --fail -L --connect-timeout 20 --max-time 120 -o fpc-installer.exe $Url
+            if ($LASTEXITCODE -eq 0 -and (Get-FileHash fpc-installer.exe -Algorithm SHA256).Hash -eq $Expected) {
+              $Verified = $true
+              break
+            }
+          }
+          if (-not $Verified) { throw 'Could not obtain the verified Free Pascal installer' }
           $Process = Start-Process -FilePath '.\fpc-installer.exe' -ArgumentList '/TYPE=full /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART /LOG=fpc-install.log' -PassThru
           if (-not $Process.WaitForExit(300000)) { Stop-Process -Id $Process.Id -Force; throw 'FPC installer exceeded five minutes; inspect fpc-install.log' }
           if ($Process.ExitCode -ne 0) { throw "FPC install failed: $($Process.ExitCode)" }
