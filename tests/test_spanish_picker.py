@@ -88,6 +88,7 @@ def test_search_waits_for_automatic_sources_before_offering_publisher_signin(tmp
     app = Service(tmp_path)
     try:
         app.query = "sigo aqui"
+        app.prefer_direct_until = time.monotonic() + 2.0
         song = {"source": "espana:sigo-aqui", "artist": "Álex Ubago", "title": "Sigo Aquí"}
         app.results = [song]
         app.catalogue_status["AllKaraoke"] = "Consultando"

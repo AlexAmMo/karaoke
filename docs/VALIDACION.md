@@ -155,3 +155,11 @@ uv run python scripts/test_host_journey.py --launcher "$HOME/Applications/Karaok
 ```
 
 El paquete x64 superó además la búsqueda desde el campo con los catálogos sin conexión, la adición a la cola, el inicio de una canción local y el plegado del panel durante el canto en Windows Server 2022 con gráficos y audio de prueba. La suite Python de esta revisión pasó 120 pruebas en el Mac. [Ejecución Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44194552768) · [Resultados del paquete](validation/ux-windows.json)
+
+## Descarga dentro de Karaoke · 18 de noviembre de 2026
+
+La búsqueda escrita de Mulán y el enlace de UltraStar España muestran la edición «Todo un hombre haré de ti». La ventana integrada abre la ficha oficial y su identificación. Cerrar el selector antes de recibir un paquete deja la cola intacta. La descarga real de esa edición requiere una cuenta de UltraStar España y pares disponibles. [Prueba con la ficha real](validation/in-app-spanish-login.json)
+
+Se verificó la recepción de torrent y ZIP y la cancelación a mitad de la descarga con el selector Qt real y un servidor de pruebas local. Un ensayo adicional transfirió un mapa y su grabación entre pares BitTorrent locales, verificó los bytes y confirmó la sincronía con el análisis acústico. También se ejercitaron los casos de otra canción, dos mapas ambiguos y ausencia de fuentes. El paquete de macOS pasó la comprobación del navegador integrado y del motor de transferencia, y la suite Python pasó 134 pruebas. [Resultados del paquete](validation/in-app-macos.json) · [Pruebas de transferencia](../tests/test_torrent_package.py)
+
+En la instalación actualizada del Mac, escribir «Mulán, todo un hombre haré de ti» mostró una sola fila con **+** y «Elegir en UltraStar España». Se conservaron cuatro canciones, diez turnos y las preferencias. En una biblioteca temporal también se preparó «Sigo Aquí» de Álex Ubago mediante AllKaraoke y se reprodujo hasta la puntuación con un micrófono sintético. La primera petición de audio falló y el siguiente intento completó la sesión. [Evidencia de ambas búsquedas](validation/in-app-macos.json)

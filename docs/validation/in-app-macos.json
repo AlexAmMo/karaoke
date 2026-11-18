@@ -1,0 +1,58 @@
+{
+  "revision": "e39120a1061efd108ff3735380dde5e27398e10b",
+  "platform": "macOS arm64",
+  "package_bytes": 320737078,
+  "package_smoke": {
+    "passed": true,
+    "frozen_download_picker": {
+      "browser": true,
+      "torrent": true
+    },
+    "frozen_provider_stdin": true,
+    "elapsed_seconds": 8.04
+  },
+  "picker_fixture": [
+    {
+      "case": "torrent",
+      "request_received": true,
+      "status": "selected",
+      "bytes_verified": 93
+    },
+    {
+      "case": "zip",
+      "request_received": true,
+      "status": "selected",
+      "bytes_verified": 138
+    },
+    {
+      "case": "cancel",
+      "request_received": true,
+      "status": "cancelled",
+      "bytes_verified": 0
+    }
+  ],
+  "offline_peer": "A real loopback seeder served metainfo, map and matched music to the built-in libtorrent client. The test compared both files and ran the automatic alignment check.",
+  "pytest": 134,
+  "mulan": "Checked the actual publisher page and the sign-in requirement with an empty profile. No third-party account used.",
+  "real_catalogue_journey": {
+    "revision": "b72620e14483a6a01e941036e2e4aab12359dc09",
+    "title": "Sigo Aquí",
+    "artist": "Álex Ubago",
+    "source": "AllKaraoke",
+    "passed": true,
+    "duration_seconds": 279.01,
+    "synthetic_microphone": true,
+    "checks": 10,
+    "attempts": "One initial media request failed. A fresh preparation succeeded, followed by the complete session."
+  },
+  "installed_search": {
+    "query": "Mulán, todo un hombre haré de ti",
+    "row": "Mulán · Elegir en UltraStar España",
+    "controls": [
+      "input",
+      "song"
+    ],
+    "action": "Obtener en Karaoke",
+    "queue_changed": false
+  }
+}
