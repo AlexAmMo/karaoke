@@ -65,6 +65,7 @@ class Session:
         self.log = None
         self.launch_count = 0
         self.last_event_timestamp = 0
+        self.last_command_timestamp = 0
         self.samples = []
 
     def launch(self):
@@ -127,8 +128,10 @@ class Session:
         )
 
     def native(self, operation: str, **parameters):
+        # Two synthetic voices can submit within a single Windows clock tick.
+        self.last_command_timestamp = max(time.time_ns(), self.last_command_timestamp + 1)
         atomic_json(
-            self.ipc / "commands" / (str(time.time_ns()) + ".json"),
+            self.ipc / "commands" / (str(self.last_command_timestamp) + ".json"),
             {"op": operation, **parameters},
         )
 
