@@ -25,15 +25,19 @@
     <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m-7 7 7-7 7 7"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14m-7-7 7 7 7-7"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
-    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zm12-1a6 6 0 0 1 0 8m2-11a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M3 7h4m6 0h8M3 17h10m6 0h2"/><circle cx="10" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 17V6l11-2v11M9 9l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></symbol>
   </svg>
   <div class="shell">
     <header class="mast">
       <span class="wordmark"><svg aria-hidden="true"><use href="#i-mic"/></svg>Karaoke</span>
-      <button id="volume-button" class="utility" aria-label="Volumen de la música" hidden><svg aria-hidden="true"><use href="#i-volume"/></svg></button>
+      <button id="settings-button" class="utility" aria-label="Ajustes de la sesión" title="Volumen y afinación" hidden><svg aria-hidden="true"><use href="#i-settings"/></svg></button>
     </header>
     <main>
+      <section id="closed-room" hidden>
+        <h1>La sala se ha cerrado</h1>
+        <p class="muted">Para volver a cantar, escanea el QR de la nueva sala en el ordenador.</p>
+      </section>
       <section id="join" hidden>
         <h1>Unirse a la sesión</h1>
         <p class="muted">Elige el nombre que aparecerá en tus turnos.</p>

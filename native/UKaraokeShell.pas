@@ -317,7 +317,7 @@ begin
       Ini.Players:=N-1; PlayersPlay:=N; SetLength(Player,N);
       for K:=0 to N-1 do
       begin
-        Ini.Name[K]:=Names.Strings[K]; Player[K].Name:=Names.Strings[K]; Player[K].Level:=1;
+        Ini.Name[K]:=Names.Strings[K]; Player[K].Name:=Names.Strings[K]; Player[K].Level:=EnsureRange(J.Get('precision',1),0,2);
         AvatarPlayerTextures[K+1]:=NoAvatarTexture[K+1];
       end;
       if not Assigned(ScreenSing) then

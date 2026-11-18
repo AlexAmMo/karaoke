@@ -6,20 +6,20 @@ La rama de desarrollo incluye búsqueda por artista y título, paquetes opcional
 
 ## Instalación
 
-Los comandos de esta sección instalan la versión anterior al rediseño del catálogo. Descarga los paquetes de la [prerelease v0.1.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.1.0), o usa uno de estos comandos. Incluyen el motor y las herramientas necesarias: no necesitas Python ni compiladores.
+La versión v0.2.0 incluye el ajuste de afinación y el mando móvil con cola compartida. Puedes instalarla con uno de estos comandos o descargar el paquete para tu equipo. [Descargas de v0.2.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.2.0)
 
 **macOS**, desde Terminal (Apple Silicon: macOS 26 o posterior; Intel: macOS 15 o posterior):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.sh | KARAOKE_VERSION=v0.1.0 bash
+curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.2.0/scripts/install.sh | KARAOKE_VERSION=v0.2.0 bash
 ```
 
-Se instala en `~/Applications/Karaoke.app`. En Apple Silicon ocupa aproximadamente 192 MB descargados y 412 MB instalado, sin canciones. La firma es ad hoc y no está notarizada; el instalador no desactiva Gatekeeper.
+Se instala en `~/Applications/Karaoke.app`. La firma es ad hoc y no está notarizada; el instalador no desactiva Gatekeeper.
 
 **Windows x64**, desde PowerShell (objetivo: Windows 10 versión 1809 o posterior y Windows 11; controlador OpenGL 2.0 o superior):
 
 ```powershell
-$env:KARAOKE_VERSION='v0.1.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.ps1 | iex
+$env:KARAOKE_VERSION='v0.2.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.2.0/scripts/install.ps1 | iex
 ```
 
 Se instala en `%LOCALAPPDATA%\Programs\Karaoke` y crea un acceso directo en Inicio. El ejecutable no tiene firma comercial. La validación automatizada usa Windows Server 2022; quedan pendientes pruebas de audio y gráficos en un PC físico. En Mac Intel están comprobados la compilación y el arranque de utilidades; falta validar una sesión gráfica.
@@ -39,6 +39,8 @@ Karaoke agrupa las fuentes de una misma canción en una fila. Pulsar el título 
 Los 39 paquetes de UltraStar Deluxe Songs incluyen mapa, audio y licencia. Los mapas de AllKaraoke y USDB usan el audio identificado por la edición. La aplicación comprueba su correspondencia en segundo plano. Si falta el audio o la comparación resulta dudosa, la cola indica el motivo y permite continuar con otra canción. Para UltraStar España se abre el selector del proveedor dentro de Karaoke. Accede con tu cuenta de UltraStar España y pulsa **Descargar torrent** en la edición. Karaoke recibe el mapa y el audio del mismo paquete, comprueba su sincronía y deja el turno en la cola. Durante la transferencia comparte fragmentos con otros pares. La descarga depende de que haya fuentes disponibles. Puedes pegar el enlace de búsqueda de UltraStar España en **Buscar**. Las fichas sin una vía de descarga integrada se indican por separado. La primera consulta de los índices públicos requiere conexión. En **Ajustes → Cuenta USDB** puedes conectar tu cuenta para ampliar los resultados.
 
 En **Ajustes** puedes cambiar los nombres, el volumen de la música y cuánto se oye tu micrófono en los altavoces. Deja vacío el segundo nombre para cantar solo. **Micrófonos** reúne la selección de entradas y el ajuste de latencia.
+
+En **Ajustes → Precisión de afinación** puedes elegir **Flexible** (hasta dos semitonos por encima o por debajo), **Normal** (un semitono de margen, valor inicial) o **Estricta** (el motor debe detectar la nota indicada). El mando móvil ofrece el mismo selector en **Ajustes de la sesión**. El nivel queda guardado y se aplica a ambos cantantes desde el siguiente turno.
 
 ## Mando desde varios móviles
 

@@ -13,6 +13,8 @@ let session = null;
 let state = null;
 let tab = "search";
 let connected = false;
+let disconnectedSince = 0;
+let roomClosed = false;
 let stateRequest = 0;
 let browseRequest = 0;
 let pollTimer, browseTimer, feedbackTimer, candidateTimer;
@@ -98,6 +100,12 @@ async function api(route, payload, method = "POST") {
     const response = await fetch("/api/" + route, options);
     const data = await response.json();
     if (!response.ok) {
+      if (response.status === 410 && data.room_closed === true) {
+        showJoin();
+        roomClosed = true;
+        $("join").hidden = true;
+        $("closed-room").hidden = false;
+      }
       const err = new Error(data.error || "Karaoke no pudo completar la acción.");
       err.status = response.status;
       throw err;
@@ -124,6 +132,7 @@ function announce(text) {
   } else message(text);
 }
 function showJoin(error = "") {
+  if (roomClosed) return;
   clearTimeout(pollTimer);
   clearTimeout(browseTimer);
   stateRequest++;
@@ -134,7 +143,7 @@ function showJoin(error = "") {
   connected = false;
   uncertainAction = null;
   $("loading").hidden = true;
-  $("controller").hidden = $("nav").hidden = $("volume-button").hidden = true;
+  $("controller").hidden = $("nav").hidden = $("settings-button").hidden = true;
   $("join").hidden = false;
   $("manual-code").hidden = Boolean(invite);
   $("code").required = !invite;
@@ -143,10 +152,11 @@ function showJoin(error = "") {
   try { $("name").value = localStorage.getItem("karaoke.guest-name") || ""; } catch {}
 }
 async function enter(user) {
+  if (roomClosed) return;
   session = user;
   invite = "";
   $("join").hidden = $("loading").hidden = true;
-  $("controller").hidden = $("nav").hidden = $("volume-button").hidden = false;
+  $("controller").hidden = $("nav").hidden = $("settings-button").hidden = false;
   renderedPlayer = renderedList = "";
   activateTab("search");
   await refresh();
@@ -175,16 +185,23 @@ function connectionNotice() {
   const host = $("connection");
   host.replaceChildren();
   host.hidden = connected && !uncertainAction;
-  if (!connected) host.textContent = "Reconectando con el ordenador…";
+  if (connected) disconnectedSince = 0;
+  if (!connected) {
+    disconnectedSince ||= Date.now();
+    if (Date.now() - disconnectedSince < 15000) host.textContent = "Reconectando con el ordenador…";
+    else host.append(document.createTextNode("No se encuentra el ordenador. Comprueba la wifi o escanea el QR de la sala actual. "),
+      button("Reintentar", () => { void refresh(); }));
+  }
   else if (uncertainAction) {
     host.append(document.createTextNode("Falta confirmar la última acción."),
       button("Comprobar", () => {
-        const {payload, done} = uncertainAction;
-        void sendAction(payload, done);
+        const {payload, done, origin} = uncertainAction;
+        void sendAction(payload, done, origin);
       }));
   }
 }
 function fail(err) {
+  if (roomClosed) return;
   if (err.status === 401 && session) {
     showJoin("La sesión ha terminado. Escanea el QR actual o introduce su código.");
     return;
@@ -215,7 +232,7 @@ async function refresh() {
     }
   }
 }
-async function sendAction(payload, done) {
+async function sendAction(payload, done, origin = currentSheet) {
   if (!connected || submitting || (uncertainAction && uncertainAction.payload !== payload)) {
     announce(uncertainAction ? "Comprueba primero la última acción." : (!connected ? "Espera a que vuelva la conexión." : "Enviando la acción…"));
     return;
@@ -226,28 +243,28 @@ async function sendAction(payload, done) {
     const result = await api("action", payload);
     uncertainAction = null;
     await refresh();
-    done?.(result);
+    if (session) done?.(result, origin);
   } catch (err) {
-    if (!err.status) uncertainAction = {payload, done};
+    if (!err.status) uncertainAction = {payload, done, origin};
     else uncertainAction = null;
     fail(err);
     if (err.status === 409 && session) {
-      closeSheet();
+      closeOrigin(origin);
       await refresh();
       announce(err.message);
     }
   } finally { submitting = false; if (session) connectionNotice(); }
 }
 function command(op, id, extra = {}, msg = "") {
-  void sendAction({op, id, revision: state?.revision, ...extra}, () => {
-    closeSheet();
+  void sendAction({op, id, revision: state?.revision, ...extra}, (_, origin) => {
+    closeOrigin(origin);
     if (msg) message(msg);
     if (tab !== "queue") void loadResults();
   });
 }
 function add(item, names = [session.name]) {
-  void sendAction({op: "add", id: item.id, names}, () => {
-    closeSheet();
+  void sendAction({op: "add", id: item.id, names}, (_, origin) => {
+    closeOrigin(origin);
     confirmedItem = {id: item.id, until: Date.now() + 1400};
     if (tab !== "queue") renderSongRows(renderedResults);
     setTimeout(() => {
@@ -389,14 +406,17 @@ function renderQueue() {
   });
   replaceList(rows);
 }
+function closeOrigin(origin) {
+  if (origin && currentSheet === origin) closeSheet();
+}
 function closeSheet() {
   clearTimeout(candidateTimer);
   currentSheet = null;
   if ($("sheet").open) $("sheet").close();
 }
-function sheet(title, id = "") {
+function sheet(title) {
   clearTimeout(candidateTimer);
-  currentSheet = id;
+  currentSheet = Symbol();
   $("sheet-title").textContent = title;
   $("sheet-content").replaceChildren();
   if (!$("sheet").open) $("sheet").showModal();
@@ -438,7 +458,7 @@ function describeEdition(item) {
   return [item.source, item.edition, kind].filter(Boolean).join(" · ") || item.title;
 }
 function openSong(item) {
-  const content = sheet(item.title, item.id);
+  const content = sheet(item.title);
   content.append(element("p", "muted", [item.artist, item.language].filter(Boolean).join(" · ")));
   const editions = item.editions || [];
   const variants = [item, ...editions.filter(row => row.id !== item.id)];
@@ -482,8 +502,8 @@ function openSong(item) {
   }
 }
 async function openInstrumentals(item) {
-  const key = "instrumentals:" + item.id;
-  const content = sheet("Buscar instrumental", key);
+  const content = sheet("Buscar instrumental");
+  const key = currentSheet;
   content.append(element("p", "muted", item.title));
   const box = element("div");
   content.append(box);
@@ -515,7 +535,7 @@ function openTurn(stale) {
   const item = state.queue.find(row => row.id === stale.id);
   if (!item) { message("Este turno ya ha terminado."); return; }
   const revision = state.revision;
-  const content = sheet(item.title, item.id);
+  const content = sheet(item.title);
   content.append(element("p", "muted", [item.artist, statuses[item.status]].filter(Boolean).join(" · ")));
   if (item.message) content.append(element("p", "small muted", item.message));
   if (item.status === "host" && !item.message) content.append(element("p", "small muted", "Elige la edición en el ordenador para continuar."));
@@ -545,18 +565,39 @@ function openTurn(stale) {
   content.append(button("Quitar de la cola", () => confirmAction("¿Quitar este turno?", item.title, "Quitar turno",
     () => command("remove", item.id, {revision}, "Turno retirado")), "danger full"));
 }
-$("volume-button").addEventListener("click", () => {
+$("settings-button").addEventListener("click", () => {
   if (!state) return;
-  const content = sheet("Volumen de la música");
+  const content = sheet("Ajustes de la sesión");
+  const initialMusic = state.music;
+  const initialPitch = state.pitch_precision;
   const range = element("input");
-  const label = element("label", "", "");
+  const label = element("label");
   label.htmlFor = "volume";
   range.id = "volume";
-  range.type = "range"; range.min = "0"; range.max = "100"; range.value = String(state.music);
-  const showValue = () => { label.textContent = range.value + " %"; };
+  range.type = "range"; range.min = "0"; range.max = "100"; range.value = String(initialMusic);
+  const showValue = () => { label.textContent = "Volumen de la música · " + range.value + " %"; };
   range.addEventListener("input", showValue);
   showValue();
-  content.append(label, range, button("Aplicar volumen", () => command("music", "", {value:Number(range.value)}), "primary full"));
+
+  const pitchLabel = element("label", "", "Precisión de afinación");
+  pitchLabel.htmlFor = "pitch-precision";
+  const pitch = element("select");
+  pitch.id = "pitch-precision";
+  ["Flexible · hasta 2 semitonos", "Normal · hasta 1 semitono", "Estricta · misma nota"].forEach((text, level) => {
+    pitch.add(new Option(text, String(level)));
+  });
+  pitch.value = String(initialPitch);
+  const hint = element("p", "muted small", "La precisión se aplica a todos los cantantes desde la próxima canción.");
+  hint.id = "pitch-hint";
+  pitch.setAttribute("aria-describedby", hint.id);
+  const save = button("Guardar ajustes", () => {
+    const changes = {};
+    if (Number(range.value) !== initialMusic) changes.music = Number(range.value);
+    if (Number(pitch.value) !== initialPitch) changes.pitch_precision = Number(pitch.value);
+    if (Object.keys(changes).length) command("settings", "", {changes}, "Ajustes guardados");
+    else closeSheet();
+  }, "primary full");
+  content.append(label, range, pitchLabel, pitch, hint, save);
 });
 $("sheet-close").addEventListener("click", closeSheet);
 $("sheet").addEventListener("close", () => { if (!$("sheet").open) { clearTimeout(candidateTimer); currentSheet = null; } });

@@ -64,10 +64,33 @@ def test_pair_consumers_concurrently_and_revoke_the_whole_room(room):
 
     server.stop()
     assert not qr.exists()
+    before = len(calls)
+    for guest in clients:
+        notice = guest.post(base + "/api/state", json={})
+        assert notice.status_code == 410 and notice.json()["room_closed"] is True
+    assert client.post(base + "/api/action", json={}).status_code == 410
+    assert client.post(base + "/api/join", json={}).status_code == 410
+    assert len(calls) == before
     url = server.start("127.0.0.1")
     assert server.connected_count == 0 and server.qr_path != qr
     assert client.get(url + "/api/me").status_code == 401
     assert client.post(url + "/api/join", json={"secret": secret, "name": "Ana"}).status_code == 403
+
+
+def test_retired_listener_releases_socket(tmp_path, monkeypatch):
+    import time
+    from karaoke import remote_server
+
+    monkeypatch.setattr(remote_server, "CLOSE_NOTICE_SECONDS", 0.05)
+    server = RemoteServer(None, tmp_path)
+    url = server.start("127.0.0.1")
+    server.stop()
+    deadline = time.monotonic() + 3
+    while server.retired and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert server.retired is None
+    with pytest.raises(requests.ConnectionError):
+        browser().get(url, timeout=1)
 
 
 def test_mobile_site_and_request_boundaries(room):

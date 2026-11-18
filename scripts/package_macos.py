@@ -20,7 +20,7 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.1.0'
+VERSION = '0.2.0'
 USDX_COMMIT = '8b9d9e08eca997d2e3fe789084fbac136988f276'
 SYNCER_COMMIT = '1690c6d7505701047b245a3470867c0b3ddae01d'
 

@@ -38,6 +38,7 @@ def test_import_queue_engine_handshake_and_manual_next_turn(service, package):
         json.loads(p.read_text(encoding="utf-8")) for p in (service.ipc / "commands").glob("*.json")
     ]
     start = next(c for c in commands if c["op"] == "start")
+    assert start["precision"] == 1
     assert start["names"] == ["Ana"]
     assert start["token"] == first
     atomic_json(
@@ -67,6 +68,36 @@ def test_import_queue_engine_handshake_and_manual_next_turn(service, package):
         )
         == 1
     )
+
+
+def test_pitch_precision_survives_restart_and_is_sent_to_both_singers(tmp_path, package):
+    root = tmp_path / "app"
+    host = Service(root)
+    try:
+        host.handle({"action": "page:Afinación"})
+        assert any(row["label"] == "Normal · Actual" for row in host.view()["rows"])
+        host.handle({"action": "pitch:0"})
+    finally:
+        host.close()
+
+    host = Service(root)
+    try:
+        assert host.pitch_precision == 0
+        with pytest.raises(SongError):
+            host.handle({"action": "pitch:9"})
+        host.add_import(str(package))
+        wait(host, lambda: bool(host.store.rows("SELECT id FROM songs")))
+        song = host.store.rows("SELECT id FROM songs")[0]
+        turn = host.store.request(song["id"], {}, ["Ana", "Luis"])
+        host.engine = {"state": "idle"}
+        host.start(turn)
+        host.handle({"action": "pitch:2"})
+        commands = [json.loads(p.read_text()) for p in (host.ipc / "commands").glob("*.json")]
+        starts = [cmd for cmd in commands if cmd["op"] == "start"]
+        assert [(c["names"], c["precision"]) for c in starts] == [(["Ana", "Luis"], 0)]
+        assert host.pitch_precision == 2
+    finally:
+        host.close()
 
 
 def test_failed_package_cannot_start(service, package):

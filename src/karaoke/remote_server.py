@@ -26,6 +26,7 @@ ASSETS = {
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
 MAX_BODY = 8192
+CLOSE_NOTICE_SECONDS = 45
 SESSION_LIFETIME = 12 * 60 * 60
 LAN_NETWORKS = tuple(map(ipaddress.ip_network, (
     "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "100.64.0.0/10",
@@ -188,6 +189,8 @@ class _Handler(BaseHTTPRequestHandler):
         if self.command == "GET" and path in ASSETS:
             file, mime = ASSETS[path]
             return self.reply(200, (WEB / file).read_bytes(), mime)
+        if server.closed:
+            return self.reply(410, {"error": "La sala se ha cerrado.", "room_closed": True})
         if self.command == "POST" and path == "/api/join":
             name, token = server.join(self.client_address[0], self.read_payload())
             cookie = f"{server.cookie_name}={token}; HttpOnly; SameSite=Strict; Path=/api"
@@ -216,7 +219,11 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             self.serve_request()
         except RemoteError as error:
-            self.reply(error.status, {"error": str(error)})
+            # An in-flight operation can be revoked while dispatching to Deluxe.
+            if self.server.closed:
+                self.reply(410, {"error": "La sala se ha cerrado.", "room_closed": True})
+            else:
+                self.reply(error.status, {"error": str(error)})
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
             pass
         except Exception:
@@ -232,6 +239,8 @@ class RemoteServer:
         self.listener = None
         self.thread = None
         self.qr_path = None
+        self.retired = None
+        self.retire_lock = threading.Lock()
 
     @property
     def url(self):
@@ -293,10 +302,26 @@ class RemoteServer:
         with listener.lock:
             listener.closed = True
             listener.sessions.clear()
-        listener.shutdown()
-        listener.server_close()
-        self.thread.join()
+        # Revoke immediately, then let polling guests receive a terminal HTTP
+        # response. Keep at most one retired socket across rapid room changes.
+        with self.retire_lock:
+            if self.retired:
+                old, timer = self.retired
+                timer.cancel()
+                old.shutdown()
+                old.server_close()
+            timer = threading.Timer(CLOSE_NOTICE_SECONDS, self._finish_notice, args=(listener,))
+            timer.daemon = True
+            self.retired = listener, timer
+            timer.start()
         self.thread = None
         self.listener = None
         self.qr_path.unlink(missing_ok=True)
         self.qr_path = None
+
+    def _finish_notice(self, listener):
+        with self.retire_lock:
+            if self.retired and self.retired[0] is listener:
+                listener.shutdown()
+                listener.server_close()
+                self.retired = None

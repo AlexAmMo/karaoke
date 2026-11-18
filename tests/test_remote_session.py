@@ -85,3 +85,23 @@ def test_mobile_transport_targets_current_performance_and_cannot_delete_queued_a
     assert calls == [("set-paused", {"token": turn_id, "paused": True}),
                      ("set-paused", {"token": turn_id, "paused": False}),
                      ("end", {"token": turn_id})]
+
+
+def test_mobile_precision_and_volume_can_be_edited_by_different_guests(host):
+    room = host.remote
+    def save(guest, **changes):
+        room.operate(guest, guest, "action", {"op": "settings", "changes": changes})
+
+    assert room.state("Ana")["pitch_precision"] == 1
+    save("Ana", pitch_precision=0)
+    save("Luis", music=41)
+    assert room.state("Luis")["pitch_precision"] == 0
+    assert room.state("Ana")["music"] == 41
+    with pytest.raises(RemoteError):
+        save("Luis", pitch_precision=2, music=False)
+    assert host.pitch_precision == 0
+    with pytest.raises(RemoteError):
+        save("Luis", pitch_precision=3)
+    save("Luis", pitch_precision=2, music=60)
+    assert host.pitch_precision == 2
+    assert host.store.setting("music") == 60

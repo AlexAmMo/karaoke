@@ -12,7 +12,8 @@ import subprocess
 import tarfile
 import zipfile
 
-VERSION = '0.1.0'
+from package_macos import VERSION
+
 REPO = 'AlexAmMo/karaoke'
 TAG = 'v' + VERSION
 BLOCK = 8 * 1024 * 1024

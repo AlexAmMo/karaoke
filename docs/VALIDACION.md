@@ -195,3 +195,36 @@ uv run python scripts/test_remote_session.py --launcher "$HOME/Applications/Kara
 Safari en un iPhone 17 Pro simulado con iOS 26.2 y Chrome en un emulador Android entraron en la sesión por el enlace leído del QR y añadieron sendas canciones desde la biblioteca. Se verificaron doce combinaciones de vista y anchura entre 320 y 768 píxeles CSS. La suite local pasó 139 pruebas. La instalación del Mac preservó las cinco canciones, los once turnos y las preferencias existentes.
 
 En Windows x64 también pasaron las pruebas de dos mandos contra el ejecutable empaquetado, de canto y de afinación en pantalla. [Ejecución y paquete de Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44383741672)
+
+### Recorrido de una fiesta con cuatro invitados y seis canciones (18 de noviembre de 2026)
+
+Se probó el ejecutable instalado en macOS, con una biblioteca temporal y la entrada y salida de audio simuladas. La apertura de la sala en el PC se automatizó mediante los eventos del panel nativo. Se leyó el QR dibujado por el motor. Desde la entrada de los invitados, las operaciones se hicieron pulsando los controles web en sesiones independientes de Chromium con perfiles móviles de iPhone y Pixel.
+
+| Situación | Resultado observado |
+| --- | --- |
+| Ana y Luis entran por el QR y Mar por código | Cada invitado pudo buscar y añadir su propio turno a la vez. También se comprobó que un código incorrecto muestra una explicación y permite corregirlo. |
+| Organizadores que actúan desde distintos móviles | El cambio de orden, la segunda voz de «Stan», el volumen y las confirmaciones para quitar o terminar se reflejaron en el resto de mandos. Cancelar conservó el turno o la interpretación. |
+| Un invitado pierde la conexión mientras otros añaden canciones | Al recargar recuperó la sesión y vio los cinco turnos en el mismo orden que los demás. |
+| Dos personas piden «Lose Yourself» simultáneamente | Aparecieron dos turnos con sus cantantes correspondientes. Una edición posterior desde una vista antigua recibió el aviso «La cola ha cambiado» y conservó los nombres guardados por el otro invitado. |
+| El ordenador recibe una petición de añadir «Stan» pero el móvil pierde la respuesta | El botón «Comprobar» permitió confirmar el único turno existente. |
+| Eva pide «Sigo Aquí» mientras Mar canta | Con la canción ausente de la biblioteca temporal, pulsar **Añadir** pasó de «Preparando» a «Lista» mientras continuaba la interpretación. |
+| Búsqueda sin coincidencias | En Biblioteca, al cambiar una consulta sin resultados por «Eminem», reaparecieron «Stan» y «Lose Yourself». |
+
+**Incidencia observada antes de la corrección.** Añadir una canción, pasar enseguida a Cola y abrir sus opciones puede cerrar el menú sin intervención del usuario. Se observó tras pulsar «Comprobar» y se reprodujo reteniendo la respuesta de una petición normal hasta que el menú estaba abierto. La confirmación de la petición anterior cierra el diálogo que esté abierto en ese instante. El turno se conserva y sus opciones vuelven a funcionar al abrirlas otra vez.
+
+Se iniciaron y terminaron desde el mando «Todo un hombre haré de ti», «Stan» y «Por la boca vive el pez». «Go The Distance» llegó al final de sus 4 min 37 s de audio, dejó la cola vacía en los tres mandos y guardó 1.839 puntos con la entrada sintética. En la ronda siguiente, Eva añadió «Sigo Aquí» desde Biblioteca, la reprodujo en Deluxe y terminó el turno. Los cinco quedaron finalizados en la base de datos de prueba. La suite local pasó sus 139 pruebas.
+
+Al cerrar la sala en el ordenador, el móvil mostró «Reconectando con el ordenador…», el mismo mensaje que al perder temporalmente la wifi. El invitado carece de una indicación específica de que el anfitrión ha cerrado la sesión.
+
+
+### Regresión del menú de turno y del cierre de sala
+
+Se reprodujeron las dos secuencias en una sala temporal con tres invitados. Una confirmación de **Añadir** retenida hasta después de abrir las opciones del turno conservó el menú y el nombre que se estaba editando. Al guardar, el nuevo cantante apareció en otro móvil. La secuencia se repitió perdiendo la primera respuesta y pulsando **Comprobar**. La cola contenía un solo turno por petición.
+
+Al perder la wifi durante más de 15 segundos, el mando ofreció **Reintentar** y recuperó la cola al reconectar. Al pulsar **Desconectar móviles** en el ordenador, los invitados vieron **La sala se ha cerrado** y dejaron de consultar la cola. También recibió el aviso quien recuperó la wifi justo después del cierre. El ordenador mantiene el aviso disponible hasta 45 segundos tras cerrar la sala y revoca el control inmediatamente.
+
+La prueba abre tres navegadores móviles independientes y usa el motor de escritorio con una biblioteca temporal. Se puede repetir con Chrome instalado.
+
+```sh
+uv run --locked --with playwright python scripts/test_remote_browser.py --channel chrome
+```

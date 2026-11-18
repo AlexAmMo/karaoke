@@ -217,13 +217,19 @@ jobs:
         run: uv run python scripts/prepare_ci_graphics.py --package dist/Karaoke --tools "${{ steps.msys.outputs.msys2-location }}/ucrt64/bin" --output build/windows-ci-runtime
       - name: Verify Windows desktop with software graphics and dummy audio
         timeout-minutes: 3
-        run: uv run python scripts/smoke_desktop.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke --package-archive dist/Karaoke-0.1.0-windows-x86_64.zip --source-run "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --check-cursor
+        run: uv run python scripts/smoke_desktop.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke --package-archive dist/Karaoke-0.2.0-windows-x86_64.zip --source-run "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --check-cursor
       - name: Verify live pitch on the singing screen
         timeout-minutes: 3
         run: uv run python scripts/test_live_pitch.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke/pitch
       - name: Verify two mobile controllers against packaged Karaoke
         timeout-minutes: 3
         run: uv run python scripts/test_remote_session.py --launcher "$env:KARAOKE_CI_LAUNCHER"
+      - name: Verify all pitch precision levels with two singers
+        timeout-minutes: 5
+        run: uv run python scripts/test_pitch_precision.py --launcher "$env:KARAOKE_CI_LAUNCHER"
+      - name: Verify turn menus and room closure with three mobile browsers
+        timeout-minutes: 5
+        run: uv run --locked --with playwright python scripts/test_remote_browser.py --channel chrome --launcher "$env:KARAOKE_CI_LAUNCHER"
       - name: Preserve desktop startup diagnostics
         if: always() && !cancelled() && steps.package.outcome == 'success'
         uses: actions/upload-artifact@v4
@@ -307,7 +313,7 @@ jobs:
         run: |
           [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] || exit 1
           [[ "$EXPECTED_ZIP_SHA" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
-          test "$(gh release view v0.1.0 --repo AlexAmMo/karaoke --json isDraft --jq .isDraft)" = true
+          test "$(gh release view v0.2.0 --repo AlexAmMo/karaoke --json isDraft --jq .isDraft)" = true
       - uses: actions/download-artifact@v4
         with:
           name: karaoke-windows-x86_64

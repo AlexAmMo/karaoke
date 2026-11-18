@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from . import __version__
 from .service import Service
 
 
@@ -175,7 +176,7 @@ def main():
         default="1280x800",
         help="Tamaño lógico de la ventana; mantiene el escalado Retina del monitor.",
     )
-    parser.add_argument("--version", action="version", version="Karaoke 0.1.0")
+    parser.add_argument("--version", action="version", version=f"Karaoke {__version__}")
     args = parser.parse_args()
     try:
         with instance_lock(args.data_dir / "app.lock"):

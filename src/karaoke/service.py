@@ -25,6 +25,13 @@ from .artwork import ArtworkResolver
 from .package_import import PackageImportMixin, prepare_local, import_pair, signature
 
 
+PITCH_LEVELS = (
+    ("Flexible", "Hasta 2 semitonos de margen"),
+    ("Normal", "Hasta 1 semitono de margen"),
+    ("Estricta", "Solo la nota indicada"),
+)
+
+
 def atomic_json(path: Path, value):
     temp = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
     temp.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
@@ -421,6 +428,11 @@ class Service(CatalogueSearch, PackageImportMixin):
         self.command_sequence += 1
         filename = f"{self.command_sequence:020d}-{uuid.uuid4().hex}.json"
         atomic_json(self.ipc / "commands" / filename, {"op": op, **kwargs})
+
+    @property
+    def pitch_precision(self):
+        level = self.store.setting("pitch_precision", 1)
+        return level if type(level) is int and 0 <= level < len(PITCH_LEVELS) else 1
 
     def names(self):
         return [self.fields.get("player1", "").strip() or "Cantante 1"] + (
@@ -894,7 +906,10 @@ class Service(CatalogueSearch, PackageImportMixin):
         self.active = turn_id
         self.started_at = time.monotonic()
         self.was_singing = False
-        self.command("start", chart=turn["chart"], names=json.loads(turn["names"]), token=turn_id)
+        self.command(
+            "start", chart=turn["chart"], names=json.loads(turn["names"]),
+            token=turn_id, precision=self.pitch_precision,
+        )
         self.message = "Preparando micrófonos e interpretación…"
 
     @staticmethod
@@ -1165,6 +1180,12 @@ class Service(CatalogueSearch, PackageImportMixin):
                 raise SongError("Cambia las entradas entre canciones.")
             _, player, device, channel = action.split(":")
             self.command("device", player=int(player), device=int(device), channel=int(channel))
+            return
+        if action.startswith("pitch:"):
+            level = action.removeprefix("pitch:")
+            if level not in ("0", "1", "2"):
+                raise SongError("Elige un nivel de precisión válido.")
+            self.store.configure("pitch_precision", int(level))
             return
         if action.startswith("gain:"):
             index = int(action[5:])
@@ -1788,9 +1809,16 @@ class Service(CatalogueSearch, PackageImportMixin):
             slider("Volumen de mi voz", "gain:0", 0)
             if self.fields.get("player2", "").strip():
                 slider("Volumen de la segunda voz", "gain:1", 0)
+            button("Precisión de afinación", "page:Afinación", PITCH_LEVELS[self.pitch_precision][0], style="link")
             button("Micrófonos", "page:Micrófonos", style="link")
             button("Biblioteca y descargas", "page:Descargas", style="link")
             button("Cuenta USDB", "page:Cuenta USDB", style="link")
+        elif self.page == "Afinación":
+            text("Precisión de afinación", "Se aplica a todos los cantantes desde la próxima canción.")
+            selected = self.pitch_precision
+            for level, (label, hint) in enumerate(PITCH_LEVELS):
+                button(label + (" · Actual" if level == selected else ""), f"pitch:{level}", hint)
+            button("Volver a ajustes", "page:Ajustes", style="back")
         elif self.page == "Micrófonos":
             devices = self.engine.get("devices", [])
             for player, name in enumerate(self.names(), 1):

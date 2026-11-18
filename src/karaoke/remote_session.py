@@ -223,6 +223,7 @@ class RemoteSession:
         return {"revision": self.revision(rows), "queue": turns, "name": name,
                 "active": self.host.active, "paused": bool(self.host.engine.get("paused")),
                 "music": self.host.store.setting("music", 65),
+                "pitch_precision": self.host.pitch_precision,
                 "previewing": bool(self.host.preview and self.host.preview.poll() is None)}
 
     @staticmethod
@@ -415,6 +416,19 @@ class RemoteSession:
             if type(value) is not int or not 0 <= value <= 100:
                 raise RemoteError("Volumen no válido.")
             self.host.handle({"action": "music", "value": value})
+        elif op == "settings":
+            # Send only controls edited on this phone: another guest may have
+            # changed the remaining settings while this sheet was open.
+            changes = payload.get("changes")
+            if not isinstance(changes, dict) or not changes or changes.keys() - {"music", "pitch_precision"}:
+                raise RemoteError("Ajustes no válidos.")
+            for key, limit in (("pitch_precision", 2), ("music", 100)):
+                if key in changes and (type(changes[key]) is not int or not 0 <= changes[key] <= limit):
+                    raise RemoteError("Valor de ajuste no válido.")
+            if "pitch_precision" in changes:
+                self.host.handle({"action": f"pitch:{changes['pitch_precision']}"})
+            if "music" in changes:
+                self.host.handle({"action": "music", "value": changes["music"]})
         elif op == "stop-preview":
             self.host.stop_preview()
         elif op in ("preview", "delete", "instrumentals", "prepare-instrumental"):

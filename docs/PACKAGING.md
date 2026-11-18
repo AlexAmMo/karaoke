@@ -46,16 +46,16 @@ Los instaladores esperan archivos publicados en Releases de `AlexAmMo/karaoke`; 
 macOS:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.sh | KARAOKE_VERSION=v0.1.0 bash
+curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.2.0/scripts/install.sh | KARAOKE_VERSION=v0.2.0 bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:KARAOKE_VERSION='v0.1.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.1.0/scripts/install.ps1 | iex
+$env:KARAOKE_VERSION='v0.2.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.2.0/scripts/install.ps1 | iex
 ```
 
-Estos comandos solo son utilizables después de publicar los archivos requeridos. Seleccionan explícitamente la prerelease `v0.1.0`. Si se ejecuta el instalador sin `KARAOKE_VERSION`, consulta la última versión **estable** y excluye las prereleases.
+Estos comandos solo son utilizables después de publicar los archivos requeridos. Seleccionan explícitamente la prerelease `v0.2.0`. Si se ejecuta el instalador sin `KARAOKE_VERSION`, consulta la última versión **estable** y excluye las prereleases.
 
 La instalación es por usuario, sin permisos de administrador: `~/Applications/Karaoke.app` en macOS y `%LOCALAPPDATA%\Programs\Karaoke` en Windows. La actualización conserva la biblioteca y los ajustes, verifica SHA-256 y guarda temporalmente la versión anterior para restaurarla si falla el reemplazo. Los hashes detectan corrupción; su autenticidad depende del canal GitHub que sirve también el paquete.
 
@@ -74,7 +74,7 @@ La publicación de un binario incluye el archivo común de fuentes de la aplicac
 Los trabajos de construcción suben artefactos de CI. El trabajo manual `stage-windows-release` verifica un artefacto exacto y sube archivos únicamente a un borrador de Release ya existente; no lo publica. Las pruebas y sus límites se registran por plataforma: el arranque de software en CI no sustituye una sesión con micrófonos físicos. El repositorio público puede revisarse y compilarse aunque todavía no exista una versión estable instalable.
 
 
-### Reconstruir las fuentes de dependencias de Windows
+### Ejemplo histórico de reconstrucción de las fuentes de Windows de v0.1.0
 
 **Estas fuentes no hacen falta para instalar ni usar Karaoke.** El ZIP de la aplicación ocupa 255.550.009 bytes; sus archivos descomprimidos suman aproximadamente 582 MB, sin canciones. Las fuentes de dependencias ocupan 2.694.900.077 bytes y se distribuyen aparte, divididas por el límite de tamaño de cada archivo de GitHub.
 
