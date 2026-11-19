@@ -22,7 +22,7 @@ jobs:
       - name: Install published prerelease and verify preserved data
         env:
           REPORT_DIRECTORY: ${{ runner.temp }}\karaoke-installation-report
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path $env:REPORT_DIRECTORY | Out-Null
@@ -66,7 +66,7 @@ jobs:
             $Sentinel = Join-Path $Data 'installation-preservation-test.txt'
             [IO.File]::WriteAllText($Sentinel, "Existing data: $([guid]::NewGuid())")
             $Report.sentinel_sha256_before = (Get-FileHash $Sentinel -Algorithm SHA256).Hash
-            $Report.installer_url = "https://raw.githubusercontent.com/$Repo/$($env:KARAOKE_VERSION)/scripts/install.ps1"
+            $Report.installer_url = "https://raw.githubusercontent.com/$Repo/main/scripts/install.ps1"
             irm $Report.installer_url | iex
 
             $Target = Join-Path $env:LOCALAPPDATA 'Programs\Karaoke'
@@ -98,7 +98,7 @@ jobs:
             $Stdout = $Process.StandardOutput.ReadToEndAsync()
             $Stderr = $Process.StandardError.ReadToEndAsync()
             if (-not $Process.WaitForExit(30000)) {
-              $Process.Kill($true)
+              $Process.Kill()
               $Process.WaitForExit()
               throw 'Installed launcher --version timed out.'
             }

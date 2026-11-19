@@ -19,11 +19,20 @@ $Backup = "$Target.previous"
 New-Item -ItemType Directory -Path $Work | Out-Null
 try {
   $Archive = Join-Path $Work $Asset
-  Invoke-WebRequest "$Base/$Asset" -OutFile $Archive
-  Invoke-WebRequest "$Base/$Asset.sha256" -OutFile "$Archive.sha256"
+  Write-Output "Descargando $Asset..."
+  $Timer = [Diagnostics.Stopwatch]::StartNew()
+  & {
+    # Windows PowerShell 5.1 spends significant time redrawing per-block progress.
+    # Limit the preference to these requests, even when invoked via irm | iex.
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -UseBasicParsing "$Base/$Asset" -OutFile $Archive
+    Invoke-WebRequest -UseBasicParsing "$Base/$Asset.sha256" -OutFile "$Archive.sha256"
+  }
+  Write-Output ("Descarga completada en {0:N1} s. Verificando SHA-256..." -f $Timer.Elapsed.TotalSeconds)
   $Expected = ((Get-Content "$Archive.sha256" -TotalCount 1) -split '\s+')[0]
   if ($Expected -notmatch '^[0-9a-fA-F]{64}$') { throw 'Archivo de verificación no válido.' }
   if ((Get-FileHash $Archive -Algorithm SHA256).Hash -ne $Expected) { throw 'La descarga no supera la verificación SHA-256.' }
+  Write-Output 'Extrayendo Karaoke...'
   Expand-Archive $Archive -DestinationPath (Join-Path $Work 'extracted')
   $App = Join-Path $Work 'extracted\Karaoke'
   if (-not (Test-Path (Join-Path $App 'karaoke.exe'))) { throw 'El paquete está incompleto.' }
