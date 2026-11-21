@@ -1,0 +1,49 @@
+name: Measure generated charts on Windows
+on:
+  push:
+    branches: [codex/validar-generacion-windows-20261121]
+permissions:
+  contents: read
+jobs:
+  chart:
+    runs-on: windows-latest
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Prepare the optional generation environment
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }
+          uv venv .charting --python 3.12
+          uv pip install --python .charting/Scripts/python.exe -r src/karaoke/generation_assets/requirements.txt requests
+      - name: Verify four Creative Commons recordings and generate 24 second excerpts
+        shell: pwsh
+        env:
+          SHARD_ID: ${{ matrix.shard }}
+        run: |
+          ./.charting/Scripts/python.exe scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$env:RUNNER_TEMP/songs" --language en --shard "$env:SHARD_ID" --shards 5
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./.charting/Scripts/python.exe -u scripts/benchmark_generation_corpus.py "$env:RUNNER_TEMP/songs/manifest.json" "$env:RUNNER_TEMP/excerpts" --cache "$env:RUNNER_TEMP/models" --clip-seconds 24
+      - name: Verify one full Windows song
+        if: matrix.shard == 0
+        shell: pwsh
+        run: |
+          $Data = @(Get-Content -Raw "$env:RUNNER_TEMP/songs/manifest.json" | ConvertFrom-Json)
+          ConvertTo-Json -Depth 20 -AsArray -InputObject $Data[0] > "$env:RUNNER_TEMP/songs/windows.json"
+          ./.charting/Scripts/python.exe -u scripts/benchmark_generation_corpus.py "$env:RUNNER_TEMP/songs/windows.json" "$env:RUNNER_TEMP/complete" --cache "$env:RUNNER_TEMP/models" --lookup-lyrics
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-chart-metrics-${{ matrix.shard }}
+          path: |
+            ${{ runner.temp }}/excerpts/results.json
+            ${{ runner.temp }}/complete/results.json
+          if-no-files-found: error
+          retention-days: 7
