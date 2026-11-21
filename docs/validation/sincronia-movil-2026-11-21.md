@@ -13,6 +13,7 @@ Se encontraron y corrigieron dos discontinuidades del reloj de captura mientras 
 ## Verificación
 
 - Quince pruebas del puente pasan con PyAV y aiortc reales: mono/estéreo, huecos, duplicados, reinicio de reloj, pausa, cambio de turno, conexión sustituida y WebRTC local con tono sintético.
+- Diez conexiones WebRTC locales simultáneas mantienen canal y frecuencia durante veinte segundos, incluida la reconexión de la quinta voz: 10.223 tramas sonoras sin altura inesperada; la única discontinuidad de secuencia corresponde al reinicio deliberado de esa conexión. No son diez teléfonos físicos.
 - El ensayo Pascal comprueba la pausa de 45 ms, ausencia de paquetes durante la pausa y pausa/reanudación inmediatas. Se incorpora al bloque de pruebas nativas de macOS del workflow de construcción; esa nueva ejecución en CI aún no se ha lanzado.
 - El motor recompilado obtiene **10.000 puntos en los seis desfases compensados** (0, +50, +100, +200, −50 y −100 ms), frente a 0 en el control sin compensación. Con el análisis temporalmente ocupado mantiene el retorno sintético y vuelve a acumular puntos al liberarlo.
 - La sesión completa pasa **21/21 controles en 32,88 s**: importar, encolar, cantar dos voces, plegar/restaurar el panel, cambiar de canción, cerrar y recuperar los turnos en orden sin reproducir automáticamente.
@@ -22,6 +23,7 @@ Comandos ejecutados desde el proyecto:
 
 ```sh
 uv run pytest -q tests/test_mobile_voice.py
+uv run python scripts/test_mobile_voice_group.py --seconds 20 --output build/ux-next/mobile-voices.json
 fpc -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/qa-audio -FEbuild/qa-audio "-Fl$(brew --prefix sdl2-compat)/lib" scripts/test_audio_mobile_clock.pas
 build/qa-audio/test_audio_mobile_clock
 uv run python scripts/test_audio_score_clock.py --engine build/engine/game/ultrastardx

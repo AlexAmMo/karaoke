@@ -1,0 +1,76 @@
+# Generación fiable de nuevas canciones: 21 de noviembre de 2026
+
+No está demostrada una generación de letra y mapa casi perfecta para cualquier canción. Esta continuación de 0.3.1 investiga alternativas reutilizables y las compara antes de incorporarlas al producto. Las configuraciones ensayadas de SwiftF0, del detector fonético PPG y de la reconstrucción experimental de SingMelody no justifican sustituir el motor actual: ninguna consigue aprobar los mapas completos. Qwen3-ASR empeora la letra en treinta de las cuarenta grabaciones.
+
+## Criterio y método
+
+Se mantienen las mismas 40 grabaciones completas: veinte españolas de YouTube y veinte inglesas con licencia abierta, identificadas en [el manifiesto](generacion-muestra.json). Los candidatos reciben audio y, cuando corresponde, predicciones previas; no reciben el mapa humano reservado para evaluación. La base sí puede incorporar letras corroboradas de otras fuentes, como subtítulos manuales. Los mapas se congelan con SHA-256 antes de medirlos; las referencias corresponden al mismo máster. No se desplaza el reloj, transpone la referencia, recorta la canción ni elimina una canción fallida del denominador.
+
+Estas cuarenta grabaciones ya han guiado decisiones de desarrollo: constituyen un conjunto de regresión, **no una evaluación inédita**. Si un candidato mejora lo suficiente, todavía necesitará comprobarse en nuevas grabaciones antes de atribuirle fiabilidad general.
+
+La comparación con la base identifica el mismo máster, pero no permite aislar siempre el efecto del modelo: las veinte predicciones inglesas históricas no registraron la huella de la voz separada que recibieron. Las voces actuales combinan siete separaciones del Mac y trece de un runner. PPG rechazó contornos FCPE de otra separación y los regeneró sobre la voz exacta de su ensayo. Las diferencias frente a la base describen la cadena evaluada; las comparaciones entre brazos nuevos sí comparten exactamente la misma voz. No se atribuye toda variación exclusivamente al detector de notas.
+
+Los cinco controles actuales exigen WER ≤5 %, p90 del error temporal de las palabras coincidentes ≤120 ms, clase de altura correcta ≥90 %, F1 de ataque y clase de altura ≥0,85 y precisión sobre los fotogramas que el mapa pide puntuar ≥90 %. El emparejamiento de ataques admite ±100 ms. Las métricas de altura comparan clases de nota y no penalizan diferencias de octava. El último control penaliza también extender notas hacia silencios o clases de nota incorrectas; no equivale sólo a acertar su comienzo. Se añade como objetivo experimental más exigente WER ≤1 %, p90 ≤80 ms, clase ≥98 %, F1 ≥0,95 y precisión ≥98 %. Este objetivo no modifica las reglas del producto.
+
+El [nuevo evaluador](../../scripts/experiments/evaluate_generation_candidate.py) separa congelación y evaluación, comprueba identidades y cambios de bytes, cuenta ausencias y rechaza notas fuera de la grabación. Informa también finales de notas emparejadas una sola vez. El [banco de generación](../../scripts/benchmark_generation_corpus.py) deja de aceptar `metrics.json` antes de comprobar su procedencia: un cambio del evaluador recalcula métricas sin cargar modelos; un cambio de audio o generación exige otro directorio.
+
+## Resultados de notas ya completados
+
+| Candidato | Canciones completas | Clase correcta mediana | F1 de ataque mediano | Superan cinco controles |
+|---|---:|---:|---:|---:|
+| Base GAME con las dos letras corregidas | 40 | 76,48 % | 0,6677 | 0/40 |
+| SwiftF0, sólo alturas | 40 | 73,32 % | 0,635 | 0/40 |
+| SwiftF0, reconstrucción de eventos | 40 | 59,33 % | 0,559 | 0/40 |
+| PPG + FCPE, reconstrucción de eventos | 40 | 64,65 % | 0,5972 | 0/40 |
+| PPG, ajuste conservador de límites | 40 | 70,77 % | 0,6565 | 0/40 |
+
+La base de esta tabla es la predicción automática sin corregir intervalos mediante la referencia. El turno de **Amorfoda** recuperable en 0.3.1 sí superó la admisión después de esa corrección independiente. Ese resultado no demuestra que el generador autónomo produjera ya todas sus duraciones correctamente.
+
+Swift completa cuarenta voces en 40,23 s, CPU con dos hilos y pico de 761 MiB, pero empeora altura y ataques. PPG completa el piloto y la extensión en unos cuatro minutos, pico de 1,32 GiB. Su ajuste de límites mejora el F1 con finales en 32 canciones, pero baja la cobertura mediana del 96,05 % al 87,84 % y reduce la clase correcta en las cuarenta. Esa compensación impide promoverlo como mejora general. Ninguna variante alcanza el objetivo experimental más exigente.
+
+Se probaron además cuatro modos de GAME —libre, palabras, sílabas e inicios/finales de sílabas— sobre **dos** canciones completas. En Amorfoda, condicionar por sílabas sube el F1 de eventos de 0,8782 a 0,9032, pero la precisión del tiempo puntuable permanece en 50,31 %. En Northern Star, condicionar por ambos límites llega a F1 0,8391 y precisión 57,90 %. Ninguna pasa los cinco controles. Los límites proceden del mapa predicho después de GAME, no de un alineamiento CTC crudo; tampoco permiten recuperar palabras omitidas por la predicción inicial. Cada evaluación registra dos presentes y treinta y ocho ausentes.
+
+Datos sin audio ni letras: [Swift](generacion-swift-2026-11-21.csv), [PPG](generacion-ppg-2026-11-21.csv) y [piloto GAME condicionado](generacion-game-condicionado-2026-11-21.csv). Predicciones completas, trazas y manifiestos congelados permanecen en `build/generation-next/`.
+
+## SingMelody: cuatro hipótesis sobre cuarenta canciones
+
+Se comprobó la compatibilidad exacta de sus pesos con la arquitectura pública GAME: 671 tensores, sin claves ni dimensiones ausentes. Sin embargo, no estaba disponible el runner oficial que fija la inferencia y el valor de `t`. Se construyó un adaptador experimental y se declararon antes de evaluar cuatro combinaciones: segmentación libre o condicionada por palabras predichas, con `t=0` o `t=1`. Cada una produce un mapa que cambia sólo alturas y otro que reconstruye eventos. Se conservan los ocho conjuntos completos, sin escoger un ganador para cada canción.
+
+Los 320 mapas son válidos y pertenecen a las mismas cuarenta grabaciones; **ninguno de los ocho conjuntos obtiene una canción que supere los cinco controles**, ni el objetivo casi perfecto. La clase correcta mediana queda entre 62,16 % y 66,87 %, frente a 76,48 % de la base; el F1 de ataque también queda por debajo de la base en todas las variantes. Algunos eventos libres mejoran ligeramente el F1 que incluye finales, a costa de otras métricas. No se promueve esta reconstrucción al producto. El resultado no es una reproducción oficial ni una conclusión general sobre todo uso posible de SingMelody.
+
+El piloto de cuatro canciones tardó 127,11 s y la extensión de treinta y seis, 1.301,15 s; esta última tuvo un máximo residente de aproximadamente 690 MiB, con dos hilos CPU y sin intercambios a disco. El [CSV de 360 filas](generacion-singmelody-2026-11-21.csv) incluye los ocho conjuntos y la base, con todas las canciones. La [investigación de modelos](research-generacion-modelos-2026-11-21.md) conserva configuración, fuentes, hashes, métricas por idioma y límites del ensayo.
+
+## Reconocimiento de letra: piloto y cuarenta canciones
+
+Se prueba Qwen3-ASR 1.7B Q4_K con una conversión fijada por revisión y SHA-256, a través del CrispASR 0.8.54 ya instalado para experimentos. Las canciones se procesan completas en bloques acotados, sin introducir su texto humano ni reproducir audio. El reconocimiento usa Metal; la evaluación usa exactamente la normalización de palabras del proyecto. No se deduplican repeticiones reales entre bloques.
+
+| Canción completa | WER de la base | Qwen, voz separada | Qwen, mezcla original |
+|---|---:|---:|---:|
+| Amorfoda | 1,38 % | 54,48 % | 32,41 % |
+| Northern Star | 3,37 % | 14,04 % | 2,25 % |
+
+El piloto no respalda una sustitución general: la mezcla mejora Northern Star pero empeora Amorfoda; la voz separada empeora ambas. Cada informe del piloto mantiene dos evaluadas y treinta y ocho ausentes. Ninguna llega al objetivo de ≤1 % WER.
+
+La ampliación procesó las cuarenta mezclas originales en 17 min 13 s, con pico RSS de 1,81 GiB, sin fallos ni canciones ausentes. Se fijaron bloques de 28 s, sin solapamiento y con límite de 512 tokens; no se eligió para cada canción la variante que más se acercase a su referencia.
+
+| Cohorte | WER mediana de la base | WER mediana Qwen | Mejora / empeora / igual |
+|---|---:|---:|---:|
+| Cuarenta canciones | 6,72 % | 14,49 % | 9 / 30 / 1 |
+| Veinte españolas | 7,88 % | 17,48 % | 3 / 17 / 0 |
+| Veinte inglesas | 5,63 % | 10,80 % | 6 / 13 / 1 |
+
+Los resultados con WER ≤5 % bajan de 17 a 7; los de ≤1 %, de 4 a 0. La base incluye letras corroboradas por otras fuentes, mientras Qwen recibe sólo audio: la tabla compara estas cadenas, no demuestra una superioridad general de Whisper sobre Qwen. No se adopta esta configuración como sustituto. El [CSV de cuarenta canciones](generacion-qwen-2026-11-21.csv) conserva las diferencias por grabación; revisión, hashes y protocolo están en [el informe del ensayo](research-generacion-pipelines-2026-11-21.md). Estos números evalúan sólo palabras, no sus tiempos ni la melodía, y describen esta conversión y configuración del reconocedor.
+
+## Investigación reutilizable
+
+Se inspeccionaron código, pesos, licencias y documentación originales de UltrastarCreatorTool, UltraSinger, UltraStarKaraokeMaker, AutoKaraoke, GAME, SwiftF0, el modelo fonético de ICASSP 2023, Qwen3-ASR, VocalParse y SingMelody. Actualizar la revisión de Creator no cambia sus algoritmos de notas o alineación. Algunos modelos recientes carecen de inferencia pública reproducible, no generan tiempos absolutos o sólo han demostrado resultados condicionados a texto correcto.
+
+Las fuentes y limitaciones están documentadas en [pipelines reutilizables](research-generacion-pipelines-2026-11-21.md) y [modelos de notas](research-generacion-modelos-2026-11-21.md). El [informe original de Qwen, sección 4.4](https://arxiv.org/html/2601.21337v1#S4.SS4), justifica probar su reconocedor de canto, distinto del alineador ya evaluado. Su cifra de 14,60 % WER en un conjunto interno inglés con acompañamiento no describe nuestro corpus, español ni la conversión GGUF utilizada aquí.
+
+Todos estos ensayos se ejecutan localmente en el Mac M4, sin reproducir las canciones ni capturar voz. El estado final de la salida del Mac es silenciado. Son medidas de inferencia y precisión; no constituyen validación de instalación ni rendimiento de estos modelos en Windows.
+
+## Resultado de la continuación
+
+Se conservan los adaptadores, métricas y fuentes para reproducir o ampliar los ensayos; no se reemplaza el generador del producto con una configuración que haya empeorado. La descarga accesible, la transcripción correcta y el mapa puntuable son requisitos distintos: disponer de un descargador de YouTube no resuelve los dos últimos, y algunos vídeos requieren autenticación o no están disponibles para el entorno ensayado. El acceso a cualquier vídeo y la fiabilidad casi perfecta siguen sin demostrarse.
+
+En paralelo sí se incorporan correcciones con regresiones reproducidas: [continuidad del reloj móvil al pausar y recibir audio discontinuo](sincronia-movil-2026-11-21.md) y [estado de preparación/revisión visible sin perder la edición en el mando](mando-ux-2026-11-21.md). La rama de desarrollo conserva estas mejoras; la publicación 0.3.1 sigue identificando su commit original. Aprobar un borrador continúa siendo un paso explícito en el ordenador: estos resultados no justifican ocultarlo ni marcar automáticamente como listas las nuevas predicciones.
