@@ -1,0 +1,46 @@
+name: Check guarded allocations during startup and song transitions
+on:
+  push:
+    branches: [codex/diagnostico-render-arm]
+    paths: ['.github/workflows/mac-arm-guard.yml', 'scripts/experiments/*guard*.py']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  guards:
+    runs-on: macos-latest
+    timeout-minutes: 27
+    strategy:
+      fail-fast: false
+      matrix:
+        direction: [before, after]
+    env:
+      SDL_AUDIO_DRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+      KARAOKE_TEST_INPUT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: karaoke-macos-latest
+          run-id: 44922442355
+          github-token: ${{ github.token }}
+          path: previous
+      - name: Unpack the production binary
+        run: |
+          zip=$(find previous -name '*macos-arm64.zip' -print -quit)
+          ditto -xk "$zip" "$RUNNER_TEMP/package"
+          engine=$(find "$RUNNER_TEMP/package" -type f -name ultrastardx -print -quit)
+          echo "KARAOKE_PROBE_ENGINE=$engine" >> "$GITHUB_ENV"
+          mkdir -p build/guard
+          otool -L "$engine" | head -40
+      - name: Exercise opening a song after finishing the previous turn
+        env:
+          SIDE: ${{ matrix.direction }}
+        run: |
+          python3 scripts/experiments/native_guard.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: guard-${{ matrix.direction }}
+          path: build/guard

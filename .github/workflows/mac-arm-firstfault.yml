@@ -2,6 +2,7 @@ name: Inspect first failure in the packaged ARM renderer
 on:
   push:
     branches: [codex/diagnostico-render-arm]
+    paths: ['.github/workflows/mac-arm-firstfault.yml', 'scripts/experiments/first_fault_lldb.py', 'scripts/experiments/diagnose_mac_arm.py']
 permissions:
   contents: read
   actions: read
