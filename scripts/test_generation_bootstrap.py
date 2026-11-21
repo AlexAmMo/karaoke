@@ -36,7 +36,10 @@ def main():
             lab.bootstrap(job,base/'bootstrap.log')
             assert (lab.root/'env-ready').is_file()
             report['bootstrap_seconds'] = round(time.monotonic()-started,1)
-            subprocess.run([lab.python,'-c','import torch, torchaudio, demucs, librosa, faster_whisper, ctranslate2, onnxruntime, numpy, scipy, soundfile, safetensors, pyphen, uroman; print(torch.__version__, ctranslate2.__version__)'],check=True)
+            imports = 'import torch, demucs, librosa, faster_whisper, ctranslate2, onnxruntime, numpy, scipy, soundfile, safetensors, pyphen, uroman; print(torch.__version__, ctranslate2.__version__)'
+            if sys.platform == 'darwin' and platform.machine() == 'x86_64':
+                imports += '; import torchaudio'
+            subprocess.run([lab.python, '-c', imports], check=True)
             source = download_starter('jonathan-coulton-mr-fancy-pants',base/'source',Progress())
             audio=validate(source)['audio']
             mixed=base/'mixture.wav'
