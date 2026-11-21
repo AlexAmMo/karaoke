@@ -74,7 +74,7 @@ def durations_for(mode, syllables, words, start, stop):
     return [b - a for a, b in zip(cuts, cuts[1:]) if b > a]
 
 
-def infer(stem, syllables, words, mode, language, backend, folder):
+def infer(stem, syllables, words, mode, language, backend, folder, trace=None):
     chunks = []
     with sf.SoundFile(stem) as stream:
         sr = stream.samplerate
@@ -88,10 +88,16 @@ def infer(stem, syllables, words, mode, language, backend, folder):
             stream.seek(round(left * sr))
             signal = stream.read(round((right - left) * sr), dtype="float32", always_2d=True)
             known = durations_for(mode, syllables, words, left, right)
+            observed = []
             for a, b, voiced, midi in backend.extract(folder, signal.mean(axis=1), known, language):
+                if trace is not None:
+                    observed.append([float(a), float(b), bool(voiced), float(midi)])
                 midpoint = left + (a + b) / 2
                 if voiced and core <= midpoint < core + 12 and b > a:
                     chunks.append((max(0, left + a), min(duration, left + b), round(midi)))
+            if trace is not None:
+                trace.append({"core_start_s": core, "context_start_s": left,
+                              "context_stop_s": right, "local_events": observed})
     events = []
     for a, b, midi in sorted(chunks):
         if events and a < events[-1][1]:
@@ -171,11 +177,16 @@ def main():
                 if any(digest(output / (method + ".txt")) != sha
                        for method, sha in previous["charts"].items()):
                     raise ValueError(f"Frozen output modified: {output}")
+                if any(digest(output / name) != previous[key] for name, key in (
+                    ("events.json", "events_sha256"), ("windows.json", "windows_sha256")
+                )):
+                    raise ValueError(f"Frozen event trace modified: {output}")
                 continue
             ort.set_seed(NOTE_SEED)
             game_notes._sessions[folder]["segmenter"] = session("segmenter")
             start = time.monotonic()
-            events, duration = infer(stem, spans, words, mode, language, game_notes, folder)
+            windows = []
+            events, duration = infer(stem, spans, words, mode, language, game_notes, folder, windows)
             candidates = transform(chart, events, duration)
             hashes = {}
             for method, text in candidates.items():
@@ -183,8 +194,12 @@ def main():
                 path.write_text(text, encoding="utf-8")
                 hashes[method] = digest(path)
             write_json(output / "events.json", {"events": events, "provenance": provenance})
+            write_json(output / "windows.json", {"windows": windows, "provenance": provenance,
+                                                 "scope": "Raw local events before ownership filtering and overlap resolution"})
             elapsed = round(time.monotonic() - start, 2)
             write_json(frozen, {"provenance": provenance, "charts": hashes,
+                                "events_sha256": digest(output / "events.json"),
+                                "windows_sha256": digest(output / "windows.json"),
                                 "seconds": elapsed, "duration_s": duration})
             print(tag, mode, len(events), elapsed, flush=True)
 
