@@ -1,0 +1,76 @@
+name: Compare singing transcription on the frozen CC masters
+on:
+  push:
+    branches: [codex/validar-melodia-40-20261121]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 0xShug0/audio.cpp
+          ref: cf4929424ac27e487d09fb64702c72681cc18ba8
+          submodules: false
+          persist-credentials: false
+      - name: Build pinned CPU-only CLI
+        run: |
+          cmake -S . -B native -G Ninja -DAUDIOCPP_DEPLOYMENT_BUILD=ON -DAUDIOCPP_MODEL_SET=custom -DAUDIOCPP_MODELS=rosvot -DCMAKE_BUILD_TYPE=Release -DENGINE_ENABLE_CUDA=OFF -DENGINE_ENABLE_METAL=OFF -DENGINE_ENABLE_VULKAN=OFF -DENGINE_ENABLE_OPENMP=OFF -DGGML_OPENMP=OFF
+          cmake --build native --target audiocpp_cli -j 4
+          ldd native/bin/audiocpp_cli
+          tar -czf /tmp/rosvot-bin.tar.gz -C native/bin .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rosvot-bin
+          path: /tmp/rosvot-bin.tar.gz
+          retention-days: 2
+  song:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 4, 5, 6, 7, 8, 9, 12, 13, 14, 16, 18, 19]
+    env:
+      SHARD: ${{ matrix.shard }}
+      OMP_NUM_THREADS: 4
+      OPENBLAS_NUM_THREADS: 1
+      CKPT: https://huggingface.co/audio-cpp/SoulX-Singer-GGUF/resolve/ded36295f789661e590e4bf6ad49a25470cf830d/ROSVOT-GGUF/rosvot-f32.gguf
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: rosvot-bin
+          path: native
+      - name: Set up CPU dependencies
+        run: |
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          tar -xzf native/rosvot-bin.tar.gz -C native
+          uv venv .melody --python 3.12
+          uv pip install --python .melody/bin/python torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .melody/bin/python demucs==4.1.0 safetensors==0.8.0 numpy==2.5.5 soundfile==0.14.0 soxr==1.1.0 huggingface-hub==2.4.0 requests
+          curl --retry 4 --fail --location --silent --show-error "$CKPT" -o "$RUNNER_TEMP/rosvot.gguf"
+      - name: Verify recording identity, isolate voice and predict musical events
+        run: |
+          set -eu
+          .melody/bin/python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/songs" --language en --shard "$SHARD" --shards 20
+          .melody/bin/python scripts/experiments/melody_runner_stem.py
+          .melody/bin/python -u scripts/experiments/melody_transcribe.py rosvot "$RUNNER_TEMP/rosvot.gguf" "$RUNNER_TEMP/stems.json" "$RUNNER_TEMP/prediction" --binary native/audiocpp_cli --device cpu --threads 3
+          cp "$RUNNER_TEMP"/prediction/*.json "$RUNNER_TEMP/export/events.json"
+          tar -cf "$RUNNER_TEMP/private.tar" -C "$RUNNER_TEMP/export" vocals.wav events.json provenance.json
+          openssl cms -encrypt -aes-256-gcm -binary -outform DER -in "$RUNNER_TEMP/private.tar" -out "$RUNNER_TEMP/melody.cms" .github/validation/recipient.crt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sealed-melody-${{ matrix.shard }}
+          path: ${{ runner.temp }}/melody.cms
+          if-no-files-found: error
+          retention-days: 2
