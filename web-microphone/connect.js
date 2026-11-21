@@ -46,7 +46,7 @@ if (parentWindow && hostAllowed(origin) && /^[a-f0-9]{32}$/.test(nonce || '')) {
             const timer = setTimeout(() => {
               window.removeEventListener('message', receive);
               reject(Error('El mando no respondió. Vuelve a abrirlo.'));
-            }, 13000);
+            }, 30000);
             function receive(e) {
               if (
                 e.origin !== origin ||

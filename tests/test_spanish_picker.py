@@ -101,7 +101,7 @@ def test_search_waits_for_automatic_sources_before_offering_publisher_signin(tmp
         app.results = [song, {**song, "source": "allkaraoke:ubago", "video_id": "IA0uSub1xy4"}]
         app.handle({"action": row["add_action"], "value": "late-click"})
         assert app.spanish_picker is None
-        assert app.store.queue()[0]["source"] == "allkaraoke:ubago"
+        assert app.store.queue()[0]["source"] == "work:allkaraoke:ubago"
         assert app.added_token == "late-click"
     finally:
         app.close()

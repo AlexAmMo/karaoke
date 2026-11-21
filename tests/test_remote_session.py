@@ -105,3 +105,18 @@ def test_mobile_precision_and_volume_can_be_edited_by_different_guests(host):
     save("Luis", pitch_precision=2, music=60)
     assert host.pitch_precision == 2
     assert host.store.setting("music") == 60
+
+
+def test_host_assistance_can_save_without_a_turn_and_survives_queue_changes(host):
+    song = {"artist": "Película", "title": "Canción"}
+    source = "host:espana:example"
+    host.store.request_host(source, song, None)
+    turn = host.store.request_host(source, song, ["Sol"], "guest:1")
+    assert host.store.request_host(source, song, ["Sol"], "guest:1") == turn
+    host.store.cancel_turn(turn)
+    assert not host.store.queue()
+    job, = host.independent_preparations()
+    assert job["state"] == "host"
+    assert host.store.accept_host_package(source, "spanish-package:example", {"song": song})
+    job, = host.independent_preparations()
+    assert job["state"] == "waiting" and not host.store.queue()

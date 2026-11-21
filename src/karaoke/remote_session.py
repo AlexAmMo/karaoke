@@ -124,7 +124,8 @@ class RemoteSession:
             pending = next((t for t in self.host.store.queue()
                             if t["id"] == action.split(":", 2)[2] and t["preparation"] == "host"), None)
             if pending:
-                song = json.loads(pending["job_payload"])["song"]
+                payload = json.loads(pending["job_payload"])
+                song = payload.get("host_song") or payload["song"]
                 self.host.obtain_spanish(song, pending=pending["source"])
         else:
             raise SongError("Opción de mando desconocida.")
@@ -261,7 +262,7 @@ class RemoteSession:
             root = song["parent"] or song["id"]
             variants = self.host.store.rows("SELECT * FROM songs WHERE (id=? OR parent=?) AND id!=?",
                                            (root, root, song["id"]))
-            result["editions"] = [self.library_row(v) for v in variants]
+            result["editions"] = [self.library_row(v) for v in variants if has_song_files(v)]
         return result
 
     def library(self, payload):
@@ -350,15 +351,14 @@ class RemoteSession:
             group = [s for s in group if catalog.source_key(s) == source]
         possible = lookup.auto_choices(group)
         if possible:
-            return self.host.request_choices(possible, names=names, key=key, search=lookup, queue=queue)
+            return self.host.request_choices(possible, names=names, key=key, search=lookup, queue=queue,
+                                             assisted=lookup.spanish_choice(group) if grouped else None)
         song = lookup.spanish_choice(group)
         if not song:
             raise RemoteError("Esta edición no ofrece una descarga integrada.", 409)
-        if not queue:
-            raise RemoteError("Esta edición requiere elegir el paquete en el ordenador.", 409)
         source = "host:" + catalog.source_key(song)
         self.host.message = "Hay una edición pendiente en Cola para elegir en el ordenador."
-        return self.host.store.request(source, {"song": song}, names, request_key=key, initial_state="host")
+        return self.host.store.request_host(source, song, names if queue else None, key)
 
     def finish_instrumental(self, guest):
         if not guest.task or not guest.task.done():
@@ -435,7 +435,7 @@ class RemoteSession:
             raise RemoteError("Selección no válida.")
         if op in ("cancel-preparation", "retry-preparation"):
             job = next((j for j in self.host.independent_preparations() if j['id'] == item), None)
-            allowed = ('error', 'cancelled') if op == 'retry-preparation' else ('waiting', 'working')
+            allowed = ('error', 'cancelled') if op == 'retry-preparation' else ('waiting', 'working', 'host')
             if not job or job['state'] not in allowed:
                 raise RemoteError('La preparación ha cambiado. Revisa su estado.', 409)
             self.host.handle({'action': ('retry:' if op == 'retry-preparation' else 'cancel-job:') + item})

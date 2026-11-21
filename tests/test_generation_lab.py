@@ -74,7 +74,8 @@ def test_worker_progress_pauses_while_singing_and_resumes(tmp_path):
         "import json,sys,time\nfrom pathlib import Path\n"
         'print(json.dumps({"stage":"Analizando la melodía"}),flush=True)\n'
         "while not Path(sys.argv[1]).exists():time.sleep(.02)\n"
-        'Path(sys.argv[2]).write_text("ok")\n'
+        'Path(sys.argv[2]).write_text("ok")\n',
+        encoding="utf-8",
     )
     with ThreadPoolExecutor(max_workers=1) as pool, patch("karaoke.generation_lab.WORKER", script):
         try:

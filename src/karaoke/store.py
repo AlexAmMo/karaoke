@@ -141,6 +141,8 @@ class Store:
                    WHERE jobs.state IN ('error','cancelled')""",
                 (uuid.uuid4().hex, source, json.dumps(payload), initial_state, time.time()),
             )
+        if payload.get("keep"):
+            self.db.execute("UPDATE jobs SET payload=json_set(payload,'$.keep',1) WHERE source=?", (source,))
         if names is not None:
             if not isinstance(names, list) or not 1 <= len(names) <= MAX_SINGERS:
                 raise ValueError("Elige entre uno y diez cantantes.")
@@ -160,11 +162,41 @@ class Store:
                 self.db.execute("INSERT INTO mobile_requests VALUES (?,?)", (request_key, turn_id))
             return turn_id
 
+    def preparation_failed(self, job_id, reason):
+        with self.lock, self.db:
+            job = self.db.execute("SELECT source,payload FROM jobs WHERE id=? AND state='working'", (job_id,)).fetchone()
+            if job is None:
+                return
+            payload = json.loads(job["payload"])
+            needs_song = payload.get("keep") or self.db.execute(
+                "SELECT 1 FROM turns WHERE source=? AND state='queued'", (job["source"],)
+            ).fetchone()
+            state = "error"
+            if payload.get("host_song") and needs_song:
+                state = "host"
+                reason += " Hay un paquete completo que puedes elegir en el ordenador."
+            self.db.execute("UPDATE jobs SET state=?,message=? WHERE id=?", (state, reason, job_id))
+
+    def request_host(self, source, song, names, request_key=None):
+        """Keep a download-only request alive if the last singing turn is withdrawn."""
+        with self.lock, self.db:
+            if request_key:
+                prior = self.db.execute("SELECT turn_id FROM mobile_requests WHERE key=?", (request_key,)).fetchone()
+                if prior:
+                    return prior[0]
+            turn = self._request(source, {"song": song}, names, request_key, "host")
+            if names is None:
+                self.db.execute(
+                    "UPDATE jobs SET payload=json_set(payload,'$.keep',1) WHERE source=? AND state='host'",
+                    (source,),
+                )
+            return turn
+
     def cancel_turn(self, turn_id):
         with self.lock, self.db:
             self.db.execute("UPDATE turns SET state='cancelled' WHERE id=? AND state='queued'", (turn_id,))
             self.db.execute(
-                "DELETE FROM jobs WHERE state='host' AND source=(SELECT source FROM turns WHERE id=?) "
+                "DELETE FROM jobs WHERE state='host' AND coalesce(json_extract(payload,'$.keep'),0)=0 AND source=(SELECT source FROM turns WHERE id=?) "
                 "AND NOT EXISTS (SELECT 1 FROM turns WHERE source=jobs.source AND state='queued')",
                 (turn_id,),
             )
@@ -175,8 +207,11 @@ class Store:
             count = self.db.execute(
                 "SELECT count(*) FROM turns WHERE source=? AND state='queued'", (pending,)
             ).fetchone()[0]
+            job = self.db.execute("SELECT payload FROM jobs WHERE source=? AND state='host'", (pending,)).fetchone()
+            if not job:
+                return False
             self.db.execute("DELETE FROM jobs WHERE source=? AND state='host'", (pending,))
-            if not count:
+            if not count and not json.loads(job[0]).get("keep"):
                 return False
             self._request(source, payload, None, None, "waiting")
             self.db.execute(

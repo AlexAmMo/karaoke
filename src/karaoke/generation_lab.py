@@ -125,6 +125,7 @@ class GenerationLab:
                 "TORCH_HOME": os.environ.get("TORCH_HOME", str(self.models / "torch")),
                 "UV_NO_PROGRESS": "1",
                 "PYTHONNOUSERSITE": "1",
+                "PYTHONIOENCODING": "utf-8",
             }
         )
         # Frozen launcher envs may point child processes at the embedded Python libs.

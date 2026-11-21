@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Prepare a disposable software-rendered test copy; never alter the release ZIP."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -23,12 +24,27 @@ def main():
     drivers = output / 'graphics-driver'
     roots = [args.tools / name for name in ('opengl32.dll', 'libgallium_wgl.dll')]
     manifest = bundle_tools(drivers, args.tools, initial_files=roots)
+    product_dependencies = []
     for dll in drivers.iterdir():
         target = copy / 'engine' / dll.name
-        if target.exists() and target.read_bytes() != dll.read_bytes():
-            raise RuntimeError('CI graphics driver would replace a product DLL: ' + dll.name)
+        if target.exists():
+            if dll.name.lower() in {source.name.lower() for source in roots}:
+                raise RuntimeError('Unexpected bundled graphics driver in product: ' + dll.name)
+            # Use precisely the shipping runtime when Mesa also imports it. The
+            # following native renderer smoke proves it can initialize llvmpipe.
+            product_dependencies.append({
+                'file': dll.name,
+                'product_sha256': hashlib.sha256(target.read_bytes()).hexdigest(),
+                'driver_build_sha256': hashlib.sha256(dll.read_bytes()).hexdigest(),
+            })
+            continue
         shutil.copy2(dll, target)
-    result = {'scope': 'MSYS2 Mesa llvmpipe graphics driver added only to a disposable CI copy. SDL dummy audio. Driver DLLs are absent from the release ZIP; no physical audio or GPU test.', 'dependencies': manifest, 'architecture': audit_pe(drivers)}
+    result = {
+        'scope': 'CI-only Mesa llvmpipe with SDL dummy audio. Shared DLLs use the exact product version.',
+        'dependencies': manifest,
+        'product_dependencies': product_dependencies,
+        'architecture': audit_pe(drivers),
+    }
     path = output / 'graphics-manifest.json'
     path.write_text(json.dumps(result, indent=2), encoding='utf-8')
     with Path(os.environ['GITHUB_ENV']).open('a', encoding='utf-8') as env:

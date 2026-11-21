@@ -90,7 +90,7 @@ function token() {
 
 async function api(route, payload, method = "POST") {
   const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), 11000);
+  const timer = setTimeout(() => abort.abort(), route === "mic-offer" ? 28000 : 11000);
   try {
     const options = {method, credentials: "same-origin", cache: "no-store", signal: abort.signal};
     if (method === "POST") {
@@ -504,7 +504,7 @@ function openSong(item) {
   function updateActions() {
     if (addControl) addControl.lastChild.textContent = addLabel();
     if (saveControl) {
-      saveControl.hidden = !["direct", "failed"].includes(selected.availability);
+      saveControl.hidden = !selected.assisted && !["direct", "failed"].includes(selected.availability);
       saveControl.textContent = selected.availability === "failed" ? "Reintentar descarga" : "Solo descargar";
     }
   }
@@ -515,7 +515,7 @@ function openSong(item) {
       const values = names();
       if (values && selected) add(selected, values);
     }, "primary full", "plus");
-    saveControl = button("Solo descargar", () => command("save", selected.id, {}, "Preparando la canción"), "full");
+    saveControl = button("Solo descargar", () => command("save", selected.id, {}, selected.assisted ? "Solicitud enviada al ordenador" : "Preparando la canción"), "full");
     content.append(addControl, saveControl);
     updateActions();
   } else content.append(element("p", "small muted", item.availability === "missing" ? "Falta el audio o el mapa. Vuelve a importar el paquete en el ordenador." : "Esta ficha no tiene descarga integrada."));

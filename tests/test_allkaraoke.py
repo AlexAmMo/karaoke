@@ -118,7 +118,9 @@ def test_grouped_federation_offers_one_click_for_exact_recording(tmp_path, monke
         service.handle({"action": "page:Buscar"})
         service.handle({"action": row["add_action"]})
         turn, = service.store.queue()
-        assert turn["source"] == SONG["source"] and not turn["song_id"]
+        assert turn["source"] == "work:" + SONG["source"] and not turn["song_id"]
+        payload = json.loads(turn["job_payload"])
+        assert payload["song"]["source"] == SONG["source"] and payload["host_song"]["source"] == assisted["source"]
         assert service.page == "Buscar"
     finally:
         service.close()

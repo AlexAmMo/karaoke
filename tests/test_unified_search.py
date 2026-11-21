@@ -93,3 +93,21 @@ def test_failed_preparation_is_identified_and_retry_does_not_reserve_a_turn(host
     host.handle({"action": retry["action"]})
     assert not host.store.queue()
     assert host.store.rows("SELECT state FROM jobs") == [{"state":"waiting"}]
+
+
+def test_failed_name_search_can_request_an_independent_complete_package_but_video_cannot(host):
+    first = {"artist": "Fixture", "title": "Canción", "source": "allkaraoke:song", "video_id":"IA0uSub1xy4"}
+    fallback = {"artist": "Fixture", "title": "Canción", "source": "espana:77"}
+    host.query = "Fixture Canción"
+    host.request_choices([first], assisted=fallback, queue=False)
+    job, = host.independent_preparations()
+    assert job["source"] == "work:allkaraoke:song"
+    host.store.execute("UPDATE jobs SET state='working' WHERE id=?", (job["id"],))
+    host.store.preparation_failed(job["id"], "Grabación distinta.")
+    assert host.independent_preparations()[0]["state"] == "host"
+    assert host.store.accept_host_package(job["source"], "spanish-package:checked-media", {"song":fallback})
+    assert not host.store.queue()
+    host.query = "https://youtu.be/IA0uSub1xy4"
+    host.request_choices([first], assisted=fallback)
+    turn, = host.store.queue()
+    assert turn["source"] == "allkaraoke:song" and turn["preparation"] == "waiting"

@@ -176,9 +176,11 @@ class CatalogueSearch:
                     JOIN songs s ON ss.song_id=s.id WHERE ss.source IN ({slots})""", batch):
                 saved[row["source"]] = row
             candidates = batch + ["selection:" + key for key in batch]
+            if self.query and not self.query.startswith(("http://", "https://")):
+                candidates += ["work:" + key for key in batch]
             job_slots = ",".join("?" for _ in candidates)
             for row in self.store.rows(f"SELECT source,state,message FROM jobs WHERE state IN ('waiting','working','error') AND source IN ({job_slots})", candidates):
-                source = row["source"].removeprefix("selection:")
+                source = row["source"].removeprefix("selection:").removeprefix("work:")
                 if row["state"] == "error":
                     failed[source] = row["message"]
                 else:
@@ -664,13 +666,13 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             elif path.suffix in (".torrent", ".zip") and path.stem not in needed:
                 path.unlink(missing_ok=True)
 
-    def obtain_spanish(self, song, token="", *, pending=None):
+    def obtain_spanish(self, song, token="", *, pending=None, queue=True):
         if self.spanish_picker:
             self.message = "Ya hay una edición abierta en el selector de Karaoke."
             return
         tickets = self.root / "spanish-packages"
         tickets.mkdir(mode=0o700, exist_ok=True)
-        names = self.names()
+        names = self.names() if queue else None
 
         def select():
             with tempfile.TemporaryDirectory(prefix="picker-", dir=tickets) as tmp:
@@ -726,8 +728,9 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                     return
             else:
                 self.store.request(source, payload, names)
-            self.message = "Edición añadida a la cola."
-            self.confirm_added(token)
+            self.message = "Preparando la edición elegida."
+            if queue and not pending:
+                self.confirm_added(token)
             if self.store.rows("SELECT 1 FROM song_sources WHERE source=?", (source,)):
                 (tickets / (key + "." + kind)).unlink(missing_ok=True)
 
@@ -892,7 +895,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         self.page = "Cola"
 
     def independent_preparations(self):
-        return self.store.rows("""SELECT j.* FROM jobs j WHERE j.state IN ('waiting','working','error','cancelled')
+        return self.store.rows("""SELECT j.* FROM jobs j WHERE j.state IN ('waiting','working','error','cancelled','host')
                 AND NOT EXISTS (SELECT 1 FROM turns t WHERE t.source=j.source
                                 AND t.state IN ('queued','starting','singing')) ORDER BY j.created""")
 
@@ -913,14 +916,17 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
     def add_best(self, item):
         group = self.editions_for(catalog.source_key(item))
         choices = self.auto_choices(group)
-        return self.request_choices(choices)
+        return self.request_choices(choices, assisted=self.spanish_choice(group))
 
-    def request_choices(self, choices, *, names=None, key=None, search=None, queue=True):
+    def request_choices(self, choices, *, names=None, key=None, search=None, queue=True, assisted=None):
         if not choices:
             raise SongError("Esta canción requiere el paquete de su edición.")
         def identity(song):
             return (tuple(catalog.tokens(song["artist"])), tuple(catalog.tokens(song["title"])))
         first = choices[0]
+        query = (search or self).query.strip()
+        if not query or query.startswith(("http://", "https://")) or not assisted or identity(assisted) != identity(first):
+            assisted = None
         # A completed download becomes playable immediately, even when this search
         # was opened before it existed in the library. Reuse the same recording.
         for candidate in choices:
@@ -946,12 +952,12 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                     continue
                 if candidate.get("video_id") == video or allkaraoke.source_usdb_id(first) == catalog.source_key(candidate):
                     alternatives.append(candidate)
-        return self._request_song(first, queue, alternatives, names=names, key=key, search=search)
+        return self._request_song(first, queue, alternatives, names=names, key=key, search=search, assisted=assisted)
 
     def request_result(self, index, queue):
         return self._request_song(self.results[index] if isinstance(index, int) else index, queue)
 
-    def _request_song(self, song, queue, alternatives=(), local_audio=None, *, names=None, key=None, search=None):
+    def _request_song(self, song, queue, alternatives=(), local_audio=None, *, names=None, key=None, search=None, assisted=None):
         if not (search or self).auto_choices([song]):
             raise SongError("Esta edición requiere otro mapa compatible con la grabación.")
         source = catalog.source_key(song)
@@ -965,6 +971,12 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         if alternatives:
             payload.update(alternatives=list(alternatives), exact_video=song["video_id"])
             source = "selection:" + source
+        if assisted:
+            # A broad title selection can be rescued by a different complete package. An explicit
+            # URL/edition can never inherit that package via its source or recording identifier.
+            payload["host_song"] = dict(assisted)
+            payload["keep"] = not queue
+            source = "work:" + catalog.source_key(song)
         if local_audio:
             path = Path(local_audio).expanduser().resolve()
             stamp = signature(path)
@@ -997,6 +1009,8 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         turn = next((r for r in self.store.queue() if r["id"] == turn_id), None)
         if not turn or not turn["song_id"]:
             raise SongError("Este turno todavía no está preparado.")
+        if not has_song_files(turn):
+            raise SongError("Falta el mapa o el audio. Vuelve a importar esta edición.")
         validate(Path(turn["chart"]))
         if not self.engine:
             raise SongError("El motor de canto todavía se está iniciando.")
@@ -1373,12 +1387,14 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 turn = self.add_best(item)
                 self.confirm_added(value, turn)
                 return
-            if op == "obtain":
+            if op in ("obtain", "obtain-save"):
                 if not self.spanish_choice([item]):
                     raise SongError("Esta edición no ofrece el paquete solicitado.")
                 if self.page == "Buscar" and self.auto_choices(self.editions_for(key)):
                     turn = self.add_best(item)
                     self.confirm_added(value, turn)
+                elif op == "obtain-save":
+                    self.obtain_spanish(item, value, queue=False)
                 else:
                     self.obtain_spanish(item, value)
                 return
@@ -1413,7 +1429,8 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 self.page = "Versión"
             elif op in ("save", "queue"):
                 if self.page == "Versión" and getattr(self, "group_detail", False):
-                    turn = self.request_choices(self.auto_choices(self.editions_for(key)), queue=op == "queue")
+                    group = self.editions_for(key)
+                    turn = self.request_choices(self.auto_choices(group), queue=op == "queue", assisted=self.spanish_choice(group))
                 else:
                     turn = self.request_result(item, op == "queue")
                 if op == "queue":
@@ -1459,6 +1476,12 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             op, turn_id = action.split(":")
             self.store.reorder(turn_id, -1 if op == "up" else 1)
             return
+        if action.startswith("assist-job:"):
+            jobs = self.store.rows("SELECT source,payload FROM jobs WHERE id=? AND state='host'", (action[11:],))
+            if jobs:
+                payload = json.loads(jobs[0]["payload"])
+                self.obtain_spanish(payload.get("host_song") or payload["song"], pending=jobs[0]["source"], queue=False)
+            return
         if action.startswith("cancel-job:"):
             job_id = action[11:]
             self.cancelled_jobs.add(job_id)
@@ -1474,7 +1497,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         if action.startswith("retry:"):
             self.cancelled_jobs.discard(action[6:])
             self.store.execute(
-                "UPDATE jobs SET state='waiting',message='' WHERE id=? AND state IN ('error','cancelled')",
+                "UPDATE jobs SET state=CASE WHEN source LIKE 'host:%' THEN 'host' ELSE 'waiting' END,message='' WHERE id=? AND state IN ('error','cancelled')",
                 (action[6:],),
             )
             return
@@ -1588,9 +1611,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 self.message = info["title"] + " está lista para cantar."
             except Exception as exc:
                 if job["id"] not in self.cancelled_jobs:
-                    self.store.execute(
-                        "UPDATE jobs SET state='error',message=? WHERE id=?", (str(exc), job["id"])
-                    )
+                    self.store.preparation_failed(job["id"], str(exc))
         if self.download:
             progress = self.root / "download-progress.json"
             if progress.exists():
@@ -1752,7 +1773,11 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                     saved = self.store.rows("SELECT song_id FROM song_sources WHERE source=?", (key,))
                     local_id = saved[0]["song_id"] if saved else None
                 if local_id:
-                    details.append("En biblioteca")
+                    if not has_song_files(self.song(local_id)):
+                        details.append("Copia incompleta")
+                        song_row(song, song["title"], " · ".join(details), "song:" + local_id)
+                        continue
+                    details.append("Descargada")
                 action = f"result:detail:{self.search_generation}:{key}"
                 if local_id and not song.get("requested_video"):
                     song_row(song, song["title"], " · ".join(details), "song:" + local_id, "enqueue:" + local_id)
@@ -1796,6 +1821,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             elif self.spanish_choice([song]):
                 text("UltraStar España", "Elige el torrent de esta edición. Karaoke descargará su mapa y su grabación.")
                 button("Obtener en Karaoke", "result:obtain:" + token, style="primary")
+                button("Solo descargar", "result:obtain-save:" + token, style="link")
             elif key.startswith(("espana:", "community-")):
                 text(source_name(key), "Esta ficha carece de un paquete descargable desde Karaoke.")
                 button("Importar un paquete local", "import:open", style="link")
@@ -1852,6 +1878,8 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 payload = json.loads(job["payload"])
                 label = payload.get("song", {}).get("title") or Path(payload.get("chart", "")).parent.name
                 text(label or "Canción", job["message"] or "En espera")
+                if job["state"] == "host":
+                    button("Elegir el paquete en Karaoke", "assist-job:" + job["id"], style="primary")
                 if job["state"] in ("error", "cancelled"):
                     button("Reintentar", "retry:" + job["id"], style="link")
                 else:

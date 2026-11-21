@@ -36,7 +36,7 @@ class Phone:
         self.http.headers["Origin"] = self.url
 
     def post(self, operation, **data):
-        response = self.http.post(f"{self.url}/api/{operation}", json=data, timeout=8)
+        response = self.http.post(f"{self.url}/api/{operation}", json=data, timeout=28 if operation == "mic-offer" else 8)
         if not response.ok:
             raise AssertionError(
                 f"{operation} returned {response.status_code}: {response.text[:160]}"

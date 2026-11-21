@@ -79,7 +79,7 @@ class MobileVoices:
                 self._offer(client, name, sdp, self.epoch), self.loop
             )
         try:
-            return future.result(12)
+            return future.result(24)
         except concurrent.futures.TimeoutError:
             future.cancel()
             raise RemoteError(

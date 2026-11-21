@@ -27,7 +27,12 @@ actual="$(shasum -a 256 "$work/$asset" | awk '{print $1}')"
 app="$work/extracted/Karaoke.app"
 [[ -x "$app/Contents/MacOS/karaoke" ]] || { echo 'El paquete está incompleto.' >&2; exit 1; }
 /usr/bin/codesign --verify --deep --strict "$app"
-/usr/bin/codesign --verify --deep --strict "$app/Contents/Resources/Engine.app"
+# 0.1/0.2 sealed Engine.app as bundle resources. The independent engine
+# signature became part of our published package format with 0.3.
+case "$number" in
+  0.1.*|0.2.*) ;;
+  *) /usr/bin/codesign --verify --deep --strict "$app/Contents/Resources/Engine.app" ;;
+esac
 minimum="$(/usr/bin/plutil -extract LSMinimumSystemVersion raw -o - "$app/Contents/Info.plist")"
 current="$(sw_vers -productVersion)"
 # Compare dotted numeric versions without requiring Python/Homebrew.
