@@ -209,15 +209,54 @@ def freeze(args):
     print(json.dumps({"frozen": len(rows), "statuses": dict(Counter(r["status"] for r in rows))}))
 
 
-def evaluate(args):
-    rule, _ = validate_protocol(args)
-    frozen = load(args.frozen)
-    if frozen["protocol"] != record(args.protocol):
-        raise ValueError("Changed frozen evaluation protocol")
+def validate_frozen_predictions(rule, generation, frozen):
+    """Check every signed condition before opening the first reference text."""
     references = {r["id"]: r for r in rule["references"]}
     expected = {(tag, arm) for tag in references for arm in ARMS}
     if len(frozen["rows"]) != 160 or {(r["id"], r["arm"]) for r in frozen["rows"]} != expected:
         raise ValueError("Frozen conditions do not preserve the complete denominator")
+    selected = {r["id"] for r in generation["inputs"]}
+    prepared = {(r["id"], r["kind"]): r for r in load(check(rule["prepared_audio"]))["prepared"]}
+    candidates = {}
+    for row in frozen["rows"]:
+        condition = row["id"], row["arm"]
+        state = row["status"]
+        if state not in ("complete", "failed", "unattempted", "outside_pilot"):
+            raise ValueError("Unexpected frozen condition status")
+        if (row["id"] not in selected) != (state == "outside_pilot"):
+            raise ValueError("Condition status differs from the fixed pilot")
+        for part in row.get("partial_evidence", []):
+            check(part)
+        if state in ("unattempted", "outside_pilot"):
+            if row.get("prediction") is not None or "resources" in row or row.get("partial_evidence"):
+                raise ValueError("Unattempted condition has attempted-worker evidence")
+            continue
+        resources = load(check(row["resources"]))
+        if not resources["reaped"]:
+            raise ValueError("Worker not confirmed reaped")
+        successful = resources["exit_code"] == 0 and not resources["stopped_reason"]
+        if (state == "complete") != successful:
+            raise ValueError("Frozen condition and worker status differ")
+        if state == "failed":
+            if row.get("prediction") is not None:
+                raise ValueError("Failed condition cannot supply a completed prediction")
+            continue
+        candidate = load(check(row["prediction"]))
+        if (candidate["plan_sha256"] != rule["generation_plan"]["sha256"] or
+            candidate["id"] != row["id"] or candidate["arm"] != row["arm"] or
+            candidate["audio"] != prepared[(row["id"], row["arm"].split("-")[0])]["audio"]):
+            raise ValueError("Prediction belongs to a different condition")
+        candidates[condition] = candidate
+    return candidates
+
+
+def evaluate(args):
+    rule, generation = validate_protocol(args)
+    frozen = load(args.frozen)
+    if frozen["protocol"] != record(args.protocol):
+        raise ValueError("Changed frozen evaluation protocol")
+    references = {r["id"]: r for r in rule["references"]}
+    candidates = validate_frozen_predictions(rule, generation, frozen)
     gold, rows = {}, []
     for row in frozen["rows"]:
         result = {"id": row["id"], "arm": row["arm"], "status": row["status"]}
@@ -226,7 +265,7 @@ def evaluate(args):
             continue
         if row["id"] not in gold:
             _, gold[row["id"]] = extract(check(references[row["id"]]["reference"]))
-        candidate = load(check(row["prediction"]))
+        candidate = candidates[(row["id"], row["arm"])]
         views = {"product": [w for line in candidate["product_lines"] for w in line], "raw": candidate["raw_words"]}
         result["metrics"] = {name: measure(gold[row["id"]], words(items)) for name, items in views.items()}
         result["product_minus_raw_wer"] = result["metrics"]["product"]["wer_unrounded"] - result["metrics"]["raw"]["wer_unrounded"]
