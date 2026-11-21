@@ -22,7 +22,7 @@ def run(debugger):
     dump(debugger, "run")
     process = target.GetProcess()
     for _ in range(35):
-        if process.GetState() != lldb.eStateStopped:
+        if process.GetState() not in (lldb.eStateStopped, lldb.eStateCrashed):
             print("FIRSTFAULT diagnostic-error unexpected process state", process.GetState(), flush=True)
             return
         thread = process.GetSelectedThread()

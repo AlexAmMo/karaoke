@@ -8,18 +8,33 @@ permissions:
 jobs:
   acquire:
     runs-on: macos-latest
-    timeout-minutes: 22
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        source: [44922442355, 44920921299]
     env:
       SDL_AUDIO_DRIVER: dummy
       SDL_AUDIODRIVER: dummy
       KARAOKE_TEST_INPUT: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Wait for the original job to finish uploading its signed package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE: ${{ matrix.source }}
+        run: |
+          for iteration in $(seq 1 50); do
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE/artifacts" --jq '[.artifacts[]|select(.name=="karaoke-macos-latest")] | length')
+            if [[ "$count" == 1 ]]; then exit 0; fi
+            sleep 8
+          done
+          exit 1
       - name: Fetch exact candidate package
         uses: actions/download-artifact@v4
         with:
           name: karaoke-macos-latest
-          run-id: 44922442355
+          run-id: ${{ matrix.source }}
           github-token: ${{ github.token }}
           path: previous
       - name: Unpack and identify exact binary
@@ -38,5 +53,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: first-fault
+          name: first-fault-${{ matrix.source }}
           path: build/first-fault
