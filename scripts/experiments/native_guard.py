@@ -13,13 +13,13 @@ set -u
 cd "$(dirname "$KARAOKE_PROBE_ENGINE")"
 export SDL_AUDIO_DRIVER=dummy SDL_AUDIODRIVER=dummy
 log="$GUARD_DATA/lldb-$(date +%s)-$$.log"
-universal="-o"
 cmd=(lldb --batch -o 'settings set target.disable-aslr false')
-cmd+=(-o "settings set target.env-vars DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib MALLOC_PROTECT_BEFORE=$GUARD_BEFORE MALLOC_STRICT_SIZE=1")
+cmd+=(-o "settings set target.env-vars DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib MALLOC_PROTECT_BEFORE=$GUARD_BEFORE")
 cmd+=(-o 'process handle -s true -n true -p true SIGSEGV SIGBUS SIGFPE SIGABRT')
 cmd+=(-o run -k 'thread backtrace all' -k 'register read' -k 'disassemble -p -c 16')
 cmd+=(-o 'thread backtrace all' -o 'register read' -- "$KARAOKE_PROBE_ENGINE" "$@")
-exec "${cmd[@]}" > "$log" 2>&1
+"${cmd[@]}" > "$log" 2>&1
+grep -Fq 'exited with status = 0' "$log"
 """)
 # GuardMalloc uses the presence of MALLOC_PROTECT_BEFORE, even when its contents would be 0.
 if os.environ["SIDE"]=="after":

@@ -20,6 +20,10 @@ jobs:
       KARAOKE_TEST_INPUT: '1'
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: uv sync --locked
       - uses: actions/download-artifact@v4
         with:
           name: karaoke-macos-latest
@@ -38,7 +42,7 @@ jobs:
         env:
           SIDE: ${{ matrix.direction }}
         run: |
-          python3 scripts/experiments/native_guard.py
+          uv run --locked python scripts/experiments/native_guard.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
