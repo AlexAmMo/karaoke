@@ -1,0 +1,48 @@
+name: Verify the 20 public Spanish benchmark masters
+on:
+  push:
+    branches: [codex/validar-origen-es-20261121]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Prepare the public source adapter
+        run: |
+          if ! command -v ffmpeg >/dev/null; then sudo apt-get update -qq && sudo apt-get install -yqq ffmpeg; fi
+          uv venv .measure
+          uv pip install --python .measure/bin/python 'yt-dlp[default]' numpy requests
+      - name: Verify five exact recordings directly at source
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          .measure/bin/python scripts/experiments/timing_recheck_sources.py
+      - name: Compute timings for accessible recordings
+        if: env.HAS_MATCH == 'yes'
+        env:
+          HF_HUB_DISABLE_XET: '1'
+          OMP_NUM_THREADS: '4'
+          OPENBLAS_NUM_THREADS: '1'
+        run: |
+          uv pip install --python .measure/bin/python torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .measure/bin/python transformers==4.57.6 huggingface-hub==0.36.2 tokenizers==0.22.2 scipy
+          .measure/bin/python -u scripts/experiments/timing_sylla_emissions.py "$RUNNER_TEMP/verified.json" "$RUNNER_TEMP/private" --threads 4
+          tar -cf "$RUNNER_TEMP/private.tar" -C "$RUNNER_TEMP/private" .
+          openssl cms -encrypt -aes-256-gcm -binary -outform DER -in "$RUNNER_TEMP/private.tar" -out "$RUNNER_TEMP/reports/measurements.cms" .github/validation/recipient.crt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-status-${{ matrix.shard }}
+          path: ${{ runner.temp }}/reports
+          retention-days: 2
+          if-no-files-found: error
