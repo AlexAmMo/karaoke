@@ -1,0 +1,66 @@
+name: Compare lead separation with the exact English and Spanish masters
+on:
+  push:
+    branches: [codex/validar-voz-principal-20261121]
+permissions:
+  contents: read
+jobs:
+  song:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [en, es]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    env:
+      LANG_ID: ${{ matrix.language }}
+      SHARD: ${{ matrix.shard }}
+      OMP_NUM_THREADS: 3
+      OPENBLAS_NUM_THREADS: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Set up pinned CPU separator
+        run: |
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          uv venv .lead --python 3.12
+          uv pip install --python .lead/bin/python torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .lead/bin/python demucs==4.1.0 safetensors==0.8.0 numpy==2.5.5 scipy==1.17.1 soundfile==0.14.0 soxr==1.1.0 huggingface-hub==2.4.0 onnxruntime==1.32.0 requests yt-dlp yt-dlp-ejs pyyaml librosa einops mido
+      - name: Fetch from original publisher and require the same recording
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/export-status"
+          if ! .lead/bin/python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/songs" --language "$LANG_ID" --shard "$SHARD" --shards 20 > "$RUNNER_TEMP/download.log" 2>&1; then
+            .lead/bin/python scripts/experiments/lead_availability.py
+            exit 0
+          fi
+          touch "$RUNNER_TEMP/recording-ready"
+      - name: Estimate musical events independently with stereo and learned vocal separation
+        run: |
+          set -eu
+          test -f "$RUNNER_TEMP/recording-ready" || exit 0
+          curl -fsSL --retry 3 "https://huggingface.co/Retotito/ultrastar-models/resolve/75854108a364f01f8ee0a3df0db9ce8eb902beca/fcpe/fcpe.onnx" -o "$RUNNER_TEMP/fcpe.onnx"
+          curl -fsSL --retry 3 "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR_MDXNET_KARA_2.onnx" -o "$RUNNER_TEMP/uvr.onnx"
+          curl -fsSL --retry 3 "https://github.com/openvpi/SOME/releases/download/v1.0.0-baseline/0119_continuous128_5spk.zip" -o "$RUNNER_TEMP/some.zip"
+          unzip -q "$RUNNER_TEMP/some.zip" -d "$RUNNER_TEMP/someweights"
+          git clone -q https://github.com/openvpi/SOME.git "$RUNNER_TEMP/SOME"
+          git -C "$RUNNER_TEMP/SOME" checkout -q e523eef70777c1370199363de03eb37d66dce76e
+          .lead/bin/python scripts/experiments/melody_runner_stem.py
+          .lead/bin/python scripts/experiments/lead_remote_full.py
+          tar -czf "$RUNNER_TEMP/predictions.tgz" -C "$RUNNER_TEMP/export" all_vocals.json center.json mdx.json observations.npz provenance.json
+          openssl cms -encrypt -aes-256-gcm -binary -outform DER -in "$RUNNER_TEMP/predictions.tgz" -out "$RUNNER_TEMP/export-status/numeric.cms" .github/validation/recipient.crt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: measured-${{ matrix.language }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/export-status/
+          compression-level: 0
+          retention-days: 2

@@ -1,7 +1,6 @@
 name: Estimate vocal f0 with and without stereo isolation
 on:
-  push:
-    branches: [codex/validar-voz-principal-20261121]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
