@@ -44,8 +44,8 @@ def corpus(tmp_path):
         folder.mkdir()
         audio, reference, baseline = folder / "audio.wav", folder / "gold.txt", folder / "draft.txt"
         audio.write_bytes(f"master {i}".encode())
-        reference.write_text(chart())
-        baseline.write_text(chart())
+        reference.write_text(chart(), encoding="utf-8")
+        baseline.write_text(chart(), encoding="utf-8")
         identity = {"tag": tag, "language": "es", "audio_sha": qwen.digest(audio),
                     "chart_sha": qwen.digest(reference)}
         identities.append(identity)
@@ -54,7 +54,7 @@ def corpus(tmp_path):
             output = predictions / tag
             output.mkdir(parents=True)
             text = "¡CORAZO\u0301N! ｈｏｌａ, hola, HOLA." if i == 0 else "corazón hola"
-            (output / "lyrics.txt").write_text(text)
+            (output / "lyrics.txt").write_text(text, encoding="utf-8")
             qwen.write_json(output / "raw.json", {"transcription": [{"text": text}]})
             qwen.write_json(output / "frozen.json", {
                 "signature": {"stem": str(audio), "stem_sha256": qwen.digest(audio),
@@ -65,8 +65,8 @@ def corpus(tmp_path):
             })
     args = SimpleNamespace(identities=tmp_path / "identities.json", corpus=tmp_path / "corpus.json",
                            predictions=predictions, output=tmp_path / "evaluation.json")
-    args.identities.write_text(json.dumps(identities))
-    args.corpus.write_text(json.dumps({"es": records}))
+    args.identities.write_text(json.dumps(identities), encoding="utf-8")
+    args.corpus.write_text(json.dumps({"es": records}), encoding="utf-8")
     return args
 
 
@@ -75,7 +75,7 @@ def test_evaluation_serializes_numpy_metrics_and_keeps_all_40_in_denominator(cor
     frozen = corpus.predictions / "song-00/frozen.json"
     unchanged = frozen.read_bytes()
     qwen.evaluate(corpus)
-    report = json.loads(corpus.output.read_text())
+    report = json.loads(corpus.output.read_text(encoding="utf-8"))
     assert report["cohort_size"] == 40
     assert report["measured"] == 2
     assert report["missing"] == 38
@@ -91,9 +91,9 @@ def test_evaluation_serializes_numpy_metrics_and_keeps_all_40_in_denominator(cor
 
 
 def test_missing_candidate_does_not_skip_official_identity_validation(corpus):
-    records = json.loads(corpus.corpus.read_text())
+    records = json.loads(corpus.corpus.read_text(encoding="utf-8"))
     records["es"][2]["audio_sha"] = "different master"
-    corpus.corpus.write_text(json.dumps(records))
+    corpus.corpus.write_text(json.dumps(records), encoding="utf-8")
     with pytest.raises(ValueError, match="official master"):
         qwen.evaluate(corpus)
 

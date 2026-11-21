@@ -32,7 +32,7 @@ def digest(path):
 
 def write_json(path, value):
     temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
 
 
@@ -73,8 +73,8 @@ def lyric_metrics(reference, words):
 
 
 def generate(args):
-    charts = json.loads(args.charts.read_text())
-    stems = json.loads(args.stems.read_text())
+    charts = json.loads(args.charts.read_text(encoding="utf-8"))
+    stems = json.loads(args.stems.read_text(encoding="utf-8"))
     if set(charts) != set(stems) or (args.ids and not set(args.ids).issubset(charts)):
         raise ValueError("Prediction and vocal manifests do not match the requested cohort")
     if digest(args.model) != MODEL_SHA:
@@ -101,7 +101,7 @@ def generate(args):
         }
         frozen = output / "frozen.json"
         if frozen.exists():
-            previous = json.loads(frozen.read_text())
+            previous = json.loads(frozen.read_text(encoding="utf-8"))
             if (previous["signature"] != signature
                     or previous["text_sha256"] != digest(output / "lyrics.txt")
                     or previous["raw_sha256"] != digest(output / "raw.json")):
@@ -119,12 +119,12 @@ def generate(args):
         with (output / "inference.log").open("w") as log:
             subprocess.run(command, env=env, stdout=log, stderr=subprocess.STDOUT,
                            check=True, timeout=1800)
-        raw = json.loads((output / "raw.json").read_text())
+        raw = json.loads((output / "raw.json").read_text(encoding="utf-8"))
         segments = raw["transcription"]
         text = " ".join(segment["text"].strip() for segment in segments).strip()
         if not text:
             raise ValueError(f"Empty transcription for {tag}")
-        (output / "lyrics.txt").write_text(text + "\n")
+        (output / "lyrics.txt").write_text(text + "\n", encoding="utf-8")
         result = {"signature": signature, "seconds": round(time.monotonic() - started, 2),
                   "text_sha256": digest(output / "lyrics.txt"),
                   "raw_sha256": digest(output / "raw.json"), "segments": len(segments)}
@@ -135,12 +135,12 @@ def generate(args):
 def evaluate(args):
     import numpy as np
 
-    identities = json.loads(args.identities.read_text())
+    identities = json.loads(args.identities.read_text(encoding="utf-8"))
     tags = [row["tag"] for row in identities]
     identity_map = {row["tag"]: row for row in identities}
     if len(tags) != 40 or len(set(tags)) != 40:
         raise ValueError("Expected the fixed 40-recording cohort")
-    corpus = json.loads(args.corpus.read_text())
+    corpus = json.loads(args.corpus.read_text(encoding="utf-8"))
     records = {row["tag"]: row for group in corpus.values() for row in group}
     rows = []
     for tag in tags:
@@ -151,7 +151,7 @@ def evaluate(args):
         if not frozen.exists():
             rows.append({"tag": tag, "status": "missing"})
             continue
-        frozen_value = json.loads(frozen.read_text())
+        frozen_value = json.loads(frozen.read_text(encoding="utf-8"))
         signature = frozen_value["signature"]
         for path, expected in ((row["audio"], row["audio_sha"]),
                                (row["reference"], row["chart_sha"]),
@@ -163,7 +163,7 @@ def evaluate(args):
                 raise ValueError(f"Frozen input or result changed: {path}")
         _, reference = extract(Path(row["reference"]))
         _, baseline = extract(Path(signature["baseline"]))
-        text = (frozen.parent / "lyrics.txt").read_text()
+        text = (frozen.parent / "lyrics.txt").read_text(encoding="utf-8")
         words = transcript_words(text)
         if not reference:
             raise ValueError(f"Empty independent reference for {tag}")
