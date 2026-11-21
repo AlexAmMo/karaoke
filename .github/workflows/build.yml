@@ -101,6 +101,7 @@ jobs:
           fpc -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/pcm-test -FEbuild/pcm-test "-Fl$(brew --prefix sdl2-compat)/lib" scripts/test_pcm_conversion.pas
           build/pcm-test/test_pcm_conversion
       - name: Install the Mac release candidate and sing with the bundled engine
+        id: mac_session
         env:
           SDL_AUDIO_DRIVER: dummy
           SDL_AUDIODRIVER: dummy
@@ -122,6 +123,14 @@ jobs:
         run: |
           uv run python scripts/package_sources.py
           uv run python scripts/collect_sources.py
+      - name: Preserve macOS application crash reports on a failed session
+        if: ${{ !cancelled() && steps.mac_session.outcome == 'failure' }}
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for report in "$HOME/Library/Logs/DiagnosticReports"/{ultrastardx,karaoke}-*.ips; do
+            cp "$report" build/macos-session-runs/
+          done
       - name: Verify frozen launcher
         run: dist/Karaoke.app/Contents/MacOS/karaoke --version
       - uses: actions/upload-artifact@v4
