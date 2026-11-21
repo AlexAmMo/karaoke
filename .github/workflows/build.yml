@@ -1,470 +1,90 @@
-name: Build and test
-
+name: Verify and stage release candidate
 on:
-  push:
-    branches: [main]
-    tags: ['v*']
-  pull_request:
   workflow_dispatch:
     inputs:
-      target:
-        description: Platform or test suite to run
+      source_run:
+        description: Successful Build and test run in this repository
         required: true
-        default: all
+        type: string
+      source_commit:
+        description: Full 40-character candidate commit
+        required: true
+        type: string
+      mode:
+        description: Verify only or verify and upload to the existing matching draft
+        required: true
+        default: verify
         type: choice
-        options: [all, windows, macos, tests, diagnose-windows, stage-windows-release]
-      windows_source_ref:
-        description: Optional release commit to rebuild with the Windows toolchain
-        required: false
-        type: string
-      artifact_run_id:
-        description: Source run for Windows diagnostics or draft staging
-        required: false
-        type: string
-      expected_zip_sha:
-        description: Expected package SHA256 for draft staging or optional diagnostics
-        required: false
-        type: string
-      collect_windows_sources:
-        description: Collect Windows dependency sources (required before publishing a release)
-        required: false
-        default: true
-        type: boolean
-
+        options: [verify, stage]
 permissions:
   contents: read
-
+  actions: read
 concurrency:
-  group: build-${{ github.ref }}-${{ inputs.target || 'all' }}
-  cancel-in-progress: true
-
+  group: prepare-release-assets-${{ inputs.source_run }}-${{ inputs.source_commit }}
+  cancel-in-progress: false
 jobs:
-  test:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'tests' }}
-    name: Python integration tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-2022]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          python-version: '3.12'
-      - name: Install FFmpeg (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Install FFmpeg (macOS)
-        if: runner.os == 'macOS'
-        run: brew install ffmpeg
-      - name: Install FFmpeg (Windows)
-        if: runner.os == 'Windows'
-        run: choco install ffmpeg --no-progress -y
-      - run: uv sync --locked
-      - run: uv run pytest -q
-      - name: Validate PowerShell installer syntax
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $Tokens = $null; $Errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/install.ps1'), [ref]$Tokens, [ref]$Errors) | Out-Null
-          if ($Errors.Count) { $Errors | Out-String | Write-Error; exit 1 }
-      - name: Validate shell installer syntax
-        if: runner.os != 'Windows'
-        run: bash -n scripts/install.sh
-
-  macos:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'macos' }}
-    name: macOS ${{ matrix.os }} development package
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, macos-15-intel]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          python-version: '3.12'
-      - name: Install native build tools
-        run: brew install fpc sdl2-compat sdl2_image automake portaudio lua ffmpeg pkg-config
-      - run: uv sync --locked
-      - name: Build modified Deluxe
-        id: package
-        run: bash scripts/build_macos.sh
-      - name: Check native PCM channels, duration and chunk boundaries
-        run: |
-          mkdir -p build/pcm-test
-          fpc -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/pcm-test -FEbuild/pcm-test "-Fl$(brew --prefix sdl2-compat)/lib" scripts/test_pcm_conversion.pas
-          build/pcm-test/test_pcm_conversion
-          fpc -Funative -FUbuild/pcm-test -FEbuild/pcm-test scripts/test_audio_capture_history.pas
-          build/pcm-test/test_audio_capture_history
-      - name: Install the Mac release candidate and sing with the bundled engine
-        id: mac_session
-        env:
-          SDL_AUDIO_DRIVER: dummy
-          SDL_AUDIODRIVER: dummy
-        run: |
-          export KARAOKE_VERSION="v$(uv run python -c 'from karaoke import __version__; print(__version__)')"
-          export KARAOKE_ASSET_BASE_URL="file://$PWD/dist" KARAOKE_INSTALL_DIR="$RUNNER_TEMP/karaoke-install/Applications"
-          bash scripts/install.sh
-          launcher="$KARAOKE_INSTALL_DIR/Karaoke.app/Contents/MacOS/karaoke"
-          for attempt in 1 2 3; do
-            report="build/macos-session-runs/attempt-$attempt.json"
-            status=0
-            uv run --locked python scripts/test_session.py --launcher "$launcher" --check-panel --output "$report" --failure-logs "build/macos-session-runs/logs-$attempt" || status=$?
-            if [[ -f "$report" ]]; then cp "$report" build/macos-install-session.json; fi
-            if (( status != 0 )); then exit "$status"; fi
-          done
-          uv run --locked python scripts/test_remote_session.py --launcher "$launcher" --phone-mic
-          uv run --locked python scripts/test_audio_score_clock.py --launcher "$launcher"
-      - name: Package source and provenance
-        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        run: |
-          uv run python scripts/package_sources.py
-          uv run python scripts/collect_sources.py
-      - name: Preserve macOS application crash reports on a failed session
-        if: ${{ !cancelled() && steps.mac_session.outcome == 'failure' }}
-        shell: bash
-        run: |
-          shopt -s nullglob
-          for report in "$HOME/Library/Logs/DiagnosticReports"/{ultrastardx,karaoke}-*.ips; do
-            cp "$report" build/macos-session-runs/
-          done
-      - name: Verify frozen launcher
-        run: dist/Karaoke.app/Contents/MacOS/karaoke --version
-      - uses: actions/upload-artifact@v4
-        if: always() && !cancelled() && steps.package.outcome == 'success'
-        with:
-          name: karaoke-${{ matrix.os }}
-          path: |
-            dist/*.zip
-            dist/*.sha256
-            dist/*source*.tar.gz
-            build/macos-install-session.json
-            build/macos-session-runs/
-          if-no-files-found: error
-
-  windows:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'windows' }}
-    name: Windows x64 development package
-    runs-on: windows-2022
-    env:
-      FPC_VERSION: 3.2.2
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.windows_source_ref || github.sha }}
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          python-version: '3.12'
-      - uses: msys2/setup-msys2@v2
-        id: msys
-        with:
-          msystem: UCRT64
-          update: false
-          install: >-
-            base-devel
-            git
-            mingw-w64-ucrt-x86_64-toolchain
-            mingw-w64-ucrt-x86_64-autotools
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-meson
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-git
-            mingw-w64-ucrt-x86_64-ntldd
-            mingw-w64-ucrt-x86_64-nasm
-            mingw-w64-ucrt-x86_64-sdl2-compat
-            mingw-w64-ucrt-x86_64-ffmpeg
-            patch
-            unzip
-      - run: uv sync --locked
-      - name: Prepare pinned engine
-        run: uv run python scripts/prepare_engine.py
-      - name: Install Free Pascal
-        id: fpc
-        timeout-minutes: 16
-        run: |
-          $Expected = '8c255390544b051388b577eb61c6191a04883264afe0e3369b3600a56daf7bde'
-          $Urls = @(
-            'https://downloads.freepascal.org/fpc/dist/3.2.2/i386-win32/fpc-3.2.2.win32.and.win64.exe',
-            'https://sourceforge.net/projects/freepascal/files/Win32/3.2.2/fpc-3.2.2.win32.and.win64.exe/download'
-          )
-          $Verified = $false
-          foreach ($Url in $Urls) {
-            curl.exe --fail -L --connect-timeout 20 --max-time 120 -o fpc-installer.exe $Url
-            if ($LASTEXITCODE -eq 0 -and (Get-FileHash fpc-installer.exe -Algorithm SHA256).Hash -eq $Expected) {
-              $Verified = $true
-              break
-            }
-          }
-          if (-not $Verified) { throw 'Could not obtain the verified Free Pascal installer' }
-          $Process = Start-Process -FilePath '.\fpc-installer.exe' -ArgumentList '/TYPE=full /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART /LOG=fpc-install.log' -PassThru
-          if (-not $Process.WaitForExit(300000)) { Stop-Process -Id $Process.Id -Force; throw 'FPC installer exceeded five minutes; inspect fpc-install.log' }
-          if ($Process.ExitCode -ne 0) { throw "FPC install failed: $($Process.ExitCode)" }
-      - name: Preserve failed installer diagnostics
-        if: always() && steps.fpc.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-fpc-install-log
-          path: fpc-install.log
-          if-no-files-found: warn
-      - name: Fingerprint native dependency recipes
-        id: recipes
-        run: |
-          $Tasks = (Get-FileHash build/engine/dists/windows/tasks.sh -Algorithm SHA256).Hash.ToLowerInvariant()
-          $Makefile = (Get-FileHash build/engine/dists/windows/Makefile -Algorithm SHA256).Hash.ToLowerInvariant()
-          "tasks=$Tasks" >> $env:GITHUB_OUTPUT
-          "makefile=$Makefile" >> $env:GITHUB_OUTPUT
-          # Exact bytes verified against the corresponding-source artifact of run 43478281732.
-          $Legacy = $Tasks -eq '82c8bc51066ecc512497e92da91c9619d36da1a6916777819e8283fdc9487b72' -and $Makefile -eq '8cf4b2b66d85f8e6cffc80714fa3297783072519648e262b224ce21c45ad6198'
-          "legacy-compatible=$($Legacy.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
-      - name: Restore native dependencies
-        id: native-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/engine/dists/windows/prefix
-            build/engine/dists/windows/deps
-          key: windows-native-v2-${{ steps.recipes.outputs.tasks }}-${{ steps.recipes.outputs.makefile }}
-          restore-keys: ${{ steps.recipes.outputs.legacy-compatible == 'true' && 'windows-native-76b94d18c22a7617d5f77ad37516dddeaa3630fe9ceafe1b9f554a9bfc89d930-8b9d9e08' || '' }}
-      - name: Build native dependencies
-        shell: msys2 {0}
-        run: |
-          cd build/engine
-          if [[ '${{ steps.native-cache.outputs.cache-hit }}' == 'true' || ( '${{ steps.recipes.outputs.legacy-compatible }}' == 'true' && '${{ steps.native-cache.outputs.cache-matched-key }}' == 'windows-native-76b94d18c22a7617d5f77ad37516dddeaa3630fe9ceafe1b9f554a9bfc89d930-8b9d9e08' ) ]]; then
-            touch "dists/windows/prefix/$(uname -m)/built_libs"
-          fi
-          make -C dists/windows
-          make -C dists/windows install
-      - name: Preserve compiled native dependencies
-        if: steps.native-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/engine/dists/windows/prefix
-            build/engine/dists/windows/deps
-          key: ${{ steps.native-cache.outputs.cache-primary-key }}
-      - name: Compile modified Deluxe
-        shell: msys2 {0}
-        run: |
-          cd build/engine
-          export PATH="$PATH:/c/FPC/$FPC_VERSION/bin/i386-win32"
-          export FPCCFG="/c/FPC/$FPC_VERSION/bin/i386-win32/fpc.cfg"
-          export FPCDIR="/c/FPC/$FPC_VERSION"
-          export FPCMAKE="/c/FPC/$FPC_VERSION/bin/i386-win32/fpcmake"
-          ./autogen.sh
-          ./configure --without-opencv --without-libprojectM
-          make
-      - name: Verify the provider of the native SDL runtime
-        shell: msys2 {0}
-        run: |
-          test "$(pacman -Qqo /ucrt64/bin/SDL2.dll)" = mingw-w64-ucrt-x86_64-sdl2-compat
-          test "$(pacman -Qqo /ucrt64/bin/SDL3.dll)" = mingw-w64-ucrt-x86_64-sdl3
-      - name: Package Python and media tools
-        id: package
-        run: |
-          $Tools = Join-Path "${{ steps.msys.outputs.msys2-location }}" "ucrt64/bin"
-          $env:PATH = "$Tools;" + $env:PATH
-          uv run python scripts/package_windows.py --tools "$Tools"
-      - name: Prepare isolated CI graphics driver
-        shell: msys2 {0}
-        run: pacman --noconfirm -S --needed mingw-w64-ucrt-x86_64-mesa
-      - name: Prepare disposable software-rendered test copy
-        run: uv run python scripts/prepare_ci_graphics.py --package dist/Karaoke --tools "${{ steps.msys.outputs.msys2-location }}/ucrt64/bin" --output build/windows-ci-runtime
-      - name: Check native PCM with the Windows package SDL runtime
-        run: |
-          New-Item -ItemType Directory -Force build/pcm-test | Out-Null
-          $Compiler = "C:/FPC/$env:FPC_VERSION/bin/i386-win32/fpc.exe"
-          & $Compiler -Px86_64 -Twin64 -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/pcm-test -FEbuild/pcm-test scripts/test_pcm_conversion.pas
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:PATH = "$PWD/dist/Karaoke/engine;$env:PATH"
-          & ./build/pcm-test/test_pcm_conversion.exe
-          exit $LASTEXITCODE
-      - name: Verify Windows desktop with software graphics and dummy audio
-        timeout-minutes: 3
-        run: uv run python scripts/smoke_desktop.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke --package-archive dist/Karaoke-0.3.1-windows-x86_64.zip --source-run "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --check-cursor
-      - name: Verify live pitch on the singing screen
-        timeout-minutes: 3
-        run: |
-          uv run python scripts/test_live_pitch.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke/pitch 2>&1 | Tee-Object -FilePath build/windows-desktop-smoke/live-pitch.log
-          exit $LASTEXITCODE
-      - name: Verify two mobile controllers against packaged Karaoke
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 3
-        run: uv run python scripts/test_remote_session.py --launcher "$env:KARAOKE_CI_LAUNCHER" --phone-mic
-      - name: Verify all pitch precision levels with two singers
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 5
-        run: uv run python scripts/test_pitch_precision.py --launcher "$env:KARAOKE_CI_LAUNCHER"
-      - name: Score ten independent inputs and verify route compensation
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 5
-        run: uv run python scripts/test_group_audio.py --launcher "$env:KARAOKE_CI_LAUNCHER"
-      - name: Score timestamped voices at ten fps and keep the monitor live
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 4
-        run: uv run python scripts/test_audio_score_clock.py --launcher "$env:KARAOKE_CI_LAUNCHER"
-      - name: Measure visible pitch transitions across the singing register
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 3
-        run: uv run python scripts/test_trace_response.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke/trace-response.json
-      - name: Verify turn menus and room closure with three mobile browsers
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 5
-        run: uv run --locked --with playwright python scripts/test_remote_browser.py --channel chrome --launcher "$env:KARAOKE_CI_LAUNCHER"
-      - name: Preserve desktop startup diagnostics
-        if: always() && !cancelled() && steps.package.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-desktop-smoke
-          path: build/windows-desktop-smoke
-          if-no-files-found: warn
-      - name: Collect Windows corresponding sources
-        if: ${{ always() && !cancelled() && steps.package.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.collect_windows_sources) }}
-        run: |
-          uv run python scripts/package_sources.py
-          $env:MSYS2_ROOT = "${{ steps.msys.outputs.msys2-location }}"
-          uv run python scripts/collect_windows_sources.py
-      - name: Verify frozen launcher
-        run: .\dist\Karaoke\karaoke.exe --version
-      - uses: actions/upload-artifact@v4
-        if: always() && !cancelled() && steps.package.outcome == 'success'
-        with:
-          name: karaoke-windows-x86_64
-          path: |
-            dist/*.zip
-            dist/*.sha256
-            dist/*source*.tar.gz
-          if-no-files-found: error
-
-  diagnose-windows:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'diagnose-windows' }}
-    name: Diagnose existing Windows package
-    runs-on: windows-2022
-    permissions:
-      contents: read
-      actions: read
-    env:
-      SOURCE_RUN: ${{ inputs.artifact_run_id }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: '3.12'
-      - name: Validate artifact reference
-        run: |
-          if ($env:SOURCE_RUN -notmatch '^\d+$') { throw 'artifact_run_id must identify the exact source workflow run' }
-      - uses: actions/download-artifact@v4
-        with:
-          name: karaoke-windows-x86_64
-          path: build/diagnostic-download
-          run-id: ${{ inputs.artifact_run_id }}
-          github-token: ${{ github.token }}
-      - name: Verify Windows package checksum and build identity
-        timeout-minutes: 5
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PINNED_SHA: ${{ inputs.expected_zip_sha }}
-          RELEASE_COMMIT: ${{ inputs.windows_source_ref }}
-        run: |
-          $Zips = @(Get-ChildItem 'build/diagnostic-download/*-windows-x86_64.zip')
-          if ($Zips.Count -ne 1) { throw 'Expected exactly one Windows package' }
-          $Zip = $Zips[0]
-          $Expected = ((Get-Content ($Zip.FullName + '.sha256') -Raw) -split '\s+')[0]
-          $Digest = (Get-FileHash $Zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($Expected -notmatch '^[a-fA-F0-9]{64}$' -or $Expected -ne $Digest) { throw 'Package SHA256 mismatch' }
-          if ($env:PINNED_SHA -and $env:PINNED_SHA -ne $Digest) { throw 'Package differs from pinned SHA256' }
-          Expand-Archive $Zip.FullName build/diagnostic-app
-          $Provenance = Get-Content build/diagnostic-app/Karaoke/licenses/SOURCE.json -Raw | ConvertFrom-Json
-          $SourceCommit = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:SOURCE_RUN" --jq .head_sha
-          if ($LASTEXITCODE -ne 0) { throw 'Could not identify packaging run' }
-          if ($env:RELEASE_COMMIT) { $SourceCommit = $env:RELEASE_COMMIT }
-          if ($SourceCommit -notmatch '^[a-f0-9]{40}$' -or $Provenance.application_commit -ne $SourceCommit) { throw 'Archive does not identify the requested source run' }
-          New-Item -ItemType Directory -Force build/windows-desktop-smoke | Out-Null
-          @{archive=$Zip.Name; sha256=$Digest; source_run=$env:SOURCE_RUN; source_commit=$SourceCommit; test_commit=$env:GITHUB_SHA} |
-            ConvertTo-Json | Set-Content build/windows-desktop-smoke/verified-package.json
-          "DIAGNOSTIC_ZIP=$($Zip.FullName)" >> $env:GITHUB_ENV
-      - uses: msys2/setup-msys2@v2
-        id: graphics
-        with:
-          msystem: UCRT64
-          update: false
-          install: mingw-w64-ucrt-x86_64-mesa mingw-w64-ucrt-x86_64-binutils
-      - name: Prepare a software-rendered copy of the exact artifact
-        run: |
-          uv sync --locked
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          uv run python scripts/prepare_ci_graphics.py --package build/diagnostic-app/Karaoke --tools "${{ steps.graphics.outputs.msys2-location }}/ucrt64/bin" --output build/diagnostic-ci-runtime
-      - name: Verify desktop startup and singing controls
-        timeout-minutes: 4
-        run: uv run python scripts/smoke_desktop.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke --package-archive "$env:DIAGNOSTIC_ZIP" --source-run "https://github.com/${{ github.repository }}/actions/runs/$env:SOURCE_RUN" --check-cursor
-      - name: Verify live pitch on the singing screen
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 5
-        run: uv run python scripts/test_live_pitch.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke/pitch
-      - name: Score two singers at all three pitch precision settings
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 5
-        run: |
-          uv run python scripts/test_pitch_precision.py --launcher "$env:KARAOKE_CI_LAUNCHER" 2>&1 | Tee-Object build/windows-desktop-smoke/precision.log
-          exit $LASTEXITCODE
-      - name: Verify turn menus and room closure with three mobile browsers
-        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
-        timeout-minutes: 5
-        run: |
-          uv run --locked --with playwright python scripts/test_remote_browser.py --channel chrome --launcher "$env:KARAOKE_CI_LAUNCHER" 2>&1 | Tee-Object build/windows-desktop-smoke/mobile.log
-          exit $LASTEXITCODE
-      - uses: actions/upload-artifact@v4
-        if: always() && !cancelled()
-        with:
-          name: windows-desktop-diagnostic
-          path: build/windows-desktop-smoke
-          if-no-files-found: warn
-
-  stage-windows-release:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'stage-windows-release' }}
-    name: Verify and stage Windows draft assets
+  assets:
+    name: ${{ matrix.arch }} release verification
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     permissions:
-      contents: write
       actions: read
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {arch: arm64, artifact: karaoke-macos-latest}
+          - {arch: x86_64, artifact: karaoke-macos-15-intel}
+          - {arch: windows, artifact: karaoke-windows-x86_64}
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_RUN: ${{ inputs.artifact_run_id }}
-      EXPECTED_ZIP_SHA: ${{ inputs.expected_zip_sha }}
+      SOURCE_RUN: ${{ inputs.source_run }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      ARCHITECTURE: ${{ matrix.arch }}
+      MODE: ${{ inputs.mode }}
     steps:
       - uses: actions/checkout@v4
-      - name: Validate exact artifact reference
+        with:
+          path: tools
+          sparse-checkout: scripts
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_commit }}
+          path: candidate
+          persist-credentials: false
+      - name: Verify origin, target commit, workflow, platform and successful source run
         run: |
-          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] || exit 1
-          [[ "$EXPECTED_ZIP_SHA" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
-          test "$(gh release view v0.3.1 --repo AlexAmMo/karaoke --json isDraft --jq .isDraft)" = true
+          opts=()
+          if [[ "$MODE" == stage ]]; then opts+=(--stage); fi
+          python3 tools/scripts/stage_mac_candidate.py --preflight --run "$SOURCE_RUN" --commit "$SOURCE_COMMIT" --arch "$ARCHITECTURE" --candidate candidate "${opts[@]}"
       - uses: actions/download-artifact@v4
         with:
-          name: karaoke-windows-x86_64
-          path: build/release-recovery
-          run-id: ${{ inputs.artifact_run_id }}
+          name: ${{ matrix.artifact }}
+          path: packages
+          run-id: ${{ inputs.source_run }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
+        if: matrix.arch == 'windows'
         with:
           name: windows-desktop-smoke
-          path: build/release-recovery/smoke
-          run-id: ${{ inputs.artifact_run_id }}
+          path: packages/smoke
+          run-id: ${{ inputs.source_run }}
           github-token: ${{ github.token }}
-      - name: Verify split and stage draft assets
-        run: python3 scripts/stage_windows_release.py --input build/release-recovery --output build/release-staging --run-id "$SOURCE_RUN" --expected-zip-sha "$EXPECTED_ZIP_SHA"
+      - name: Verify files and optionally upload matching assets to existing draft
+        run: |
+          mkdir -p verification
+          opts=()
+          if [[ "$MODE" == stage ]]; then opts+=(--stage); fi
+          if [[ "$ARCHITECTURE" == windows ]]; then
+            package_sha=$(jq -er '.package_sha256' packages/smoke/result.json)
+            python3 tools/scripts/stage_windows_release.py --input packages --output verification --run-id "$SOURCE_RUN" --commit "$SOURCE_COMMIT" --expected-zip-sha "$package_sha" "${opts[@]}"
+          else
+            python3 tools/scripts/stage_mac_candidate.py --run "$SOURCE_RUN" --commit "$SOURCE_COMMIT" --arch "$ARCHITECTURE" --candidate candidate --input packages --report verification/verification.json "${opts[@]}"
+          fi
       - uses: actions/upload-artifact@v4
-        if: always() && !cancelled()
         with:
-          name: windows-release-verification
-          path: |
-            build/release-staging/verification.json
-            build/release-staging/*.md
-            build/release-staging/*.sha256
-          if-no-files-found: warn
+          name: release-verification-${{ matrix.arch }}
+          path: verification/verification.json
+          if-no-files-found: error

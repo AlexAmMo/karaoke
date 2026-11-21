@@ -13,6 +13,7 @@ import tarfile
 import zipfile
 
 from package_macos import VERSION
+from stage_mac_candidate import stage
 
 REPO = 'AlexAmMo/karaoke'
 TAG = 'v' + VERSION
@@ -32,12 +33,6 @@ def gh_json(*args):
     return json.loads(subprocess.check_output(['gh', *args], text=True))
 
 
-def require_draft():
-    release = gh_json('release', 'view', TAG, '--repo', REPO, '--json', 'isDraft,tagName')
-    if release['isDraft'] is not True or release['tagName'] != TAG:
-        raise RuntimeError('Refusing to stage assets: the existing release must still be a draft')
-
-
 def check_sidecar(path):
     expected, name = Path(str(path) + '.sha256').read_text().strip().split()
     if name != path.name or not re.fullmatch('[a-fA-F0-9]{64}', expected):
@@ -50,6 +45,8 @@ def check_sidecar(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--commit', required=True)
+    parser.add_argument('--stage', action='store_true')
     parser.add_argument('--input', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--run-id', required=True)
@@ -57,9 +54,8 @@ def main():
     args = parser.parse_args()
     if not args.run_id.isdecimal() or not re.fullmatch('[a-fA-F0-9]{64}', args.expected_zip_sha):
         raise RuntimeError('An exact run and expected package SHA256 are required')
-    require_draft()
     run = gh_json('api', f'repos/{REPO}/actions/runs/{args.run_id}')
-    if run['conclusion'] != 'success':
+    if run['conclusion'] != 'success' or run['head_sha'] != args.commit:
         raise RuntimeError('Source build run did not succeed')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -70,6 +66,8 @@ def main():
         raise RuntimeError('Package differs from the explicitly requested build')
     source_hash = check_sidecar(source)
     smoke = json.loads((args.input / 'smoke/result.json').read_text(encoding='utf-8'))
+    if smoke.get('source_run') != f'https://github.com/{REPO}/actions/runs/{args.run_id}':
+        raise RuntimeError('Desktop smoke report is from another run')
     if smoke.get('passed') is not True or smoke.get('package_sha256') != package_hash or smoke.get('frozen_provider_stdin') is not True:
         raise RuntimeError('Missing matching successful frozen-worker/desktop evidence')
     with zipfile.ZipFile(package) as archive:
@@ -172,17 +170,9 @@ The extracted `corresponding-sources/BUILDING.md`, manifests and source packages
 ''', encoding='utf-8')
     assets = [package, Path(str(package) + '.sha256'), *(output / item['name'] for item in parts), parts_checksum, source_checksum, readme]
     expected_assets = {asset.name: {'bytes': asset.stat().st_size, 'sha256': digest(asset)} for asset in assets}
-    require_draft()
-    subprocess.run(['gh', 'release', 'upload', TAG, '--repo', REPO, '--clobber', *(str(asset) for asset in assets)], check=True)
-    remote = gh_json('release', 'view', TAG, '--repo', REPO, '--json', 'isDraft,assets')
-    if remote['isDraft'] is not True:
-        raise RuntimeError('Release changed state while staging')
-    by_name = {asset['name']: asset for asset in remote['assets']}
-    for name, expected in expected_assets.items():
-        asset = by_name.get(name, {})
-        if asset.get('state') != 'uploaded' or asset.get('size') != expected['bytes'] or asset.get('digest') != 'sha256:' + expected['sha256']:
-            raise RuntimeError('Remote asset verification failed: ' + name)
-    report = {'ci_run': f'https://github.com/{REPO}/actions/runs/{args.run_id}', 'application_commit': provenance['application_commit'], 'archive': package.name, 'archive_bytes': package.stat().st_size, 'archive_sha256': package_hash, 'installed_uncompressed_bytes': installed_size, 'launcher_sha256': launcher_hash, 'native_executable_sha256': engine_hash, 'engine_audio_dependencies': audio_dlls, 'pe_files_amd64': len(pe_files), 'media_dependency_files': len(audit['media_dependencies']), 'media_smoke_path': audit['media_smoke_path'], 'dependency_source_archive': source.name, 'dependency_source_bytes': source.stat().st_size, 'dependency_source_sha256': source_hash, 'dependency_source_entries': len(manifest['items']), 'dependency_source_groups': dict(Counter(item['group'] for item in manifest['items'])), 'dependency_source_unresolved': [], 'source_parts': parts, 'source_parts_checksums': parts_checksum.name, 'source_full_checksum': source_checksum.name, 'source_reassembly_instructions': readme.name, 'desktop_smoke': {key: smoke[key] for key in ('passed', 'frozen_provider_stdin', 'platform', 'engine_state', 'graphics_audio_log', 'ci_audio_driver', 'elapsed_seconds')}, 'validation_scope': 'Windows software startup and clean quit, frozen provider stdin, AMD64 dependency audit and isolated media startup. Native desktop tested in a disposable copy with CI-only Mesa llvmpipe graphics and SDL dummy audio. No physical microphone, monitoring latency, hardware GPU or Windows singing session validated.', 'draft_assets_verified': expected_assets, 'release_is_draft': True}
+    if args.stage:
+        stage({asset: expected_assets[asset.name]['sha256'] for asset in assets}, args.commit)
+    report = {'ci_run': f'https://github.com/{REPO}/actions/runs/{args.run_id}', 'application_commit': provenance['application_commit'], 'archive': package.name, 'archive_bytes': package.stat().st_size, 'archive_sha256': package_hash, 'installed_uncompressed_bytes': installed_size, 'launcher_sha256': launcher_hash, 'native_executable_sha256': engine_hash, 'engine_audio_dependencies': audio_dlls, 'pe_files_amd64': len(pe_files), 'media_dependency_files': len(audit['media_dependencies']), 'media_smoke_path': audit['media_smoke_path'], 'dependency_source_archive': source.name, 'dependency_source_bytes': source.stat().st_size, 'dependency_source_sha256': source_hash, 'dependency_source_entries': len(manifest['items']), 'dependency_source_groups': dict(Counter(item['group'] for item in manifest['items'])), 'dependency_source_unresolved': [], 'source_parts': parts, 'source_parts_checksums': parts_checksum.name, 'source_full_checksum': source_checksum.name, 'source_reassembly_instructions': readme.name, 'desktop_smoke': {key: smoke[key] for key in ('passed', 'frozen_provider_stdin', 'platform', 'engine_state', 'graphics_audio_log', 'ci_audio_driver', 'elapsed_seconds')}, 'validation_scope': 'Windows software startup and clean quit, frozen provider stdin, AMD64 dependency audit and isolated media startup. Native desktop tested in a disposable copy with CI-only Mesa llvmpipe graphics and SDL dummy audio. No physical microphone, monitoring latency, hardware GPU or Windows singing session validated.', 'assets_verified': expected_assets, 'remote_draft_assets_verified': args.stage}
     (output / 'verification.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     print(json.dumps(report, indent=2), flush=True)
 
