@@ -77,6 +77,11 @@ def test_worker_progress_pauses_while_singing_and_resumes(tmp_path):
         'Path(sys.argv[2]).write_text("ok")\n',
         encoding="utf-8",
     )
+    launcher = tmp_path / "launch.py"
+    launcher.write_text(
+        "import subprocess,sys\nsys.exit(subprocess.call([sys.executable,*sys.argv[1:]]))\n",
+        encoding="utf-8",
+    )
     with ThreadPoolExecutor(max_workers=1) as pool, patch("karaoke.generation_lab.WORKER", script):
         try:
             uid = lab.enqueue("IA0uSub1xy4", "Prueba", "", "es", "quality")
@@ -84,7 +89,8 @@ def test_worker_progress_pauses_while_singing_and_resumes(tmp_path):
             host.store.execute("UPDATE drafts SET state='working' WHERE id=?", (uid,))
             release = tmp_path / "resume"
             task = pool.submit(
-                lab.run, [sys.executable, script, release, marker], lab.row(uid), tmp_path / "log"
+                lab.run, [sys.executable, launcher, script, release, marker],
+                lab.row(uid), tmp_path / "log"
             )
             deadline = time.monotonic() + 8
             while (

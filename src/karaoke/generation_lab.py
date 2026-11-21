@@ -78,6 +78,7 @@ class GenerationLab:
         self.cancelled = threading.Event()
         self.closing = False
         self.analyzing = self.paused = False
+        self.suspended_processes = []
         self.stage = ""
 
     @property
@@ -212,6 +213,7 @@ class GenerationLab:
             with self.lock:
                 self.process = None
                 self.paused = self.analyzing = False
+                self.suspended_processes.clear()
         if self.cancelled.is_set():
             raise SongError("Generación cancelada.")
         if code:
@@ -358,14 +360,36 @@ class GenerationLab:
             if os.name == "nt":
                 import psutil
 
-                try:
-                    process = psutil.Process(self.process.pid)
-                    if pause:
-                        process.suspend()
-                    else:
-                        process.resume()
-                except psutil.Error:
-                    return
+                if pause:
+                    # A Windows virtual environment can launch a second python.exe.
+                    # Freeze each parent before walking its children so that the
+                    # actual analyzer and any external tools also stop consuming CPU.
+                    try:
+                        pending = [psutil.Process(self.process.pid)]
+                        while pending:
+                            child = pending.pop()
+                            try:
+                                child.suspend()
+                                self.suspended_processes.append(child)
+                                pending.extend(child.children())
+                            except psutil.NoSuchProcess:
+                                continue
+                    except psutil.Error:
+                        for child in reversed(self.suspended_processes):
+                            with contextlib.suppress(psutil.Error):
+                                child.resume()
+                        self.suspended_processes.clear()
+                        return
+                else:
+                    while self.suspended_processes:
+                        child = self.suspended_processes[-1]
+                        try:
+                            child.resume()
+                        except psutil.NoSuchProcess:
+                            pass
+                        except psutil.Error:
+                            return
+                        self.suspended_processes.pop()
             else:
                 import signal
 
