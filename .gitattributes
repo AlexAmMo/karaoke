@@ -1,5 +1,7 @@
 # Patch context and UltraStar syllable delimiters intentionally contain whitespace.
 *.patch -whitespace
 technical-spike/fixtures/**/*.txt -whitespace
+# Python sources have recorded SHA-256 values; keep checkout bytes identical on Windows.
+*.py text eol=lf
 # CSV exports use CRLF; preserve their bytes for the recorded SHA-256 values.
 docs/validation/*.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
