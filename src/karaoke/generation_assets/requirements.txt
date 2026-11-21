@@ -209,8 +209,6 @@ pyyaml==6.0.4
     #   demucs
     #   huggingface-hub
     #   omegaconf
-rapidfuzz==3.14.6
-    # via -r src/karaoke/generation_assets/requirements.in
 regex==2026.11.19
     # via uroman
 requests==2.34.2
