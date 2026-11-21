@@ -104,7 +104,7 @@ def main():
     if target.exists():
         shutil.rmtree(target)
     shutil.copytree(python_dist / 'karaoke', target)
-    shutil.copytree(engine, target / 'engine', ignore=shutil.ignore_patterns('*.debug', '*.o', '*.ppu', '*.a', '*.log', '*.db', 'bass.dll'))
+    shutil.copytree(engine, target / 'engine', ignore=shutil.ignore_patterns('*.debug', '*.o', '*.ppu', '*.a', '*.log', '*.db', 'bass.dll', 'SDL2.dll'))
     # No personal config, songs, or captured audio are part of a distribution.
     for filename in ('config.ini', 'Ultrastar.db'):
         (target / 'engine' / filename).unlink(missing_ok=True)
@@ -120,9 +120,13 @@ def main():
     if not msys_licenses.is_dir():
         raise RuntimeError('MSYS2 runtime license directory is missing: ' + str(msys_licenses))
     shutil.copytree(msys_licenses, target / 'licenses/msys2', dirs_exist_ok=True)
+    # SDL2-compat loads SDL3 dynamically. Ship both with the game and follow
+    # their PE imports so the engine can run without an ambient MSYS2 PATH.
+    audio_runtime = bundle_tools(target / 'engine', args.tools,
+                                [args.tools / 'SDL2.dll', args.tools / 'SDL3.dll'])
     manifest = bundle_tools(target / 'bin', args.tools)
     smoke_environment = dict(os.environ, PATH=os.pathsep.join([str(target / 'bin'), str(Path(os.environ['WINDIR']) / 'System32'), os.environ['WINDIR']]))
-    audit = {'media_smoke_path': smoke_environment['PATH'], 'platform': 'windows-x86_64', 'pe_architecture': audit_pe(target), 'media_dependencies': manifest, 'physical_audio_validated': False, 'audio_backend': 'SDL capture/playback; BASS is disabled and excluded by the fork.'}
+    audit = {'media_smoke_path': smoke_environment['PATH'], 'platform': 'windows-x86_64', 'pe_architecture': audit_pe(target), 'media_dependencies': manifest, 'engine_audio_dependencies': audio_runtime, 'physical_audio_validated': False, 'audio_backend': 'SDL capture/playback; BASS is disabled and excluded by the fork.'}
     (target / 'package-audit.json').write_text(json.dumps(audit, indent=2), encoding='utf-8')
     for name in ('ffmpeg', 'ffprobe', 'ffplay'):
         subprocess.run([str(target / 'bin' / (name + '.exe')), '-version'], check=True, stdout=subprocess.DEVNULL, timeout=30, env=smoke_environment)

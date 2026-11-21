@@ -82,6 +82,12 @@ def main():
             raise RuntimeError('Package architecture audit is not uniformly AMD64')
         if 'Karaoke/engine/opengl32.dll' in archive.namelist():
             raise RuntimeError('CI-only graphics driver leaked into the product ZIP')
+        audio_dlls = {item['file']: item['sha256'] for item in audit['engine_audio_dependencies']}
+        if not {'sdl2.dll', 'sdl3.dll'}.issubset(name.lower() for name in audio_dlls):
+            raise RuntimeError('Native SDL compatibility or streaming runtime is absent')
+        for name, expected in audio_dlls.items():
+            if hashlib.sha256(archive.read('Karaoke/engine/' + name)).hexdigest() != expected:
+                raise RuntimeError('Native audio dependency differs from its build audit: ' + name)
         launcher_hash = hashlib.sha256(archive.read('Karaoke/karaoke.exe')).hexdigest()
         if launcher_hash != smoke['launcher_sha256']:
             raise RuntimeError('Desktop probe did not use this frozen launcher')
@@ -90,6 +96,10 @@ def main():
     with tarfile.open(source, 'r:gz') as archive:
         members = {member.name for member in archive.getmembers()}
         manifest = json.load(archive.extractfile('corresponding-sources/source-manifest.json'))
+        source_packages = {item['name'] for item in manifest['items'] if item['group'] == 'msys2-complete'}
+        for package_name in ('sdl2-compat', 'sdl3'):
+            if 'mingw-w64-ucrt-x86_64-' + package_name + '-allsource' not in source_packages:
+                raise RuntimeError('Corresponding sources missing for ' + package_name)
         if manifest['unresolved']:
             raise RuntimeError('Dependency sources have unresolved entries: ' + str(manifest['unresolved']))
         for item in manifest['items']:
@@ -172,7 +182,7 @@ The extracted `corresponding-sources/BUILDING.md`, manifests and source packages
         asset = by_name.get(name, {})
         if asset.get('state') != 'uploaded' or asset.get('size') != expected['bytes'] or asset.get('digest') != 'sha256:' + expected['sha256']:
             raise RuntimeError('Remote asset verification failed: ' + name)
-    report = {'ci_run': f'https://github.com/{REPO}/actions/runs/{args.run_id}', 'application_commit': provenance['application_commit'], 'archive': package.name, 'archive_bytes': package.stat().st_size, 'archive_sha256': package_hash, 'installed_uncompressed_bytes': installed_size, 'launcher_sha256': launcher_hash, 'native_executable_sha256': engine_hash, 'pe_files_amd64': len(pe_files), 'media_dependency_files': len(audit['media_dependencies']), 'media_smoke_path': audit['media_smoke_path'], 'dependency_source_archive': source.name, 'dependency_source_bytes': source.stat().st_size, 'dependency_source_sha256': source_hash, 'dependency_source_entries': len(manifest['items']), 'dependency_source_groups': dict(Counter(item['group'] for item in manifest['items'])), 'dependency_source_unresolved': [], 'source_parts': parts, 'source_parts_checksums': parts_checksum.name, 'source_full_checksum': source_checksum.name, 'source_reassembly_instructions': readme.name, 'desktop_smoke': {key: smoke[key] for key in ('passed', 'frozen_provider_stdin', 'platform', 'engine_state', 'graphics_audio_log', 'ci_audio_driver', 'elapsed_seconds')}, 'validation_scope': 'Windows software startup and clean quit, frozen provider stdin, AMD64 dependency audit and isolated media startup. Native desktop tested in a disposable copy with CI-only Mesa llvmpipe graphics and SDL dummy audio. No physical microphone, monitoring latency, hardware GPU or Windows singing session validated.', 'draft_assets_verified': expected_assets, 'release_is_draft': True}
+    report = {'ci_run': f'https://github.com/{REPO}/actions/runs/{args.run_id}', 'application_commit': provenance['application_commit'], 'archive': package.name, 'archive_bytes': package.stat().st_size, 'archive_sha256': package_hash, 'installed_uncompressed_bytes': installed_size, 'launcher_sha256': launcher_hash, 'native_executable_sha256': engine_hash, 'engine_audio_dependencies': audio_dlls, 'pe_files_amd64': len(pe_files), 'media_dependency_files': len(audit['media_dependencies']), 'media_smoke_path': audit['media_smoke_path'], 'dependency_source_archive': source.name, 'dependency_source_bytes': source.stat().st_size, 'dependency_source_sha256': source_hash, 'dependency_source_entries': len(manifest['items']), 'dependency_source_groups': dict(Counter(item['group'] for item in manifest['items'])), 'dependency_source_unresolved': [], 'source_parts': parts, 'source_parts_checksums': parts_checksum.name, 'source_full_checksum': source_checksum.name, 'source_reassembly_instructions': readme.name, 'desktop_smoke': {key: smoke[key] for key in ('passed', 'frozen_provider_stdin', 'platform', 'engine_state', 'graphics_audio_log', 'ci_audio_driver', 'elapsed_seconds')}, 'validation_scope': 'Windows software startup and clean quit, frozen provider stdin, AMD64 dependency audit and isolated media startup. Native desktop tested in a disposable copy with CI-only Mesa llvmpipe graphics and SDL dummy audio. No physical microphone, monitoring latency, hardware GPU or Windows singing session validated.', 'draft_assets_verified': expected_assets, 'release_is_draft': True}
     (output / 'verification.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     print(json.dumps(report, indent=2), flush=True)
 

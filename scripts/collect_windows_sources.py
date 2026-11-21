@@ -68,11 +68,12 @@ def main():
     local = msys / 'var/lib/pacman/local'
     target = ROOT / 'dist/Karaoke'
     manifest = json.loads((target / 'package-audit.json').read_text())
-    for dependency in manifest['media_dependencies']:
+    dependencies = manifest['media_dependencies'] + manifest.get('engine_audio_dependencies', [])
+    for dependency in dependencies:
         file = Path(dependency['source'])
         if file.is_relative_to(msys) and hashlib.sha256(file.read_bytes()).hexdigest() != dependency['sha256']:
             raise RuntimeError('Installed dependency changed since packaging: ' + str(file))
-    required = {str(Path(m['source']).relative_to(msys)).replace('\\', '/').lower() for m in manifest['media_dependencies'] if Path(m['source']).is_relative_to(msys)}
+    required = {str(Path(m['source']).relative_to(msys)).replace('\\', '/').lower() for m in dependencies if Path(m['source']).is_relative_to(msys)}
     owners = {}
     for folder in local.iterdir():
         if not (folder / 'files').exists(): continue

@@ -166,6 +166,7 @@ jobs:
             mingw-w64-ucrt-x86_64-git
             mingw-w64-ucrt-x86_64-ntldd
             mingw-w64-ucrt-x86_64-nasm
+            mingw-w64-ucrt-x86_64-sdl2-compat
             mingw-w64-ucrt-x86_64-ffmpeg
             patch
             unzip
@@ -247,6 +248,11 @@ jobs:
           ./autogen.sh
           ./configure --without-opencv --without-libprojectM
           make
+      - name: Verify the provider of the native SDL runtime
+        shell: msys2 {0}
+        run: |
+          test "$(pacman -Qqo /ucrt64/bin/SDL2.dll)" = mingw-w64-ucrt-x86_64-sdl2-compat
+          test "$(pacman -Qqo /ucrt64/bin/SDL3.dll)" = mingw-w64-ucrt-x86_64-sdl3
       - name: Package Python and media tools
         id: package
         run: |
