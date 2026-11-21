@@ -1,7 +1,6 @@
 name: Isolate the lead singer in the frozen Creative Commons masters
 on:
-  push:
-    branches: [codex/validar-voz-principal-20261121]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
