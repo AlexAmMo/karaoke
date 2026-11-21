@@ -93,8 +93,8 @@ def run(args):
     cases.sort(key=lambda r: (hashlib.sha256(r["tag"].encode()).hexdigest(), r["tag"]))
     args.output.mkdir(exist_ok=True, parents=True)
     whisper, separator, _ = worker.prepare(args.cache.resolve(), "quality", args.model_dir)
-    model = WhisperModel(str(whisper), device="cpu", compute_type="int8", cpu_threads=3)
     tasks = []
+    waiting = []
     for row in cases:
         tag = row["tag"]
         if Path(tag).name != tag or tag in (".", ".."):
@@ -154,16 +154,26 @@ def run(args):
                     timing, "separate", lambda: worker.split_vocals(mix, tmp, separator)
                 )
                 local.replace(voice)
-        if not stage:
-            spans, lang = record_time(
-                timing,
-                "asr",
-                lambda: worker.transcribe(voice, whisper, row["language"], model=model),
-            )
-            stage = {"words": spans, "language": lang, "signature": signature, "seconds": timing}
-            save(checkpoint, stage)
-            print("transcribed", tag, timing, flush=True)
+        stage.setdefault("signature", signature)
+        stage.setdefault("seconds", timing)
+        if "words" not in stage:
+            waiting.append((voice, row["language"], stage, checkpoint))
         tasks.append((row, voice, offset, stage, folder))
+    # Keep the ASR weights out of memory while separating full recordings.
+    model = (
+        WhisperModel(str(whisper), device="cpu", compute_type="int8", cpu_threads=3)
+        if waiting
+        else None
+    )
+    for voice, language, stage, checkpoint in waiting:
+        spans, language = record_time(
+            stage["seconds"],
+            "asr",
+            lambda: worker.transcribe(voice, whisper, language, model=model),
+        )
+        stage.update(words=spans, language=language)
+        save(checkpoint, stage)
+        print("transcribed", checkpoint.parent.name, stage["seconds"], flush=True)
     model = None
     gc.collect()
     for row, voice, offset, stage, folder in tasks:
