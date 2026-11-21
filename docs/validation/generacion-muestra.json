@@ -1,0 +1,402 @@
+[
+  {
+    "tag": "jonathan-coulton-mr-fancy-pants",
+    "language": "en",
+    "title": "Mr. Fancy Pants",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "92b093a17f15538eeff3cc4abd7da224db4011ff88389882b121770ae32948b5",
+    "chart_sha": "89d0d771278aa618676773f76d0840ead725e74e714131e2c24c666db5ed81c9",
+    "source": "deluxe"
+  },
+  {
+    "tag": "dead-smiling-pirates-i-18",
+    "language": "en",
+    "title": "I 18",
+    "artist": "Dead Smiling Pirates",
+    "audio_sha": "6770d2cbf64c9500b222001f02a5c745a252615e9009ec0b35035bb2e54cc178",
+    "chart_sha": "b7598ef7356a90bf3b7f497e72cff0ee9f5cae00f5a64173b234c953fbeed63a",
+    "source": "deluxe"
+  },
+  {
+    "tag": "shearer-consequence-of-dawn",
+    "language": "en",
+    "title": "Consequence Of Dawn",
+    "artist": "Shearer",
+    "audio_sha": "c581890163ccf318c34608a13e3f97cda5be25ae9a0db6dd5e5fd1b9dfc0bc45",
+    "chart_sha": "e97a5fffd98ad38472074c3d971b45bff76b3b5599b1059d2ab89173b49e83f2",
+    "source": "deluxe"
+  },
+  {
+    "tag": "fairy-bot-orchestra-heaven-can-t-wait",
+    "language": "en",
+    "title": "Heaven can't wait",
+    "artist": "Fairy Bot Orchestra",
+    "audio_sha": "ef5a50da1b0caafc6d93072814ba07b6eeacde7559ce64feab28375f82d92ac2",
+    "chart_sha": "bb141f02d084bf9cab6199962d0b68a446d567e4480ddaf3d11b4ad322b534c6",
+    "source": "deluxe"
+  },
+  {
+    "tag": "silver-note-chasing-marks",
+    "language": "en",
+    "title": "Chasing Marks",
+    "artist": "Silver Note",
+    "audio_sha": "a092fe52ce64c5e1dc0abf18b22e9fda2a184a685a4a363c56573c90270a7ead",
+    "chart_sha": "5140342e69d89f8f8da5e146ded4eaa78f5584ace35271b9b09b79e6e483b000",
+    "source": "deluxe"
+  },
+  {
+    "tag": "on-the-run",
+    "language": "en",
+    "title": "On the run",
+    "artist": "Joshua Morin",
+    "audio_sha": "5ba89ddf982ee0144b6977c813b86e0f69d773e6593bf0e444ed2349f517a2a8",
+    "chart_sha": "4d05f5070b8755e2bbae267db1eda9cc94bddc429f0a7ee4ab479e3d55a316fb",
+    "source": "deluxe"
+  },
+  {
+    "tag": "pornophonique-space-invaders",
+    "language": "en",
+    "title": "Space Invaders",
+    "artist": "Pornophonique",
+    "audio_sha": "de567daa4f3d114ec1e098721c44cdcf11cfbf572998cff45293336433ab39a9",
+    "chart_sha": "cd9333183fed2ea581ca881fb722795d7a069b8747c5b1a4472736b40df8b638",
+    "source": "deluxe"
+  },
+  {
+    "tag": "wasteland-wailers-dare-master",
+    "language": "en",
+    "title": "Dare Master",
+    "artist": "Wasteland Wailers",
+    "audio_sha": "7a332c60f7b726c5cab010ef8580902ccb8fe77c75b0d36ab9722a518e8b3a18",
+    "chart_sha": "78dd01a49efdec1d4adbceeb9e3ef082718d7b6bf5f9755038db93bd1d481be2",
+    "source": "deluxe"
+  },
+  {
+    "tag": "northern-star",
+    "language": "en",
+    "title": "Northern Star",
+    "artist": "Steven Dunston",
+    "audio_sha": "6b0556b54099ee33a7977aeef2b7a90cea116f1780668fedfab6bc78149a0afe",
+    "chart_sha": "a875a0e8d895f15201271c88e351a1eee6118907589d071362dd90dbb9588d4f",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-monkey-shines",
+    "language": "en",
+    "title": "Monkey Shines",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "f485cff6768dc4bf95f713bf20e672016477bbca57cb3e40873cd76cdb877771",
+    "chart_sha": "d3bbc96916f15daa6e122ca71fe66f98831f7932ae14429931d2dbb045c36598",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-i-feel-fantastic",
+    "language": "en",
+    "title": "I Feel Fantastic",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "0dcabdde9907ae45e91ee3f03652c1f2d49902706104c5da019f0042b9a3370c",
+    "chart_sha": "b0e705e3a59628069e9cc75d4d930dce20a62c4faf1d0899e1565f381810ca7a",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-not-about-you",
+    "language": "en",
+    "title": "Not About You",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "4e3154ed1f4ccc9a7d33142c6da21652912817c010176164e56311cfbb7c12be",
+    "chart_sha": "bebd3d7471ef4ce5ed95d828185d5c09a661563d498ba059c8e60ad336008fae",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-first-of-may",
+    "language": "en",
+    "title": "First of May",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "c582405b3705d6c517ee79b420251ec25b67d9394b6aba8d7c759f015f16674b",
+    "chart_sha": "a64bc6b019b764d5074f48f23e67c1751c96ad66a09961e5434168c3b1bd50af",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-when-you-go",
+    "language": "en",
+    "title": "When You Go",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "02eb9f853dffbfe067e33b99300cb8226bb60a5259a965c7a54b50494c35df20",
+    "chart_sha": "dd7f847a1f5e74ea08194e2d119e2b6ceb55e399be502e9214fd797b8f352ed2",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-code-monkey",
+    "language": "en",
+    "title": "Code Monkey",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "621732e2478f612ba4d15024d275e5cab7e127e347b41054d995cc66f0a1b36e",
+    "chart_sha": "87a3bfb1d3a77eee3f1ec0de3e309b373f8286d783139e782121ea161210371a",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-flickr",
+    "language": "en",
+    "title": "Flickr",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "32f1484bf4161060213480eb44f04151f17290368fbebfb991a2f340e879bf74",
+    "chart_sha": "6a907996cca64db610de4c2e62504a91efacb08e9c950210e148a4c5ae7fd577",
+    "source": "deluxe"
+  },
+  {
+    "tag": "shearer-stay-with-me",
+    "language": "en",
+    "title": "Stay with me",
+    "artist": "Shearer",
+    "audio_sha": "f65c439e9efaf6e4d9450904a8d4f2613d90948973ef01297be282a9ba9846f0",
+    "chart_sha": "6e5cfef4b6f4f3098776e50e194630c9e4faad6a85ab64fc7c4174a35750ce6c",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-chiron-beta-prime",
+    "language": "en",
+    "title": "Chiron Beta Prime",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "a2bfd1c1e8fafa0c75f6da6b7e34265a328600b55910bd20472e6194fadf2d51",
+    "chart_sha": "29bf09852801f2b94b5052eb57c230fa0032dfc26cf41be840bc30652d4ed236",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-re-your-brains",
+    "language": "en",
+    "title": "Re: Your Brains",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "4dfb47499fe76ba682fe894c462a9facbde025ed6dd0848b4ff15e1bebc51ce7",
+    "chart_sha": "6264d309a1428346d8cc3ce8555e4d72b119dfcfb6e87086b92ad0285e28e17f",
+    "source": "deluxe"
+  },
+  {
+    "tag": "jonathan-coulton-creepy-doll",
+    "language": "en",
+    "title": "Creepy Doll",
+    "artist": "Jonathan Coulton",
+    "audio_sha": "86d632959d827108726d54633770cc922af5e1f254e07575a9dbb1079562d480",
+    "chart_sha": "2d381eb6fa31ec7480cf48bd2da9bc97914bcec42bebb8934d3cf876eaea5277",
+    "source": "deluxe"
+  },
+  {
+    "tag": "abba-estoy-sonando",
+    "language": "es",
+    "title": "Estoy soñando",
+    "artist": "ABBA",
+    "audio_sha": "279d88a2b5cac07c8d5cc7693ddf362927be374b46b8c5681bd58ad50b22a537",
+    "chart_sha": "4e0cc6dbb6b502c57c8e24450fa7ddc1e1486e8fa16e434718225d9fd13b7b33",
+    "source": "allkaraoke",
+    "video_id": "jlC3otqX8bc",
+    "reference_duration": 281
+  },
+  {
+    "tag": "amaia-y-alfred-tu-cancion",
+    "language": "es",
+    "title": "Tu Canción",
+    "artist": "Amaia y Alfred",
+    "audio_sha": "5471c6229848685b176c658245ae616cb5cba6e91e0a7bec9268cc95c1c7654b",
+    "chart_sha": "95302a689e32b425226f613e2fe2eb90185f97acc67bad976aca3359268b2aa3",
+    "source": "allkaraoke",
+    "video_id": "RDm-GGHYfU4",
+    "reference_duration": 197
+  },
+  {
+    "tag": "enanitos-verdes-lamento-boliviano",
+    "language": "es",
+    "title": "Lamento boliviano",
+    "artist": "Enanitos verdes",
+    "audio_sha": "21aecad65fa511333cc710a55577ac76ed884889070d9c7036ea14025d7a1cd8",
+    "chart_sha": "4a05ce46c0204175a377d824298a0060d9bee63fceec9bd702bff490d65774dd",
+    "source": "allkaraoke",
+    "video_id": "9eW5zIOCjOw",
+    "reference_duration": 228
+  },
+  {
+    "tag": "cristian-castro-azul",
+    "language": "es",
+    "title": "Azul",
+    "artist": "Cristian Castro",
+    "audio_sha": "d321a38e5fd9a053165447ec99084f84dbacb3d4d737bc4a09db0a85ba16341c",
+    "chart_sha": "bce3e392d9ac3f6eb7b43e750d23f349d730fa41f30f91546d0a219d624e7ddf",
+    "source": "allkaraoke",
+    "video_id": "29NM6ySmwfQ",
+    "reference_duration": 264
+  },
+  {
+    "tag": "karina-corazon-mentiroso",
+    "language": "es",
+    "title": "Corazón mentiroso",
+    "artist": "Karina",
+    "audio_sha": "897ede60b2cb5f05c5f355dbee97f1c2141e67be3eb6a6993913deb397178d96",
+    "chart_sha": "85c2b6164c73a4df35e15bdd763632ba363b67498af9cd1b46fe78d9f75232c1",
+    "source": "allkaraoke",
+    "video_id": "kWjYDyCwZI0",
+    "reference_duration": 180
+  },
+  {
+    "tag": "fito-paez-11-y-6",
+    "language": "es",
+    "title": "11 y 6",
+    "artist": "Fito Páez",
+    "audio_sha": "de7b734c3e24b69185dea5199e8561c4bc262cb01f04bbd0990a8a9b3d27f0c8",
+    "chart_sha": "9f3f9aa2ca7fa61850cfe801ba0147097a87f7b17b99709889784854523044c3",
+    "source": "allkaraoke",
+    "video_id": "ZweylZ8uiuw",
+    "reference_duration": 266
+  },
+  {
+    "tag": "despistaos-fisica-o-quimica",
+    "language": "es",
+    "title": "Física o química",
+    "artist": "Despistaos",
+    "audio_sha": "5e4670423ea1fcc483b81fe5eaaad807e0d1ad496497a72a9934c6599b68a896",
+    "chart_sha": "23e923c431df1b231a67195bf3d9251641f6b9e4bc2cca52204dd9b283813104",
+    "source": "allkaraoke",
+    "video_id": "6ikznQPMSv0",
+    "reference_duration": 196
+  },
+  {
+    "tag": "31-minutos-la-senora-interesante",
+    "language": "es",
+    "title": "La señora interesante",
+    "artist": "31 Minutos",
+    "audio_sha": "00308c1f8c50027a8a903e6cc3968e7e45d94a54e684b60b6b8467e48cdeabf2",
+    "chart_sha": "bd86aeca5a219bd7a12e1e85ac1f7ce4f045de3955e9fe961ba32b82111aa660",
+    "source": "allkaraoke",
+    "video_id": "S5nAZXrYJnE",
+    "reference_duration": 150
+  },
+  {
+    "tag": "alejandro-sanz-mi-soledad-y-yo",
+    "language": "es",
+    "title": "Mi soledad y yo",
+    "artist": "Alejandro Sanz",
+    "audio_sha": "aebf4821bfdb5dab42cc4cb40f87ff6c1ccdfab5b64c082f1dc93d39632fa716",
+    "chart_sha": "f11b2946964ceb0d99baabd02d57e687e528afdc835b3dec0aa6ea41815820c2",
+    "source": "allkaraoke",
+    "video_id": "6bnj1EvgjSE",
+    "reference_duration": 299
+  },
+  {
+    "tag": "fito-y-fitipaldis-por-la-boca-vive-el-pez",
+    "language": "es",
+    "title": "Por La Boca Vive El Pez",
+    "artist": "Fito Y Fitipaldis",
+    "audio_sha": "a1887c553b6215b99887ad32fd0c278b19cec2bf16a7ec878a7c4b800b0311ec",
+    "chart_sha": "5f072e63f27d44e5b1139424a936136d9c930d1b6a801a9588bdf5097790145d",
+    "source": "allkaraoke",
+    "video_id": "iUXs4Nt3Y7Y",
+    "reference_duration": 271
+  },
+  {
+    "tag": "el-sueno-de-morfeo-contigo-hasta-el-final",
+    "language": "es",
+    "title": "Contigo hasta el final",
+    "artist": "El Sueño de Morfeo",
+    "audio_sha": "743402068777762412c813a33ae74b1698d55ebbda207101f9158a5bd4bbc4f5",
+    "chart_sha": "65fe4fb12f638cb2036f5edfde6a6aae7bfda477e21b916ca27bff0ed0e27c05",
+    "source": "allkaraoke",
+    "video_id": "WQCvukXs35Y",
+    "reference_duration": 189
+  },
+  {
+    "tag": "bad-bunny-amorfoda",
+    "language": "es",
+    "title": "Amorfoda",
+    "artist": "Bad Bunny",
+    "audio_sha": "3e1219e9866df90ac4a883b8548422dccbd1465ba0ca840b741ecc5fd3555e76",
+    "chart_sha": "714a46c9e3d38447a296101c933273597bafa4233d6684aba305502adb169c6b",
+    "source": "allkaraoke",
+    "video_id": "kLpH1nSLJSs",
+    "reference_duration": 177
+  },
+  {
+    "tag": "shakira-loba",
+    "language": "es",
+    "title": "Loba",
+    "artist": "Shakira",
+    "audio_sha": "26222622710f0a59c8e7333724c8e4758dcccb71454211d634161a35dbbe3300",
+    "chart_sha": "caab0ba8c8f069740979146e9dd58a10b5468738c9dc631883238bc6e1a0fcce",
+    "source": "allkaraoke",
+    "video_id": "C7ssrLSheg4",
+    "reference_duration": 230
+  },
+  {
+    "tag": "kudai-escapar",
+    "language": "es",
+    "title": "Escapar",
+    "artist": "Kudai",
+    "audio_sha": "64998dd8314e762d83d76c5ee0dd4f71ad24c588149f656061ceef2ff1d13752",
+    "chart_sha": "c449ff1cb32fe68bb2990f3949c43791979f7754d37427ff6714d6d9a4cf4c28",
+    "source": "allkaraoke",
+    "video_id": "yAkoQxjDfp8",
+    "reference_duration": 281
+  },
+  {
+    "tag": "selena-como-la-flor",
+    "language": "es",
+    "title": "Como la flor",
+    "artist": "Selena",
+    "audio_sha": "508a52dbdd143764aba0306339162d4f15cf4fdb63c730384d69e9c69f1b4f26",
+    "chart_sha": "a88927a9469de0a2f9ce739e0d8d74f48e2ab4141012b2d2d912953a5b99f643",
+    "source": "allkaraoke",
+    "video_id": "JsUt2jsLM1k",
+    "reference_duration": 183
+  },
+  {
+    "tag": "la-noche-quiero-ser-libre",
+    "language": "es",
+    "title": "Quiero ser libre",
+    "artist": "La Noche",
+    "audio_sha": "5aaea10b8a75d85829c92d3fde2e643bb773d3d386f3040652dc99e8de44acd3",
+    "chart_sha": "2e7c9f7b654c16c70f60427859e71488be280de0c63a3d6e69e240d92686d9af",
+    "source": "allkaraoke",
+    "video_id": "Y2m4VEjbM4o",
+    "reference_duration": 221
+  },
+  {
+    "tag": "shakira-y-ozuna-monotonia",
+    "language": "es",
+    "title": "Monotonía",
+    "artist": "Shakira y Ozuna",
+    "audio_sha": "93e7be103ec587323fabeb3b7ac899551a836f20a1cecc2a6e99dc4fcb1efbaf",
+    "chart_sha": "380927a5a85178d12133059f533cf779f4be99943150d02303f4cedd9628b91c",
+    "source": "allkaraoke",
+    "video_id": "j5y6xLpRwx4",
+    "reference_duration": 185
+  },
+  {
+    "tag": "nicky-jam-y-enrique-iglesias-el-perdon",
+    "language": "es",
+    "title": "El perdon",
+    "artist": "Nicky Jam y Enrique Iglesias",
+    "audio_sha": "9a6c4b14b3cc56f17be1e6a7995c09301eacfec6d3c93420f4bf5d4519d0ca6a",
+    "chart_sha": "68cf68cfca49fe5653768daa222d7ec055f25ec12f0d79ba053b97b9b26e0ed5",
+    "source": "allkaraoke",
+    "video_id": "1m7TF2nVV1c",
+    "reference_duration": 228
+  },
+  {
+    "tag": "la-vela-puerca-el-gavilan",
+    "language": "es",
+    "title": "El Gavilán",
+    "artist": "La Vela Puerca",
+    "audio_sha": "f82bbc95cd12996da14b8ab6b11e62045fedfe22dbc93c17714868031ea34e4e",
+    "chart_sha": "ee240ae795f0c275a38eef79a3c644d238aa102e3f92a988e748e8f9b1a82267",
+    "source": "allkaraoke",
+    "video_id": "qhIfmNk8gEQ",
+    "reference_duration": 120
+  },
+  {
+    "tag": "eslabon-armado-x-peso-pluma-ella-baila-sola",
+    "language": "es",
+    "title": "Ella baila sola",
+    "artist": "Eslabon Armado x Peso Pluma",
+    "audio_sha": "c21f1d6faef35d45d5c598fb06ca701ed0d19023b4eb636e0cbcc7a69c2dd05a",
+    "chart_sha": "9fea40ff44235a6896b2c420aee5ab9180c54b33ff90a03124e93c3ebfef99a3",
+    "source": "allkaraoke",
+    "video_id": "lSrLb_rERdI",
+    "reference_duration": 166
+  }
+]

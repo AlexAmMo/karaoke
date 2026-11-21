@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import parselmouth
 import soundfile as sf
 import torch
 from demucs.apply import apply_model
@@ -56,6 +55,8 @@ def transcribe(vocals, model, language):
 
 
 def make_chart(out, words):
+    import parselmouth
+
     voice, sr = sf.read(out / "voice.wav", always_2d=True)
     # Praat estimates a monophonic fundamental on the separated vocal stem.
     pitch = parselmouth.Sound(voice.mean(axis=1), sampling_frequency=sr).to_pitch_ac(

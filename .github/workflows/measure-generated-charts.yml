@@ -1,0 +1,42 @@
+name: Measure generated charts
+on:
+  push:
+    branches:
+      - codex/validar-generacion-20261121
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chart:
+    runs-on: macos-15
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install charting environment
+        run: |
+          command -v ffmpeg || brew install ffmpeg
+          uv venv .charting --python 3.12
+          uv pip install --python .charting/bin/python -r src/karaoke/generation_assets/requirements.txt requests
+      - name: Obtain and verify four official Creative Commons editions
+        env:
+          SHARD_ID: ${{ matrix.shard }}
+        run: |
+          .charting/bin/python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/recordings" --language en --shard "$SHARD_ID" --shards 5
+      - name: Generate full songs and score against human maps
+        run: |
+          .charting/bin/python -u scripts/benchmark_generation_corpus.py "$RUNNER_TEMP/recordings/manifest.json" "$RUNNER_TEMP/results" --cache "$RUNNER_TEMP/models" --lookup-lyrics
+      - name: Store only numbers and source checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: chart-metrics-${{ matrix.shard }}
+          path: ${{ runner.temp }}/results/results.json
+          if-no-files-found: error
+          retention-days: 7
