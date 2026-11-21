@@ -81,6 +81,8 @@ def check_singing_cursor(data, process):
     session.event('page:Buscar')
     field = visible_row('Buscar', lambda r: r.get('action') == 'field:query')
     session.event(field['action'], 'Probe A')
+    # This song can already be in the unfiltered view. Wait for the new query's action tokens.
+    visible_row('Buscar', lambda r: r.get('action') == field['action'] and r.get('value') == 'Probe A')
     hit = visible_row('Buscar', lambda r: r.get('label') == 'Probe A' and r.get('add_action'))
     session.event(hit['add_action'])
     session.wait(lambda _: any(turn['song_id'] == song['id'] for turn in session.queue()))
