@@ -384,10 +384,18 @@ index c5514a3..cd103d9 100644
        end;
        SDL_KEYDOWN, SDL_TEXTINPUT:
 diff --git a/src/base/URecord.pas b/src/base/URecord.pas
-index ea54f6b..2d44d96 100644
+index ea54f6b..2e3c8a6 100644
 --- a/src/base/URecord.pas
 +++ b/src/base/URecord.pas
-@@ -59,9 +59,11 @@ interface
+@@ -43,6 +43,7 @@ interface
+   UIni;
+ 
+ const
++  MaxPitchAgeMs = 200;
+   BaseToneFreq = 440; // A4 concert pitch of 440 Hz
+   NumHalftones = 49;  // C2 to C6 (1046.5023 Hz)
+ 
+@@ -59,12 +60,15 @@ interface
  
    TCaptureBuffer = class
      private
@@ -395,11 +403,15 @@ index ea54f6b..2d44d96 100644
        fVoiceStream: TAudioVoiceStream; // stream for voice passthrough
        fAnalysisBufferLock: PSDL_Mutex;
        fAudioFormat: TAudioFormatInfo;
-+      LastSamplesAt: cardinal;
++      LastCaptureTick, MaxPitchAgeTicks: QWord;
        Frequencies: TFrequencyArray;
        Delays: TDelayArray;
  
-@@ -75,11 +77,17 @@   TCaptureBuffer = class
++      function SamplesExpired(NowTick: QWord): boolean;
+       function GetToneString: string; // converts a tone to its string representation;
+ 
+       procedure BoostBuffer(Buffer: PByteArray; Size: integer);
+@@ -75,11 +79,17 @@   TCaptureBuffer = class
  
        procedure SetFrequenciesAndDelays;
        // we call it to analyze sound by checking AMDF
@@ -418,18 +430,37 @@ index ea54f6b..2d44d96 100644
      public
        AnalysisBuffer:  array[0..4095] of smallint; // newest 4096 samples (MUST BE POWER OF TWO!)
        AnalysisBufferSize: integer; // number of samples of BufferArray to analyze
-@@ -100,6 +108,7 @@   TCaptureBuffer = class
+@@ -100,6 +110,7 @@   TCaptureBuffer = class
  
        // use to analyze sound from buffers to get new pitch
        procedure AnalyzeBuffer;
-+      function DetectedPitch(RequireFresh: boolean): integer;
++      function DetectedPitch: integer;
        procedure LockAnalysisBuffer();
        procedure UnlockAnalysisBuffer();
  
-@@ -307,18 +316,46 @@ procedure TCaptureBuffer.Clear;
+@@ -275,6 +286,7 @@ constructor TCaptureBuffer.Create;
+   LogBuffer := TMemoryStream.Create;
+   fAnalysisBufferLock := SDL_CreateMutex();
+   AnalysisBufferSize := Length(AnalysisBuffer);
++  MaxPitchAgeTicks := SDL_GetPerformanceFrequency * MaxPitchAgeMs div 1000;
+ end;
+ 
+ destructor TCaptureBuffer.Destroy;
+@@ -303,22 +315,58 @@ procedure TCaptureBuffer.Clear;
+   if assigned(LogBuffer) then
+     LogBuffer.Clear;
+   LockAnalysisBuffer();
++  LastCaptureTick := 0;
+   FillChar(AnalysisBuffer[0], Length(AnalysisBuffer) * SizeOf(SmallInt), 0);
    UnlockAnalysisBuffer();
  end;
  
++function TCaptureBuffer.SamplesExpired(NowTick: QWord): boolean;
++begin
++  // The caller holds fAnalysisBufferLock for this timestamp and its PCM window.
++  Result := (LastCaptureTick = 0) or (NowTick - LastCaptureTick > MaxPitchAgeTicks);
++end;
++
 +procedure TCaptureBuffer.TestStart(Format: TAudioFormatInfo);
 +begin StartCapture(Format); end;
 +procedure TCaptureBuffer.TestStop;
@@ -443,6 +474,7 @@ index ea54f6b..2d44d96 100644
    SampleCount:  integer;
 -  i:            integer;
 +  i, Offset, Count: integer;
++  CaptureTick: QWord;
 +  Monitor: array[0..4095] of SmallInt;
 +  Gain: single;
  begin
@@ -475,25 +507,36 @@ index ea54f6b..2d44d96 100644
  
    // we assume that samples are in S16Int format
    // TODO: support float too
-@@ -345,6 +382,7 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
-     for i := 0 to High(AnalysisBuffer)-SampleCount do
-       AnalysisBuffer[i] := AnalysisBuffer[i+SampleCount];
+@@ -341,10 +389,15 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
+   LockAnalysisBuffer();
+   try
  
-+    if SampleCount > 0 then LastSamplesAt := SDL_GetTicks;
+-    // move old samples to the beginning of the array (if necessary)
+-    for i := 0 to High(AnalysisBuffer)-SampleCount do
+-      AnalysisBuffer[i] := AnalysisBuffer[i+SampleCount];
++    CaptureTick := SDL_GetPerformanceCounter;
++    if SamplesExpired(CaptureTick) then
++      // Discard PCM from before a gap, even if the first new block has just one sample.
++      FillChar(AnalysisBuffer[0], (Length(AnalysisBuffer)-SampleCount)*SizeOf(SmallInt), 0)
++    else
++      for i := 0 to High(AnalysisBuffer)-SampleCount do
++        AnalysisBuffer[i] := AnalysisBuffer[i+SampleCount];
+ 
++    if SampleCount > 0 then LastCaptureTick := CaptureTick;
      // copy new samples to analysis buffer
      Move(Buffer[BufferOffset], AnalysisBuffer[Length(AnalysisBuffer)-SampleCount],
           SampleCount * SizeOf(SmallInt));
-@@ -365,19 +403,25 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
+@@ -365,19 +418,25 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
  end;
  
  procedure TCaptureBuffer.AnalyzeBuffer;
 +begin
-+  ToneAbs := DetectedPitch(false);
++  ToneAbs := DetectedPitch;
 +  ToneValid := ToneAbs >= 0;
 +  Tone := ToneAbs mod 12;
 +end;
 +
-+function TCaptureBuffer.DetectedPitch(RequireFresh: boolean): integer;
++function TCaptureBuffer.DetectedPitch: integer;
  var
    Volume:      single;
    MaxVolume:   single;
@@ -508,11 +551,11 @@ index ea54f6b..2d44d96 100644
    LockAnalysisBuffer();
    try
  
-+    if RequireFresh and ((LastSamplesAt = 0) or (SDL_GetTicks - LastSamplesAt > 200)) then Exit;
++    if SamplesExpired(SDL_GetPerformanceCounter) then Exit;
      // find maximum volume across the analysis buffer
      MaxVolume := 0;
      for SampleIndex := 0 to AnalysisBufferSize - 1 do
-@@ -396,7 +440,7 @@ procedure TCaptureBuffer.AnalyzeBuffer;
+@@ -396,7 +455,7 @@ procedure TCaptureBuffer.AnalyzeBuffer;
        //ToneValid := AnalyzePitch(PDA_AMDF);
        //Write('AMDF: ',ToneAbs:2,' (f: ',Frequencies[ToneAbs]:7:2,' Hz)');
        //Write(Tone:2);
@@ -521,7 +564,7 @@ index ea54f6b..2d44d96 100644
        //Writeln('   /   CAMDF: ',ToneAbs:2,' (f: ',Frequencies[ToneAbs]:7:2,' Hz)');
        //Writeln(' ',Tone:2);
      end;
-@@ -432,7 +476,7 @@ procedure TCaptureBuffer.SetFrequenciesAndDelays;
+@@ -432,7 +491,7 @@ procedure TCaptureBuffer.SetFrequenciesAndDelays;
    end;
  end;
  
@@ -530,7 +573,7 @@ index ea54f6b..2d44d96 100644
  var
    Correlation: TCorrelationArray;
  begin
-@@ -447,17 +491,16 @@ function TCaptureBuffer.AnalyzePitch(PDA: TPDAType): boolean;
+@@ -447,17 +506,16 @@ function TCaptureBuffer.AnalyzePitch(PDA: TPDAType): boolean;
      PDA_AMDF:
        begin
          Correlation := AverageMagnitudeDifference();

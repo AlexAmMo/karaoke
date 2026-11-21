@@ -2,7 +2,7 @@
 
 **Estado: alcance de V1 cerrado; implementación y distribución en validación. Versión del plan: 1.1. Fecha: 13 de noviembre de 2026.**
 
-Este documento es la referencia vigente del producto. Consolida las decisiones expresas del usuario y fija criterios de cierre para los detalles que seguían como propuestas. Las comprobaciones técnicas y los datos de publicación pendientes se enumeran al final; no son funciones opcionales ni pruebas ya superadas. La implementación de la V1 está en curso; el estado comprobado y los pendientes se registran en README.md y docs/VALIDACION.md.
+Este documento recoge la V1. La siguiente iteración tiene su propio [plan con pruebas locales y propuesta de diseño](docs/PLAN-MACRO-REFACTOR.md). Consolida las decisiones expresas del usuario y fija criterios de cierre para los detalles que seguían como propuestas. Las comprobaciones técnicas y los datos de publicación pendientes se enumeran al final; no son funciones opcionales ni pruebas ya superadas. La implementación de la V1 está en curso; el estado comprobado y los pendientes se registran en README.md y docs/VALIDACION.md.
 
 Queremos una experiencia de karaoke casero parecida a SingStar: cantar con letras, barras de notas, indicación de afinación en directo y puntuación. Mientras una persona canta, otras deben poder buscar canciones y añadirlas a una lista; el sistema obtendrá automáticamente los archivos necesarios y permitirá cantarlas después, sin reiniciar el juego ni gestionar archivos a mano.
 

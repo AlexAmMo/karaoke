@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import secrets
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,9 @@ from pathlib import Path
 from PIL import Image
 from .songs import SongError, duration, import_package, normalize, read_chart, resource, validate
 from .store import Store
+from .participants import Participants
+from .party import PartyMixin
+from .generation_lab import GenerationLab
 from . import acoustic, allkaraoke, catalog
 from .account import AccountSession, SessionExpired
 from .artwork import ArtworkResolver
@@ -72,6 +76,10 @@ def _valid_cover(path: str, modified_ns: int, size: int) -> bool:
         return False
 
 
+def has_song_files(song):
+    return all(song.get(key) and Path(song[key]).is_file() for key in ("chart", "audio"))
+
+
 def cover_path(song: dict) -> str:
     """Expose only a decodable local cover still contained in its song package."""
     try:
@@ -94,7 +102,9 @@ class CatalogueSearch:
 
     def init_search(self):
         self.query = ""
-        self.results = catalog.starter_songs()
+        self.saved_only = False
+        self.library_stamp = self.store.rows("SELECT count(*) AS total,max(created) AS updated FROM songs")[0]
+        self.results = self.local_results("")
         self.result_page = 0
         self.search_cursor = None
         self.search_busy = False
@@ -110,7 +120,7 @@ class CatalogueSearch:
 
     def local_results(self, query):
         items = {catalog.source_key(s): s for s in catalog.starter_songs(query) + catalog.assisted_songs(query)}
-        if query and not youtube_id(query):
+        if not youtube_id(query):
             for saved in self.store.rows("SELECT * FROM songs ORDER BY artist,title,id"):
                 if catalog.matches(query, saved):
                     source = saved.get("source") or ""
@@ -120,16 +130,71 @@ class CatalogueSearch:
         return sorted(items.values(), key=lambda s: catalog.rank(query, s))
 
     def grouped_results(self):
+        # Imports and another guest’s downloads can finish without a new query.
+        now = time.monotonic()
+        if now >= getattr(self, "next_library_check", 0):
+            stamp = self.store.rows("SELECT count(*) AS total,max(created) AS updated FROM songs")[0]
+            if stamp != self.library_stamp:
+                fresh = {catalog.source_key(s): s for s in self.results if not s.get("library_id")}
+                fresh.update({catalog.source_key(s): s for s in self.local_results(self.query)})
+                self.results = sorted(fresh.values(), key=lambda song: catalog.rank(self.lookup_query, song))
+            self.library_stamp = stamp
+            self.next_library_check = now + 0.75
         if self.grouped_source is not self.results or self.grouped_query != self.query:
             self.grouped_source = self.results
             self.grouped_query = self.query
             groups = group_results(self.results)
             # Keep relevance order among obtainable songs. A catalogue reference
             # without a download appears after them, including across pages.
-            self.grouped_cache = sorted(groups, key=lambda group: not (
-                self.auto_choices(group) or self.spanish_choice(group)
+            self.grouped_cache = sorted(groups, key=lambda group: (
+                not any(song.get("library_id") for song in group) if not self.query else False,
+                not (self.auto_choices(group) or self.spanish_choice(group)),
             ))
         return self.grouped_cache
+
+    def result_states(self, groups):
+        """Resolve the same recording and on-disk availability for both clients."""
+        keys = {catalog.source_key(song) for group in groups for song in group}
+        saved, working = {}, set()
+        keys = list(keys)
+        for offset in range(0, len(keys), 200):
+            batch = keys[offset:offset + 200]
+            slots = ",".join("?" for _ in batch)
+            for row in self.store.rows(f"""SELECT ss.source,s.id,s.chart,s.audio FROM song_sources ss
+                    JOIN songs s ON ss.song_id=s.id WHERE ss.source IN ({slots})""", batch):
+                saved[row["source"]] = row
+            candidates = batch + ["selection:" + key for key in batch]
+            job_slots = ",".join("?" for _ in candidates)
+            for row in self.store.rows(f"SELECT source FROM jobs WHERE state IN ('waiting','working') AND source IN ({job_slots})", candidates):
+                working.add(row["source"].removeprefix("selection:"))
+        return saved, working
+
+    def describe_result(self, group, states):
+        saved, working = states
+        choices = self.auto_choices(group)
+        assisted = self.spanish_choice(group) if not choices else None
+        item = choices[0] if choices else assisted or group[0]
+        source = catalog.source_key(item)
+        local = item if item.get("library_id") else (saved.get(source) if choices else None)
+        local_id = (local.get("library_id") or local["id"]) if local else None
+        if local and not has_song_files(local):
+            status = "missing"
+        elif local:
+            status = "saved"
+        elif choices:
+            status = "working" if source in working else "direct"
+        elif assisted and time.monotonic() < self.prefer_direct_until and (
+                self.catalogue_status.get("AllKaraoke") == "Consultando" or self.search_busy):
+            status = "checking"
+        else:
+            status = "assisted" if assisted else "reference"
+        labels = {"saved": "Descargada", "direct": "Para descargar", "working": "Preparando…",
+                  "checking": "Comprobando ediciones…", "assisted": "Requiere al anfitrión",
+                  "reference": "Sin edición compatible", "missing": "Copia incompleta"}
+        return item, {"availability": status, "status_label": labels[status],
+                      "available": status in ("saved", "direct", "working", "assisted"),
+                      "assisted": bool(assisted), "saved": status == "saved",
+                      "library_id": local_id if status == "saved" else None}
 
     def editions_for(self, source):
         return next((group for group in self.grouped_results()
@@ -201,9 +266,9 @@ class CatalogueSearch:
             for future, _ in self.futures:
                 if getattr(future, "catalogue_search", False):
                     future.cancel()
-            if self.query and (not self.query.startswith(("http://", "https://")) or youtube_id(self.query)):
+            if not self.saved_only and self.query and (not self.query.startswith(("http://", "https://")) or youtube_id(self.query)):
                 self.search_indices(self.query)
-        if not self.query:
+        if self.saved_only or not self.query:
             self.message = ""
             return
         if not self.store.setting("username", ""):
@@ -306,11 +371,14 @@ class CatalogueSearch:
         return sorted(choices, key=preference)
 
 
-class Service(CatalogueSearch, PackageImportMixin):
+class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
     def __init__(self, root: Path):
         self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.store = Store(root / "library.sqlite3")
+        self.people = Participants(self.store)
+        self.lab = GenerationLab(self)
+        self.edit_voices = []
         self.library = Path(self.store.setting("library", str(root / "Songs")))
         self.library.mkdir(parents=True, exist_ok=True)
         self.ipc = root / "ipc"
@@ -323,9 +391,7 @@ class Service(CatalogueSearch, PackageImportMixin):
             (self.ipc / name).unlink(missing_ok=True)
         self.added_token = ""
         self.page = "Buscar"
-        if self.store.rows("SELECT 1 FROM songs LIMIT 1"):
-            self.page = "Biblioteca"
-        elif self.store.queue():
+        if self.store.queue():
             self.page = "Cola"
         self.init_search()
         self.message = ""
@@ -422,7 +488,8 @@ class Service(CatalogueSearch, PackageImportMixin):
         }
 
     def enqueue_song(self, song_id, *, names=None, key=None):
-        self.song(song_id)  # A stale carousel selection must not create a preparation job.
+        if not has_song_files(self.song(song_id)):
+            raise SongError("Falta el mapa o el audio de esta copia. Vuelve a importar el paquete.")
         turn = self.store.request(song_id, {}, self.names() if names is None else names, request_key=key)
         self.message = "Turno añadido a la cola."
         return turn
@@ -438,6 +505,12 @@ class Service(CatalogueSearch, PackageImportMixin):
         return level if type(level) is int and 0 <= level < len(PITCH_LEVELS) else 1
 
     def names(self):
+        lineup = self.store.setting('host_lineup', [])
+        if lineup:
+            active = {p['id'] for p in self.people.list()}
+            choices = [{'singer':uid} for uid in lineup if uid in active]
+            if choices:
+                return self.voice_names(choices)
         return [self.fields.get("player1", "").strip() or "Cantante 1"] + (
             [self.fields["player2"].strip()] if self.fields.get("player2", "").strip() else []
         )
@@ -821,7 +894,7 @@ class Service(CatalogueSearch, PackageImportMixin):
         choices = self.auto_choices(group)
         return self.request_choices(choices)
 
-    def request_choices(self, choices, *, names=None, key=None, search=None):
+    def request_choices(self, choices, *, names=None, key=None, search=None, queue=True):
         if not choices:
             raise SongError("Esta canción requiere el paquete de su edición.")
         def identity(song):
@@ -834,11 +907,13 @@ class Service(CatalogueSearch, PackageImportMixin):
                     or candidate.get("video_id") != first["video_id"] or identity(candidate) != identity(first)):
                 continue
             if candidate.get("library_id"):
-                return self.enqueue_song(candidate["library_id"], names=names, key=key)
+                return self.enqueue_song(candidate["library_id"], names=names, key=key) if queue else None
             saved = self.store.rows("SELECT song_id FROM song_sources WHERE source=?",
                                     (catalog.source_key(candidate),))
             if saved:
-                return self.enqueue_song(saved[0]["song_id"], names=names, key=key)
+                if not has_song_files(self.song(saved[0]["song_id"])):
+                    raise SongError("Falta el mapa o el audio. Vuelve a importar el paquete.")
+                return self.enqueue_song(saved[0]["song_id"], names=names, key=key) if queue else None
 
         # A common title is only a grouping hint. A fallback must use the very same
         # recording. USDB's media identity is checked after its worker resolves it.
@@ -850,10 +925,10 @@ class Service(CatalogueSearch, PackageImportMixin):
                     continue
                 if candidate.get("video_id") == video or allkaraoke.source_usdb_id(first) == catalog.source_key(candidate):
                     alternatives.append(candidate)
-        return self._request_song(first, True, alternatives, names=names, key=key, search=search)
+        return self._request_song(first, queue, alternatives, names=names, key=key, search=search)
 
     def request_result(self, index, queue):
-        self._request_song(self.results[index] if isinstance(index, int) else index, queue)
+        return self._request_song(self.results[index] if isinstance(index, int) else index, queue)
 
     def _request_song(self, song, queue, alternatives=(), local_audio=None, *, names=None, key=None, search=None):
         if not (search or self).auto_choices([song]):
@@ -905,14 +980,24 @@ class Service(CatalogueSearch, PackageImportMixin):
         if not self.engine:
             raise SongError("El motor de canto todavía se está iniciando.")
         self.stop_preview()
-        self.store.execute("UPDATE turns SET state='starting' WHERE id=?", (turn_id,))
+        inputs = {k:{**v,'key':k} for k,v in self.input_options().items()}
+        routes = self.people.reserve(turn,inputs,self.engine.get('max_singers',2),
+                                     self.engine.get('synthetic',False),self.route_profile())
+        extra = {'routes':routes} if routes else {}
+        if any(r.get('mobile') for r in routes):
+            secret = secrets.token_hex(16)
+            extra['mobile_secret'] = secret
+            self.remote.mics.route(turn_id,secret,routes)
         self.active = turn_id
         self.started_at = time.monotonic()
         self.was_singing = False
-        self.command(
-            "start", chart=turn["chart"], names=json.loads(turn["names"]),
-            token=turn_id, precision=self.pitch_precision,
-        )
+        try:
+            self.command('start',chart=turn['chart'],names=json.loads(turn['names']),token=turn_id,
+                         precision=self.pitch_precision,**extra)
+        except OSError:
+            self.store.execute("UPDATE turns SET state='queued' WHERE id=?",(turn_id,))
+            self.active = None
+            raise
         self.message = "Preparando micrófonos e interpretación…"
 
     @staticmethod
@@ -1042,7 +1127,9 @@ class Service(CatalogueSearch, PackageImportMixin):
             stderr=subprocess.DEVNULL,
         )
 
-    def confirm_added(self, token):
+    def confirm_added(self, token, turn=None):
+        if turn:
+            self.undo_turn, self.undo_until = turn, time.monotonic() + 8
         if token:
             # Native controls acknowledge this exact click in place. A second
             # announcement in the footer would also resize a scrolled list.
@@ -1052,6 +1139,10 @@ class Service(CatalogueSearch, PackageImportMixin):
     def handle(self, event):
         action = event.get("action", "")
         value = str(event.get("value", ""))[:4096]
+        if action.startswith("lab:"):
+            return self.lab.action(self,action[4:])
+        if action.startswith("party:"):
+            return self.party_action(action)
         if action.startswith("remote:"):
             return self.remote.desktop_action(action)
         if action.startswith("import:") and self.import_action(action):
@@ -1063,6 +1154,10 @@ class Service(CatalogueSearch, PackageImportMixin):
                 self.store.configure(field, value)
             if field == "query":
                 self.search(value)
+            return
+        if action == "search:saved" or action == "page:Biblioteca":
+            self.saved_only = True if action == "page:Biblioteca" else not self.saved_only
+            self.search(self.fields.get("query", ""))
             return
         if action.startswith("page:"):
             self.message = ""
@@ -1076,8 +1171,8 @@ class Service(CatalogueSearch, PackageImportMixin):
         if action == "carousel:enqueue":
             if not self.carousel_selected:
                 raise SongError("Selecciona una canción de tu biblioteca.")
-            self.enqueue_song(self.carousel_selected)
-            self.confirm_added(value)
+            turn = self.enqueue_song(self.carousel_selected)
+            self.confirm_added(value, turn)
             return
         if action.startswith("carousel:"):
             window, index, _ = self.library_window()
@@ -1231,8 +1326,8 @@ class Service(CatalogueSearch, PackageImportMixin):
                 raise SongError("No se ha podido abrir el navegador.")
             return
         if action.startswith("enqueue:"):
-            self.enqueue_song(action.split(":", 1)[1])
-            self.confirm_added(value)
+            turn = self.enqueue_song(action.split(":", 1)[1])
+            self.confirm_added(value, turn)
             return
         if action in ("queue:next", "queue:previous"):
             self.queue_page = max(0, self.queue_page + (1 if action == "queue:next" else -1))
@@ -1247,15 +1342,15 @@ class Service(CatalogueSearch, PackageImportMixin):
             if str(self.search_generation) != generation or item is None:
                 raise SongError("La búsqueda ha cambiado. Selecciona de nuevo la canción.")
             if op == "best":
-                self.add_best(item)
-                self.confirm_added(value)
+                turn = self.add_best(item)
+                self.confirm_added(value, turn)
                 return
             if op == "obtain":
                 if not self.spanish_choice([item]):
                     raise SongError("Esta edición no ofrece el paquete solicitado.")
                 if self.page == "Buscar" and self.auto_choices(self.editions_for(key)):
-                    self.add_best(item)
-                    self.confirm_added(value)
+                    turn = self.add_best(item)
+                    self.confirm_added(value, turn)
                 else:
                     self.obtain_spanish(item, value)
                 return
@@ -1284,12 +1379,17 @@ class Service(CatalogueSearch, PackageImportMixin):
                     self.carousel_selected = self.detail
                     self.page = "Canción"
                     return
+                self.group_detail = self.page == "Buscar"
+                self.edition_group = key if len(self.editions_for(key)) > 1 else None
                 self.result_detail = item
                 self.page = "Versión"
             elif op in ("save", "queue"):
-                self.request_result(item, op == "queue")
+                if self.page == "Versión" and getattr(self, "group_detail", False):
+                    turn = self.request_choices(self.auto_choices(self.editions_for(key)), queue=op == "queue")
+                else:
+                    turn = self.request_result(item, op == "queue")
                 if op == "queue":
-                    self.confirm_added(value)
+                    self.confirm_added(value, turn)
             return
         if action.startswith("song:"):
             self.song(action[5:])
@@ -1300,8 +1400,8 @@ class Service(CatalogueSearch, PackageImportMixin):
             self.candidate_generation += 1
             return
         if action == "enqueue":
-            self.enqueue_song(self.detail)
-            self.confirm_added(value)
+            turn = self.enqueue_song(self.detail)
+            self.confirm_added(value, turn)
             return
         if action == "instrumental":
             self.instrumental_search()
@@ -1317,6 +1417,12 @@ class Service(CatalogueSearch, PackageImportMixin):
             return
         if action.startswith("start:"):
             self.start(action[6:])
+            return
+        if action.startswith("undo:"):
+            if action[5:] == getattr(self, "undo_turn", "") and time.monotonic() < self.undo_until:
+                self.store.cancel_turn(action[5:])
+                self.undo_turn = None
+                self.message = "Turno retirado."
             return
         if action.startswith("cancel:"):
             self.store.cancel_turn(action[7:])
@@ -1362,7 +1468,7 @@ class Service(CatalogueSearch, PackageImportMixin):
                 return
             self.delete_song(self.detail)
             self.detail = None
-            self.page = "Biblioteca"
+            self.search(self.fields.get("query", ""))
             self.message = "Canción borrada de la biblioteca."
             return
         raise SongError("Esta acción ya no está disponible.")
@@ -1480,6 +1586,8 @@ class Service(CatalogueSearch, PackageImportMixin):
                     (job["id"],),
                 )
                 self.download = (self.pool.submit(self.prepare, job), job)
+        self.lab.tick()
+        self.remote.mics.update(self.active,self.engine)
         self.remote.tick()
         view = self.view()
         if view != self.last_view:
@@ -1531,7 +1639,9 @@ class Service(CatalogueSearch, PackageImportMixin):
                 }
             )
 
-        if self.page == "Móviles":
+        if self.lab.display(self,text,button,field) or self.party_view(text, button, field):
+            pass
+        elif self.page == "Móviles":
             self.remote.desktop_view(rows, text, button)
         elif self.import_rows(text, button, field):
             pass
@@ -1539,80 +1649,53 @@ class Service(CatalogueSearch, PackageImportMixin):
             text("¿Terminar esta interpretación?", "Se mostrarán los puntos obtenidos hasta ahora.")
             button("Continuar cantando", "page:Cola")
             button("Terminar y ver resultados", "confirm-end")
-        elif self.page == "Biblioteca":
-            songs, _, total = self.library_window()
-            if self.library_count:
-                field("Filtrar canciones guardadas", "local")
-                for song in songs:
-                    artist = song["artist"]
-                    if song["variant"] == "instrumental":
-                        artist += " · Instrumental"
-                    song_row(song, song["title"], artist, "song:" + song["id"], "enqueue:" + song["id"])
-                if not songs:
-                    text("Sin coincidencias", "Prueba otro artista o título.")
-                if total > 5:
-                    button("Canción anterior", "carousel:previous", style="link")
-                    button("Canción siguiente", "carousel:next", style="link")
-            else:
-                text("Tu biblioteca está vacía", "Aquí tendrás las canciones que prepares para cantar.")
-                button("Buscar una canción", "page:Buscar", style="primary")
-            button("Importar canciones", "import:open", style="link")
         elif self.page == "Buscar":
             field("Artista, canción o enlace", "query")
+            button("Solo descargadas", "search:saved", style="checked" if self.saved_only else "check")
             grouped = self.grouped_results()
+            if self.saved_only:
+                grouped = [group for group in grouped if any(item.get("library_id") and has_song_files(item) for item in group)]
             start = self.result_page * 12
             visible = grouped[start:start + 12]
             loading = self.search_busy or "Consultando" in self.catalogue_status.values()
-            if not self.query:
-                text("Para empezar", "Canciones con voz listas para descargar.")
-            elif not visible:
+            if not visible:
                 if loading:
                     text("Buscando…")
+                elif self.saved_only:
+                    text("Sin canciones descargadas", "Desactiva el filtro para consultar el catálogo.")
                 else:
                     if any(self.catalogue_status.values()):
                         text("Búsqueda incompleta", "Algún catálogo está sin conexión.")
                         button("Reintentar búsqueda", "search", style="link")
                     else:
                         text("Sin coincidencias", "Prueba con el nombre del artista o una parte del título.")
+                    if youtube_id(self.query):
+                        button("Crear un borrador con este vídeo", "page:Generar", style="link")
                     button("Otras formas de buscar", "page:Otros catálogos", style="link")
-            keys = [catalog.source_key(item) for group in visible for item in group]
-            saved_keys = set()
-            for i in range(0, len(keys), 500):
-                batch = keys[i:i + 500]
-                params = ",".join("?" for _ in batch)
-                saved_keys.update(row["source"] for row in self.store.rows(
-                    f"SELECT source FROM song_sources WHERE source IN ({params})", batch))
+            states = self.result_states(visible)
             references_shown = False
             for group in visible:
-                possible = self.auto_choices(group)
-                spanish = self.spanish_choice(group)
-                song = possible[0] if possible else spanish or group[0]
+                song, state = self.describe_result(group, states)
                 key = catalog.source_key(song)
                 token = f"{self.search_generation}:{key}"
-                sub = song["artist"]
-                language = song.get("language")
-                if language:
-                    sub += " · " + str(language)
-                detail_action = "result:editions:" + token if len(group) > 1 else "result:detail:" + token
-                if possible:
-                    if song.get("library_id") or key in saved_keys:
-                        sub += " · En biblioteca"
-                    add_action = "result:best:" + token
-                elif (spanish and time.monotonic() < self.prefer_direct_until
-                      and (self.catalogue_status.get("AllKaraoke") == "Consultando" or self.search_busy)):
-                    # A local reference can appear before its one-click map. Do not
-                    # send someone into sign-in immediately, or block on a slow source.
-                    sub += " · Comprobando ediciones…"
-                    add_action = ""
-                elif spanish:
-                    sub += " · Elegir en UltraStar España"
+                local_id = state["library_id"]
+                detail_action = ("song:" + local_id if local_id else "result:detail:" + token)
+                if state["availability"] == "missing" and song.get("library_id"):
+                    detail_action = "song:" + song["library_id"]
+                if len(group) > 1 and state["availability"] in ("reference", "checking"):
+                    detail_action = "result:editions:" + token
+                if state["availability"] == "reference" and not references_shown:
+                    text("Sin descarga integrada")
+                    references_shown = True
+                if state["availability"] == "assisted":
                     add_action = "result:obtain:" + token
+                elif state["available"]:
+                    add_action = "result:best:" + token
                 else:
-                    if not references_shown:
-                        text("Sin descarga integrada")
-                        references_shown = True
                     add_action = ""
-                song_row(song, song["title"], sub, detail_action, add_action)
+                description = " · ".join(filter(None, (song["artist"], song.get("language"), state["status_label"])))
+                song_row(song, song["title"], description, detail_action, add_action)
+                rows[-1]["assisted"] = state["assisted"]
             if start:
                 button("Resultados anteriores", "search:previous", style="link")
             if start + len(visible) < len(grouped):
@@ -1671,7 +1754,7 @@ class Service(CatalogueSearch, PackageImportMixin):
                     text("Esta edición requiere varias melodías", "Elige un mapa de una sola voz.")
                 elif self.auto_choices([song]):
                     button("Añadir a la cola", "result:queue:" + token, style="primary")
-                    button("Guardar en biblioteca", "result:save:" + token, style="link")
+                    button("Solo descargar", "result:save:" + token, style="link")
                     if song.get("reference_duration"):
                         button("Usar mi copia de esta edición", "result:file:" + token, style="link")
                 else:
@@ -1693,7 +1776,7 @@ class Service(CatalogueSearch, PackageImportMixin):
                     text("Versión de la biblioteca")
                 if self.auto_choices([song]):
                     button("Añadir a la cola", "result:queue:" + token, style="primary")
-                    button("Guardar en biblioteca", "result:save:" + token, style="link")
+                    button("Solo descargar", "result:save:" + token, style="link")
                 else:
                     text("La grabación del enlace no coincide con esta edición.")
             if self.edition_group and song in self.editions_for(self.edition_group):
@@ -1701,7 +1784,7 @@ class Service(CatalogueSearch, PackageImportMixin):
             button("Volver a los resultados", "page:Buscar", style="back")
         elif self.page == "Cola":
             turns = self.store.queue()
-            next_ready = next((turn for turn in turns if turn["state"] == "queued" and turn["song_id"]), None)
+            next_ready = next((turn for turn in turns if turn["state"] == "queued" and has_song_files(turn)), None)
             if next_ready and not self.active:
                 button("Empezar a cantar", "start:" + next_ready["id"], next_ready["title"], style="primary")
             if not turns:
@@ -1716,6 +1799,8 @@ class Service(CatalogueSearch, PackageImportMixin):
                 status = {"singing": "Cantando", "starting": "Empezando"}.get(turn["state"], "Lista") if turn["song_id"] else {
                     "waiting": "En espera", "working": "Preparando", "error": "Error",
                     "cancelled": "Cancelada", "host": "Elegir edición en el ordenador"}.get(turn["preparation"], "Pendiente")
+                if turn["song_id"] and turn["state"] == "queued" and not has_song_files(turn):
+                    status = "Copia incompleta"
                 sub = " · ".join(filter(None, (song.get("artist"), ", ".join(json.loads(turn["names"])), status)))
                 song_row(song, f"{index + 1}. {title}", sub, "turn:" + turn["id"])
             if start:
@@ -1747,9 +1832,12 @@ class Service(CatalogueSearch, PackageImportMixin):
                 text(turn["title"] or json.loads(turn["job_payload"] or "{}").get("song", {}).get("title")
                      or "Preparando canción", ", ".join(json.loads(turn["names"])))
                 if turn["state"] == "queued":
+                    button("Cambiar cantantes y micros", "party:edit", style="link")
                     if turn["preparation"] == "host":
                         button("Elegir edición en UltraStar España", "remote:assist:" + turn["id"], style="primary")
-                    if turn["song_id"] and not self.active:
+                    if turn["song_id"] and not has_song_files(turn):
+                        text("Copia incompleta", "Vuelve a importar el mapa y el audio de esta edición.")
+                    elif turn["song_id"] and not self.active:
                         button("Empezar este turno", "start:" + turn["id"], style="primary")
                     elif turn["preparation"] in ("error", "cancelled"):
                         text("No se ha podido preparar", turn["message"] or "")
@@ -1766,10 +1854,14 @@ class Service(CatalogueSearch, PackageImportMixin):
         elif self.page == "Canción" and self.detail:
             song = self.song(self.detail)
             song_row(song, song["title"], song["artist"])
-            button("Añadir a la cola", "enqueue", ", ".join(self.names()), style="primary")
+            if not has_song_files(song):
+                text("Copia incompleta", "Vuelve a importar el mapa y el audio de esta edición.")
+                button("Importar paquete", "import:open", style="primary")
+            else:
+                button("Añadir a la cola", "enqueue", ", ".join(self.names()), style="primary")
             if self.preview and self.preview.poll() is None:
                 button("Detener preescucha", "stop-preview", style="link")
-            else:
+            elif has_song_files(song):
                 button("Escuchar un fragmento", "listen-original", style="link")
             button("Opciones de la canción", "page:Opciones de canción", style="link")
         elif self.page == "Opciones de canción" and self.detail:
@@ -1812,6 +1904,8 @@ class Service(CatalogueSearch, PackageImportMixin):
                 button(item["title"], "candidate:" + str(index), style="link")
             button("Volver a la canción", "page:Canción", style="back")
         elif self.page == "Ajustes":
+            button("Cantantes y entradas", "page:Cantantes", style="link")
+            button("Generar desde YouTube", "page:Generar", style="link")
             button("Conectar móviles", "remote:start", style="link")
             field("Primer cantante", "player1", "Cantante 1")
             field("Segundo cantante (opcional)", "player2")
@@ -1821,7 +1915,7 @@ class Service(CatalogueSearch, PackageImportMixin):
                 slider("Volumen de la segunda voz", "gain:1", 0)
             button("Precisión de afinación", "page:Afinación", PITCH_LEVELS[self.pitch_precision][0], style="link")
             button("Micrófonos", "page:Micrófonos", style="link")
-            button("Biblioteca y descargas", "page:Descargas", style="link")
+            button("Descargas e importación", "page:Descargas", style="link")
             button("Cuenta USDB", "page:Cuenta USDB", style="link")
         elif self.page == "Afinación":
             text("Precisión de afinación", "Se aplica a todos los cantantes desde la próxima canción.")
@@ -1888,7 +1982,20 @@ class Service(CatalogueSearch, PackageImportMixin):
             button("Volver a ajustes", "page:Ajustes", style="back")
         queue = self.store.queue()
         next_turn = next((turn for turn in queue if turn["state"] == "queued"), None)
+        ready = next((turn for turn in queue if turn["state"] == "queued" and has_song_files(turn)), None)
+        stage = None
+        if ready:
+            song = self.song(ready["song_id"])
+            stage = {"title": song["title"], "artist": song["artist"], "cover": self.cover(song)["path"],
+                     "names": ", ".join(json.loads(ready["names"])), "action": "start:" + ready["id"]}
+        elif next_turn:
+            pending_song = next_turn if next_turn["song_id"] else json.loads(next_turn["job_payload"] or "{}").get("song", {})
+            stage = {"title": pending_song.get("title", "Preparando canción"), "artist": pending_song.get("artist", ""),
+                     "names": ", ".join(json.loads(next_turn["names"])), "cover": self.cover(pending_song)["path"] if pending_song else "",
+                     "action": "turn:" + next_turn["id"]}
         return {
+            "stage": stage,
+            "undo": (getattr(self, "undo_turn", None) or "") if time.monotonic() < getattr(self, "undo_until", 0) and any(t["id"] == getattr(self, "undo_turn", None) and t["state"] == "queued" for t in queue) else "",
             "carousel": self.carousel_view(),
             "next": ("Después: " + (next_turn["title"] or "Preparando canción"))
             if next_turn
@@ -1907,6 +2014,7 @@ class Service(CatalogueSearch, PackageImportMixin):
 
     def close(self):
         self.closing = True
+        self.lab.close()
         self.remote.stop()
         self.account.begin_change()
         self.stop_preview()

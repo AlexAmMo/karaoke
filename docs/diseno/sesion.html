@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark"><title>Karaoke · Maqueta de sesión</title>
+  <link rel="stylesheet" href="sesion.css"><script src="sesion.js" defer></script>
+</head>
+<body>
+  <header class="bar"><span class="wordmark"><i class="mark" aria-hidden="true"><b></b><b></b><b></b><b></b></i>Karaoke</span><span class="demo">Maqueta de sesión</span><button id="fold" aria-expanded="true" aria-controls="panel">Ocultar panel</button></header>
+  <main>
+    <section class="stage" aria-label="Escenario de ejemplo">
+      <div class="stage-head"><div><h1>Luz de vuelta</h1><p>Sesión de prueba</p></div><div class="player"><span class="dot"></span>Ana <strong>2.410 <small>pts</small></strong></div></div>
+      <div class="performance">
+        <figure><svg id="score" viewBox="0 0 800 150" role="img" aria-label="Ejemplo estático. La línea de Ana comienza por debajo de la nota y después coincide con ella."></svg>
+          <figcaption><span><i class="guide-key"></i>Melodía</span><span><i class="voice-key"></i>Tu voz</span></figcaption></figure>
+        <div class="lyric"><strong>Vuelve <em>la luz</em></strong><span>al despertar</span></div>
+      </div>
+      <div class="timeline"><div><time>0:42</time><span class="time-rail"></span><time>3:18</time></div><p>Después <strong id="up-next">Sin turnos</strong></p></div>
+    </section>
+    <section id="panel" aria-label="Panel de sesión">
+      <nav aria-label="Sesión"><button id="show-search" aria-current="page">Buscar</button><button id="show-queue">Cola <span id="count">0</span></button></nav>
+      <section id="search-view" aria-label="Buscar canciones"><label for="query">Busca una canción</label><div class="field"><span aria-hidden="true" class="glass"></span><input id="query" type="search" placeholder="Título o artista" autocomplete="off"></div><label class="filter"><input type="checkbox" id="saved">Solo descargadas</label></section>
+      <h2 id="list-title">Canciones</h2><ul id="list"></ul><p id="empty" hidden></p>
+      <p id="feedback" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <dialog id="detail" aria-labelledby="detail-title"><form method="dialog"><button class="close" aria-label="Cerrar detalle">Cerrar</button></form><h2 id="detail-title"></h2><p id="detail-meta"></p><div id="actions"></div></dialog>
+</body></html>

@@ -6,6 +6,8 @@ import sqlite3
 import threading
 import time
 import uuid
+
+from .participants import MAX_SINGERS, Participants, clean_name, migrate
 from pathlib import Path
 
 
@@ -15,6 +17,10 @@ class Store:
         self.lock = threading.RLock()
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
+        original_version = self.db.execute('PRAGMA user_version').fetchone()[0]
+        if original_version > 3:
+            self.db.close()
+            raise ValueError('Actualiza Karaoke para abrir esta biblioteca.')
         self.db.executescript("""
         PRAGMA journal_mode=WAL;
         PRAGMA foreign_keys=ON;
@@ -36,8 +42,9 @@ class Store:
         INSERT OR IGNORE INTO song_sources SELECT source,id FROM songs WHERE source IS NOT NULL;
         CREATE TABLE IF NOT EXISTS mobile_requests(key TEXT PRIMARY KEY,
           turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE);
-        PRAGMA user_version=2;
+
         """)
+        migrate(self.db, path, original_version)
         # A crash never starts playback on the next launch.
         with self.db:
             self.db.execute("UPDATE turns SET state='queued' WHERE state IN ('starting','singing')")
@@ -134,8 +141,10 @@ class Store:
                 (uuid.uuid4().hex, source, json.dumps(payload), initial_state, time.time()),
             )
         if names is not None:
-            if not 1 <= len(names) <= 2 or any(not n.strip() for n in names):
-                raise ValueError("Indica uno o dos cantantes.")
+            if not isinstance(names, list) or not 1 <= len(names) <= MAX_SINGERS:
+                raise ValueError("Elige entre uno y diez cantantes.")
+            choices = getattr(names, "choices", None)
+            names = [clean_name(n) for n in names]
             position = self.db.execute(
                 "SELECT coalesce(max(position),0)+1 FROM turns"
             ).fetchone()[0]
@@ -144,6 +153,8 @@ class Store:
                 "INSERT INTO turns(id,source,song_id,names,position,created) VALUES (?,?,?,?,?,?)",
                 (turn_id, source, song_id, json.dumps(names), position, time.time()),
             )
+            if choices:
+                Participants.set_in_transaction(self.db, turn_id, choices)
             if request_key:
                 self.db.execute("INSERT INTO mobile_requests VALUES (?,?)", (request_key, turn_id))
             return turn_id
@@ -174,7 +185,9 @@ class Store:
             return True
 
     def queue(self):
-        return self.rows("""SELECT t.*,s.title,s.artist,s.variant,s.chart,j.state AS preparation,j.message,j.payload AS job_payload
+        return self.rows("""SELECT t.*,s.title,s.artist,s.variant,s.chart,s.audio,j.state AS preparation,j.message,j.payload AS job_payload,
+          (SELECT json_group_array(json_array(v.slot,v.singer,v.input,p.preferred)) FROM turn_voices v
+             LEFT JOIN singers p ON p.id=v.singer WHERE v.turn_id=t.id) AS voices_revision
           FROM turns t LEFT JOIN songs s ON t.song_id=s.id LEFT JOIN jobs j ON t.source=j.source
           WHERE t.state IN ('queued','starting','singing') ORDER BY t.position,t.created""")
 

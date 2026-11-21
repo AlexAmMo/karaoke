@@ -255,5 +255,5 @@ class PackageImportMixin:
             button("Elegir archivo de audio", "import:audio")
         else:
             return False
-        button("Volver a la biblioteca", "page:Biblioteca")
+        button("Volver a descargas", "page:Descargas", style="back")
         return True

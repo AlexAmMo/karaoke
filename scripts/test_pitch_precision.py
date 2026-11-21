@@ -11,7 +11,42 @@ import tempfile
 from pathlib import Path
 
 from test_live_pitch import make_chart, pitch_at, set_tones
-from test_session import Session
+from test_session import Session, read_json
+
+
+def check_input_dropout(session, song_id):
+    turn = session.enqueue(song_id)
+    session.event("start:" + turn)
+
+    def position(seconds):
+        return session.wait(
+            lambda state: state.get("token") == turn
+            and state.get("state") == "singing"
+            and state["position"] >= seconds
+        )
+
+    position(0.2)
+    set_tones(session, [440, 440])
+    before = position(2.5)
+    connected = position(3.5)
+    for player in range(2):
+        assert connected["scores"][player] > before["scores"][player]
+    # Stop callbacks on the first input. The other mic keeps producing the same vowel.
+    session.native("test-tone", player=0, connected=False)
+    expired = position(4.25)
+    later = position(5.75)
+    assert later["scores"][0] == expired["scores"][0], (expired["scores"], later["scores"])
+    assert later["tones"][0] == -1, later["tones"]
+    assert later["scores"][1] > expired["scores"][1], (expired["scores"], later["scores"])
+    # The first sample after the gap must not make the previous vowel fresh again.
+    probe = session.ipc / "test-silent-frame.json"
+    session.native("test-silent-frame", player=0)
+    session.wait(lambda _: "pitch" in read_json(probe))
+    assert read_json(probe)["pitch"] == -1, read_json(probe)
+    session.native("test-tone", player=0, hz=440)
+    resumed = position(7.25)
+    assert resumed["scores"][0] > later["scores"][0], (later["scores"], resumed["scores"])
+    print("PASS input dropout, sustained second singer, silent first frame and recovery", flush=True)
 
 
 def check(launcher, engine):
@@ -72,6 +107,7 @@ def check(launcher, engine):
                         "SELECT id FROM turns WHERE id=? AND state='finished'", (turn,)
                     )
                 )
+            check_input_dropout(session, song_id)
         finally:
             session.close()
 

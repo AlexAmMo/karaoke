@@ -46,8 +46,8 @@ def main():
             raise RuntimeError('Unexpected Deluxe source revision')
         for file in git_files(engine):
             tar.add(engine / file, arcname=str(Path('upstream/USDX') / file), recursive=False)
-        shell = engine / 'src/base/UKaraokeShell.pas'
-        tar.add(shell, arcname='upstream/USDX/src/base/UKaraokeShell.pas', recursive=False)
+        for unit in (ROOT / 'native').glob('UKaraoke*.pas'):
+            tar.add(engine / 'src/base' / unit.name, arcname=f'upstream/USDX/src/base/{unit.name}', recursive=False)
         for file in git_files(syncer):
             tar.add(syncer / file, arcname=str(Path('upstream/usdb-syncer') / file), recursive=False)
     archive.with_suffix('.gz.sha256').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')

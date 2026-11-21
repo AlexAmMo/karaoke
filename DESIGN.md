@@ -170,6 +170,8 @@ components:
 
 # Diseño de Karaoke
 
+Esta referencia corresponde a la aplicación 0.2. El [sistema visual de la próxima iteración](docs/diseno/SISTEMA-DE-SESION.md) incluye la maqueta de Buscar y Cola.
+
 ## Escenario
 
 La portada y el título identifican la grabación seleccionada. «Añadir a la cola» incorpora un turno. La tira inferior reúne hasta cinco carátulas y mantiene una línea frambuesa bajo la elegida. Al comenzar con el repertorio vacío, una pequeña secuencia de notas acompaña la instrucción de añadir la primera canción. La búsqueda ya abierta recibe el foco de escritura.

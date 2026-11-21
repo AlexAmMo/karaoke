@@ -75,7 +75,7 @@ def check(launcher, data):
             assert phone.http.get(url + "/", timeout=4).ok
             phone.post("join", name=name, code=code)
         session.event("page:Biblioteca")
-        wait(view, lambda v: v.get("page") == "Biblioteca")
+        wait(view, lambda v: v.get("page") == "Buscar" and any(r.get("style") == "checked" for r in v["rows"]))
         with ThreadPoolExecutor(2) as pool:
             results = list(
                 pool.map(
@@ -87,7 +87,7 @@ def check(launcher, data):
             next(row["id"] for row in result["items"] if row["title"] == title)
             for result, title in zip(results, ("Probe A", "Probe B"))
         ]
-        assert view()["page"] == "Biblioteca"
+        assert view()["page"] == "Buscar"
         retry = dict(op="add", id=selected[0], names=["Ana"], request_id=uuid.uuid4().hex)
         ana.post("action", **retry)
         ana.post("action", **retry)

@@ -9,14 +9,15 @@ procedure ShellTick;
 procedure ShellDraw;
 procedure ShellViewport;
 procedure ShellFinishFrame;
+procedure ShellGroupLabel(X,Y,W,Singer: integer);
 procedure ShellDrawPitchTrace(Left, Top, Width: real; Track, Singer, Spacing: integer);
 function ShellEvent(var Event: TSDL_Event): boolean;
 procedure ShellCaptureStart;
 procedure ShellCaptureStop;
 implementation
-uses SysUtils, Classes, Math, fpjson, jsonparser, UGraphic, UDisplay, URenderer,
+uses UKaraokePalette, SysUtils, Classes, Math, fpjson, jsonparser, UGraphic, UDisplay, URenderer,
   UText, UIni, USongs, USong, UPath, UMusic, URecord, UNote, UScreenMain, UScreenSong,
-  UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
+  UKaraokeMobileAudio, UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
 procedure SDL_free(mem: pointer); cdecl; external SDL_LibName name 'SDL_free';
 var
   Started: boolean = false;
@@ -31,9 +32,14 @@ var
   Sequence: integer = 0;
   SynthPosition: int64 = 0;
   SynthTick: cardinal;
-  SynthFrequency: array[0..1] of double = (440, 493.883);
+  SynthFrequency: array[0..KaraokeMaxSingers-1] of double;
+  SynthFeeding, MobileSlot: array[0..KaraokeMaxSingers-1] of boolean;
+  CaptureActive: boolean;
+  SavedChannels: array of array of integer;
+  CaptureCount: integer;
+  ActiveMobileSecret: RawByteString;
   CaptureTestFrame: boolean;
-  Gains: array[0..1] of single;
+  Gains: array[0..KaraokeMaxSingers-1] of single;
   Hover: integer = -1;
   PendingForget: TStringList;
   TestingInput: boolean = false;
@@ -66,7 +72,7 @@ type
     Samples: array[0..TraceColumns-1] of shortint;
   end;
 var
-  PitchTraces: array[0..1] of TPitchTrace;
+  PitchTraces: array[0..KaraokeMaxSingers-1] of TPitchTrace;
 
 function Root: string;
 begin Result:=GetEnvironmentVariable('KARAOKE_IPC'); end;
@@ -80,9 +86,8 @@ function FocusAction: string;
 begin
   Result:='';
   case Focus of
-    -12: Result:='carousel';
+    -12: Result:='stage';
     -11: Result:='panel';
-    -10: Result:='page:Biblioteca';
     -9: Result:='page:Buscar';
     -8: Result:='page:Cola';
     -7: Result:='page:Ajustes';
@@ -201,7 +206,7 @@ begin
   Line := @CurrentSong.Tracks[Track].Lines[Phrase];
   if not Line^.HasLength(Span) then Exit;
   Trace := @PitchTraces[Singer];
-  Beat := LyricsState.MidBeatD;
+  Beat := LyricsState.MidBeatD - GetMidBeat(AudioInputProcessor.Sound[Singer].RouteDelayMs / 1000.0);
   Tick := SDL_GetTicks;
   if not Trace^.Active or (Trace^.Phrase <> Phrase) or (Beat < Trace^.LastBeat-0.01) then
   begin
@@ -221,7 +226,7 @@ begin
     if (Trace^.Offset <> NoPitch) and (Trace^.Column >= 0) and (Trace^.Column < TraceColumns)
       and (Column > Trace^.Column) and (Tick-Trace^.LastTick <= 160) then
       FillChar(Trace^.Samples[Trace^.Column],Column-Trace^.Column,Byte(Trace^.Offset));
-    Pitch := AudioInputProcessor.Sound[Singer].DetectedPitch(true);
+    Pitch := AudioInputProcessor.Sound[Singer].DetectedPitch;
     Offset := NoPitch;
     if Pitch >= 0 then
     begin
@@ -246,8 +251,8 @@ begin
     Trace^.Offset := Offset;
   end;
 
-  if Singer = 0 then begin R := 0.34; G := 0.86; B := 1.0; end
-  else begin R := 1.0; G := 0.56; B := 0.76; end;
+  if not Odd(Singer) then begin R := 1.0; G := 0.694; B := 0.541; end
+  else begin R := 0.675; G := 0.945; B := 0.804; end;
   ColumnWidth := Width / TraceColumns;
   Count := 0;
   I := 0;
@@ -284,21 +289,143 @@ begin
   end;
 end;
 
+procedure RestoreRoutes;
+var D: integer;
+begin
+  for D:=0 to High(SavedChannels) do
+    Ini.InputDeviceConfig[D].ChannelToPlayerMap:=SavedChannels[D];
+  SetLength(SavedChannels,0);
+end;
+
+function InstallRoutes(J: TJSONObject; N: integer): boolean;
+type TRoute = record Device, Channel: integer; Mobile: boolean; Gain: single; DelayMs: integer; end;
+var R: array[0..KaraokeMaxSingers-1] of TRoute;
+    Routes: TJSONArray; Entry: TJSONObject; I,K,D,C,Config: integer; HasMobile: boolean;
+begin
+  Result:=false; HasMobile:=false;
+  if not Assigned(J.Find('routes')) then
+  begin
+    // Historical turns can use the persistent Deluxe bindings.
+    for I:=0 to N-1 do
+    begin
+      MobileSlot[I]:=false; AudioInputProcessor.Sound[I].RouteDelayMs:=0;
+      AudioInputProcessor.Sound[I].MonitorGain:=Gains[I];
+    end;
+    Exit(ShellSynthetic or ((AudioInputProcessor.ValidateSettings=0) and (AudioInputProcessor.CheckPlayersConfig(N)=0)));
+  end;
+  if J.Find('routes').JSONType<>jtArray then Exit;
+  Routes:=J.Arrays['routes'];
+  if Routes.Count<>N then Exit;
+  for I:=0 to N-1 do
+  begin
+    if Routes[I].JSONType<>jtObject then Exit;
+    Entry:=Routes.Objects[I]; R[I].Mobile:=Entry.Get('mobile',false);
+    R[I].DelayMs:=EnsureRange(Entry.Get('latency_ms',Ini.MicDelay),-500,500)-Ini.MicDelay;
+    R[I].Gain:=EnsureRange(Entry.Get('gain',Gains[I]*1.0),0.0,1.0);
+    if R[I].Mobile then begin HasMobile:=true; Continue; end;
+    D:=Entry.Get('device',-1); C:=Entry.Get('channel',-1); R[I].Device:=D; R[I].Channel:=C;
+    for K:=0 to I-1 do
+      if not R[K].Mobile and (R[K].Device=D) and (R[K].Channel=C) then Exit;
+    if ShellSynthetic then Continue;
+    if (D<0) or (D>High(AudioInputProcessor.DeviceList)) then Exit;
+    if (C<0) or (C>=AudioInputProcessor.DeviceList[D].AudioFormat.Channels) then Exit;
+    if Entry.Get('name','')<>AudioInputProcessor.DeviceList[D].Name then Exit;
+    for K:=0 to High(AudioInputProcessor.DeviceList) do
+      if (K<>D) and (AudioInputProcessor.DeviceList[K].Name=AudioInputProcessor.DeviceList[D].Name) then Exit;
+  end;
+  if HasMobile then
+  begin
+    ActiveMobileSecret:=J.Get('mobile_secret','');
+    if not MobileOpen(ActiveMobileSecret) then Exit;
+  end;
+  if not ShellSynthetic then
+  begin
+    SetLength(SavedChannels,Length(Ini.InputDeviceConfig));
+    for D:=0 to High(SavedChannels) do
+    begin
+      SavedChannels[D]:=Copy(Ini.InputDeviceConfig[D].ChannelToPlayerMap);
+      for C:=0 to High(SavedChannels[D]) do Ini.InputDeviceConfig[D].ChannelToPlayerMap[C]:=CHANNEL_OFF;
+    end;
+  end;
+  for I:=0 to N-1 do
+  begin
+    MobileSlot[I]:=R[I].Mobile;
+    AudioInputProcessor.Sound[I].MonitorGain:=R[I].Gain;
+    AudioInputProcessor.Sound[I].RouteDelayMs:=R[I].DelayMs;
+    if not R[I].Mobile and not ShellSynthetic then
+    begin
+      Config:=AudioInputProcessor.DeviceList[R[I].Device].CfgIndex;
+      Ini.InputDeviceConfig[Config].ChannelToPlayerMap[R[I].Channel]:=I+1;
+    end;
+  end;
+  Result:=true;
+end;
+
 procedure ShellCaptureStart;
 var I: integer; Fmt: TAudioFormatInfo;
 begin
+  if CaptureActive then Exit;
+  CaptureCount:=PlayersPlay; CaptureActive:=true;
+  if not ShellSynthetic then AudioInput.CaptureStart;
   Fmt:=TAudioFormatInfo.Create(1,48000,asfS16);
-  for I:=0 to PlayersPlay-1 do AudioInputProcessor.Sound[I].TestStart(Fmt);
-  Fmt.Free; SynthTick:=SDL_GetTicks; SynthPosition:=0;
+  try
+    for I:=0 to CaptureCount-1 do
+      if ShellSynthetic or MobileSlot[I] then
+      begin
+        SynthFeeding[I]:=not MobileSlot[I];
+        AudioInputProcessor.Sound[I].TestStart(Fmt);
+      end;
+  finally Fmt.Free; end;
+  SynthTick:=SDL_GetTicks; SynthPosition:=0;
 end;
+
 procedure ShellCaptureStop;
 var I: integer;
-begin for I:=0 to PlayersPlay-1 do AudioInputProcessor.Sound[I].TestStop; end;
+begin
+  if CaptureActive then
+  begin
+    if not ShellSynthetic then AudioInput.CaptureStop;
+    for I:=0 to CaptureCount-1 do
+    begin
+      if ShellSynthetic or MobileSlot[I] then AudioInputProcessor.Sound[I].TestStop;
+      MobileSlot[I]:=false;
+      AudioInputProcessor.Sound[I].RouteDelayMs:=0;
+      AudioInputProcessor.Sound[I].MonitorGain:=Gains[I];
+    end;
+  end;
+  CaptureActive:=false; MobileClose; ActiveMobileSecret:=''; RestoreRoutes;
+end;
+
+function AllDevicesOpened(N: integer): boolean;
+var D,C,P: integer;
+begin
+  Result:=true;
+  if ShellSynthetic then Exit;
+  for D:=0 to High(AudioInputProcessor.DeviceList) do
+    with AudioInputProcessor.DeviceList[D] do
+      if not Capturing then for C:=0 to High(Ini.InputDeviceConfig[CfgIndex].ChannelToPlayerMap) do
+      begin
+        P:=Ini.InputDeviceConfig[CfgIndex].ChannelToPlayerMap[C];
+        if (P>=1) and (P<=N) then Exit(false);
+      end;
+end;
+
+procedure PollMobileAudio;
+var Count,Slot: integer; Frame: TMobileFrame;
+begin
+  if not CaptureActive or (MobilePort=0) then Exit;
+  for Count:=1 to 128 do
+  begin
+    if not MobileRead(Slot,Frame) then Break;
+    if (Slot>=0) and (Slot<CaptureCount) and MobileSlot[Slot] and not ScreenSing.Paused then
+      AudioInputProcessor.Sound[Slot].TestFeed(@Frame[0], SizeOf(Frame));
+  end;
+end;
 procedure BeginSong(J: TJSONObject);
 var I,K,N: integer; Names: TJSONArray; Found: boolean; FileName: string;
 begin
   if Singing or Assigned(Display.NextScreen) then begin ErrorText:='Hay una interpretación en curso.'; Exit; end;
-  if TestingInput then begin if ShellSynthetic then ShellCaptureStop else AudioInput.CaptureStop; TestingInput:=false; end;
+  if TestingInput then begin ShellCaptureStop; TestingInput:=false; end;
   FileName:=J.Get('chart','');
   if not FileExists(FileName) then begin ErrorText:='No se encuentra el mapa.'; Exit; end;
   if Songs.ShellImport(Path(FileName)) then CatSongs.Refresh;
@@ -306,15 +433,18 @@ begin
   for I:=0 to High(CatSongs.Song) do
     if CatSongs.Song[I].Path.Append(CatSongs.Song[I].FileName).ToNative=FileName then
     begin
-      Names:=J.Arrays['names']; N:=EnsureRange(Names.Count,1,2);
-      if not ShellSynthetic then
-      begin
-        if (AudioInputProcessor.ValidateSettings<>0) or
-           (AudioInputProcessor.CheckPlayersConfig(N)<>0) then
-        begin ErrorText:='Asigna un canal de micrófono a cada cantante en Ajustes.'; Exit; end;
-      end;
+      Names:=J.Arrays['names']; N:=Names.Count;
+      if (N<1) or (N>KaraokeMaxSingers) then begin ErrorText:='Elige de uno a diez cantantes.'; Exit; end;
+      if not InstallRoutes(J,N) then
+      begin ErrorText:='Asigna una entrada disponible y distinta a cada cantante.'; Exit; end;
       for K := 0 to High(PitchTraces) do PitchTraces[K].Active := false;
-      Ini.Players:=N-1; PlayersPlay:=N; SetLength(Player,N);
+      // The legacy theme selector has five options and is not a singer count.
+      if N<=2 then Ini.Players:=N-1 else Ini.Players:=0;
+      PlayersPlay:=N;
+      ShellCaptureStart;
+      if not AllDevicesOpened(N) then
+      begin ShellCaptureStop; ErrorText:='No se pudo abrir un micrófono. Comprueba la conexión y el permiso.'; Exit; end;
+      SetLength(Player,N);
       for K:=0 to N-1 do
       begin
         Ini.Name[K]:=Names.Strings[K]; Player[K].Name:=Names.Strings[K]; Player[K].Level:=EnsureRange(J.Get('precision',1),0,2);
@@ -334,7 +464,7 @@ begin
   if not Found then ErrorText:='El motor no admite este mapa.';
 end;
 procedure Command(J: TJSONObject);
-var Op: string; I,K,D,C,P: integer;
+var Op: string; I,K,D,C,P: integer; SilentFrame: SmallInt; Probe: TJSONObject;
 begin
   Op:=J.Get('op','');
   ErrorText:='';
@@ -343,13 +473,30 @@ begin
   begin
     I := J.Get('player',0);
     if (I >= 0) and (I <= High(SynthFrequency)) then
+    begin
+      SynthFeeding[I] := J.Get('connected',true);
       SynthFrequency[I] := EnsureRange(J.Get('hz',0.0),0.0,2000.0);
+    end;
+  end
+  else if (Op='test-silent-frame') and ShellSynthetic and Singing then
+  begin
+    I:=J.Get('player',-1);
+    if (I<0) or (I>=PlayersPlay) then Exit;
+    // Query immediately after one frame so later callbacks cannot hide stale samples.
+    SilentFrame:=0;
+    AudioInputProcessor.Sound[I].TestFeed(@SilentFrame,SizeOf(SilentFrame));
+    Probe:=TJSONObject.Create;
+    try
+      Probe.Add('pitch',AudioInputProcessor.Sound[I].DetectedPitch);
+      SaveJSON(Root+'/test-silent-frame.json',Probe);
+    finally Probe.Free; end;
   end
   else if (Op='test-screenshot') and ShellSynthetic then CaptureTestFrame := true
   else if Op='panel' then SetPanelCollapsed(J.Get('collapsed',not PanelCollapsed))
   else if Op='gain' then
   begin
-    I:=EnsureRange(J.Get('player',0),0,1);
+    I:=J.Get('player',0);
+    if (I<0) or (I>=KaraokeMaxSingers) then Exit;
     Gains[I]:=EnsureRange(J.Get('value',0.0),0.0,1.0);
     AudioInputProcessor.Sound[I].MonitorGain:=Gains[I];
   end
@@ -369,20 +516,20 @@ begin
   else if Op='testinput' then
   begin
     if Singing then begin ErrorText:='Prueba los micrófonos entre canciones.'; Exit; end;
-    if TestingInput then begin if ShellSynthetic then ShellCaptureStop else AudioInput.CaptureStop; TestingInput:=false; end
-    else begin PlayersPlay:=2; if ShellSynthetic then ShellCaptureStart else AudioInput.CaptureStart; TestingInput:=true; end;
+    if TestingInput then begin ShellCaptureStop; TestingInput:=false; end
+    else begin PlayersPlay:=EnsureRange(J.Get('count',2),1,KaraokeMaxSingers); ShellCaptureStart; TestingInput:=true; end;
   end
   else if Op='scan' then
   begin
     if Singing then ErrorText:='Espera a terminar para detectar entradas.'
-    else begin if TestingInput then begin AudioInput.CaptureStop; TestingInput:=false; end; RefreshAudioInputDevices(aimFull); ErrorText:=''; end;
+    else begin if TestingInput then begin ShellCaptureStop; TestingInput:=false; end; RefreshAudioInputDevices(aimFull); ErrorText:=''; end;
   end
   else if Op='device' then
   begin
     if Singing then begin ErrorText:='Cambia el micrófono entre canciones.'; Exit; end;
-    if TestingInput then begin if ShellSynthetic then ShellCaptureStop else AudioInput.CaptureStop; TestingInput:=false; end;
+    if TestingInput then begin ShellCaptureStop; TestingInput:=false; end;
     D:=J.Get('device',-1); C:=J.Get('channel',-1); P:=J.Get('player',0)+1;
-    if (D<0) or (D>High(AudioInputProcessor.DeviceList)) or (P<1) or (P>2) then Exit;
+    if (D<0) or (D>High(AudioInputProcessor.DeviceList)) or (P<1) or (P>KaraokeMaxSingers) then Exit;
     K:=AudioInputProcessor.DeviceList[D].CfgIndex;
     if (C<0) or (C>High(Ini.InputDeviceConfig[K].ChannelToPlayerMap)) then Exit;
     for D:=0 to High(Ini.InputDeviceConfig) do
@@ -425,7 +572,11 @@ begin
     Ini.BackgroundMusicOption:=0; Ini.PreviewVolume:=0; Ini.SavePlayback:=0; Ini.AskbeforeDel:=0;
     Ini.Mouse:=1; Display.SetCursor;
     SDL_SetWindowTitle(screen,'Karaoke'); SDL_SetWindowMinimumSize(screen,1000,640);
-    for I:=0 to 1 do AudioInputProcessor.Sound[I].MonitorGain:=0;
+    for I:=0 to KaraokeMaxSingers-1 do
+    begin
+      SynthFrequency[I]:=440; AudioInputProcessor.Sound[I].MonitorGain:=0;
+    end;
+    SynthFrequency[1]:=493.883;
   end;
   Commands:=TStringList.Create;
   try
@@ -458,6 +609,7 @@ begin
       end;
       PendingForget.Delete(0);
     end;
+  if Singing then PollMobileAudio;
   if ShellSynthetic and (Singing or TestingInput) and not Assigned(Display.NextScreen) then
   begin
     N:=Min(4096,Round((NowTick-SynthTick)*48));
@@ -465,6 +617,7 @@ begin
     begin
       for I:=0 to PlayersPlay-1 do
       begin
+        if not SynthFeeding[I] then Continue;
         Frequency := SynthFrequency[I];
         for K:=0 to N-1 do Buf[K]:=Round(8000*Sin(2*Pi*Frequency*(SynthPosition+K)/48000));
         AudioInputProcessor.Sound[I].TestFeed(@Buf[0],N*2);
@@ -523,7 +676,7 @@ begin
   if NowTick-LastStatus>200 then
   begin
     LastStatus:=NowTick; J:=TJSONObject.Create;
-    if TestingInput then for I:=0 to 1 do AudioInputProcessor.Sound[I].AnalyzeBuffer;
+    if TestingInput then for I:=0 to CaptureCount-1 do AudioInputProcessor.Sound[I].AnalyzeBuffer;
     try
       if Singing then J.Add('state','singing') else J.Add('state','idle');
       J.Add('paused', Singing and ScreenSing.Paused);
@@ -543,20 +696,27 @@ begin
       if Assigned(CurrentSong) then J.Add('title',CurrentSong.Title) else J.Add('title','');
       J.Add('position',AudioPlayback.Position);
       Scores:=TJSONArray.Create; Levels:=TJSONArray.Create;
-      for I:=0 to Min(1,High(Player)) do
+      for I:=0 to High(Player) do
       begin
         Scores.Add(Player[I].ScoreTotalInt);
       end;
-      for I:=0 to 1 do Levels.Add(AudioInputProcessor.Sound[I].MaxSampleVolume);
+      N:=Max(2,CaptureCount);
+      for I:=0 to N-1 do Levels.Add(AudioInputProcessor.Sound[I].MaxSampleVolume);
       J.Add('scores',Scores); J.Add('levels',Levels);
-      A:=TJSONArray.Create; for I:=0 to 1 do A.Add(AudioInputProcessor.Sound[I].Tone); J.Add('tones',A);
-      A:=TJSONArray.Create; for I:=0 to 1 do A.Add(AudioInputProcessor.Sound[I].MonitorPeak); J.Add('monitor_peaks',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].Tone); J.Add('tones',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorPeak); J.Add('monitor_peaks',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].CaptureAgeMs); J.Add('input_age_ms',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].BlockFrames); J.Add('input_frames',A);
+      J.Add('max_singers',KaraokeMaxSingers); J.Add('mobile_port',MobilePort);
+      J.Add('output_frames',KaraokeOutputFrames); J.Add('output_hz',KaraokeOutputHz);
+      J.Add('audio_driver',KaraokeOutputDevice); J.Add('capture_backend',AudioInput.GetName);
       Devices:=TJSONArray.Create;
       for I:=0 to High(AudioInputProcessor.DeviceList) do
       begin
         O:=TJSONObject.Create;
         O.Add('index',I); O.Add('name',AudioInputProcessor.DeviceList[I].Name);
         O.Add('channels',AudioInputProcessor.DeviceList[I].AudioFormat.Channels);
+        O.Add('hz',AudioInputProcessor.DeviceList[I].AudioFormat.SampleRate);
         A:=TJSONArray.Create;
         K:=AudioInputProcessor.DeviceList[I].CfgIndex;
         for N:=0 to High(Ini.InputDeviceConfig[K].ChannelToPlayerMap) do A.Add(Ini.InputDeviceConfig[K].ChannelToPlayerMap[N]);
@@ -580,11 +740,13 @@ begin
   while (I>1) and ((Ord(S[I]) and $C0)=$80) do Dec(I);
   Delete(S,I,Length(S)-I+1);
 end;
-procedure LabelAt(X,Y,Size: single; const S: UTF8String; Width: single=360; Muted: boolean=false; Strong: boolean=false);
+procedure LabelAt(X,Y,Size: single; const S: UTF8String; Width: single=360; Muted: boolean=false; Strong: boolean=false; OnAccent: boolean=false);
 var T: UTF8String;
 begin
   SetFontFamily(0); if Strong then SetFontStyle(ftBold) else SetFontStyle(ftRegular); ResetFont; SetFontSize(Size);
-  if Muted then SetFontColor(0.73,0.75,0.79,1) else SetFontColor(0.97,0.96,0.97,1);
+  if OnAccent then SetFontColor(InkOnAccent.R,InkOnAccent.G,InkOnAccent.B,1)
+  else if Muted then SetFontColor(InkMuted.R,InkMuted.G,InkMuted.B,1)
+  else SetFontColor(InkText.R,InkText.G,InkText.B,1);
   T:=S;
   if TextWidth(T)>Width then
   begin
@@ -593,21 +755,22 @@ begin
   end;
   SetFontPos(X,Y); PrintText(T); Renderer.DepthTest:=false;
 end;
-procedure Rect(X,Y,W,H: single; R,G,B: single);
+
+procedure ShellGroupLabel(X,Y,W,Singer: integer);
+begin
+  Renderer.DrawQuad(X,Y,0,W,24,0.06,0.14,0.13,0.92);
+  LabelAt(X+6,Y+3,16,Player[Singer].Name,W-88,false,true);
+  LabelAt(X+W-77,Y+3,16,IntToStr(Player[Singer].ScoreTotalInt),72,false,true);
+end;
+
+procedure Rect(X,Y,W,H: single; R,G,B: single); overload;
 begin Renderer.DrawQuad(X,Y,0,W,H,R,G,B,1); end;
-function Carousel: TJSONObject;
+procedure Rect(X,Y,W,H: single; const Color: TSessionColor); overload;
+begin Rect(X,Y,W,H,Color.R,Color.G,Color.B); end;
+function StageSong: TJSONObject;
 begin
   Result:=nil;
-  if Assigned(View) and (View.Find('carousel') is TJSONObject) then Result:=View.Objects['carousel'];
-end;
-function HasCarousel: boolean;
-begin Result:=Assigned(Carousel) and (Carousel.Arrays['songs'].Count>0); end;
-function HeroAddAction: string;
-var C:TJSONObject; A:TJSONArray; I:integer;
-begin
-  Result:=''; if not HasCarousel then Exit;
-  C:=Carousel; A:=C.Arrays['songs']; I:=EnsureRange(C.Get('index',0),0,A.Count-1);
-  Result:='enqueue:'+TJSONObject(A[I]).Get('id','');
+  if Assigned(View) and (View.Find('stage') is TJSONObject) then Result:=View.Objects['stage'];
 end;
 function ShowingResults: boolean;
 begin Result:=(Token<>'') and not ResultsDismissed; end;
@@ -625,7 +788,7 @@ begin
   Rect(B.X-2,B.Y,2,B.H,R,G,Blue); Rect(B.X+B.W,B.Y,2,B.H,R,G,Blue);
 end;
 // Rounded surfaces are one triangle batch, independent of the drawable scale.
-procedure Surface(const B: TBox; Radius,R,G,Blue: single);
+procedure Surface(const B: TBox; Radius,R,G,Blue: single); overload;
 const Steps=6;
 var Mesh: TTriangleList; I,Corner,Step: integer; Angle,CX,CY,X,Y,PX,PY: single;
 begin
@@ -650,17 +813,20 @@ begin
   Renderer.DrawTriangles(Mesh);
 end;
 
+procedure Surface(const B: TBox; Radius: single; const Color: TSessionColor); overload;
+begin Surface(B,Radius,Color.R,Color.G,Color.B); end;
+
 procedure FocusInset(const B:TBox);
 begin
-  Surface(Box(B.X-1,B.Y-1,B.W+2,B.H+2),7,0.99,0.66,0.78);
+  Surface(Box(B.X-1,B.Y-1,B.W+2,B.H+2),7,InkFocus);
 end;
 
 procedure Chevron(X,Y: single; Right: boolean; Size: single=4);
 var DX: single;
 begin
   DX:=Size; if not Right then DX:=-Size;
-  Renderer.DrawLine(X-DX/2,Y-Size,X+DX/2,Y,0,1.5,0.77,0.79,0.84,1);
-  Renderer.DrawLine(X+DX/2,Y,X-DX/2,Y+Size,0,1.5,0.77,0.79,0.84,1);
+  Renderer.DrawLine(X-DX/2,Y-Size,X+DX/2,Y,0,1.5,InkMuted.R,InkMuted.G,InkMuted.B,1);
+  Renderer.DrawLine(X+DX/2,Y,X-DX/2,Y+Size,0,1.5,InkMuted.R,InkMuted.G,InkMuted.B,1);
 end;
 
 function CachedCover(const FileName: string): TTexture;
@@ -724,30 +890,16 @@ function EmptyButton: TBox;
 begin Result:=Box(40,ScreenH*0.50+94,218,46); end;
 function ResultButton: TBox;
 begin Result:=Box(40,ScreenH-110,218,46); end;
-function SleeveBox(W: single; I: integer): TBox;
-var S: single;
-begin S:=Min(78,(W-120)/5-10); Result:=Box(40+I*(S+12),ScreenH-61-S,S,S); end;
-function ArrowBox(W: single; Next: boolean): TBox;
-begin Result:=Box(W-124+Ord(Next)*46,ScreenH-105,40,40); end;
-procedure DrawArrow(const B: TBox; Next: boolean);
-var D,X,Y: single;
-begin
-  Fill(B,0.15,0.15,0.17);
-  D:=-1; if Next then D:=1;
-  X:=B.X+B.W/2; Y:=B.Y+B.H/2;
-  Renderer.DrawLine(X-D*3,Y-6,X+D*3,Y,0,2,0.95,0.94,0.94,1);
-  Renderer.DrawLine(X+D*3,Y,X-D*3,Y+6,0,2,0.95,0.94,0.94,1);
-end;
 procedure DrawAddCheck(X,Y:single);
 begin
-  Renderer.DrawLine(X-7,Y,X-2,Y+5,0,2.2,1,0.91,0.94,1);
-  Renderer.DrawLine(X-2,Y+5,X+7,Y-5,0,2.2,1,0.91,0.94,1);
+  Renderer.DrawLine(X-7,Y,X-2,Y+5,0,2.2,InkSignal.R,InkSignal.G,InkSignal.B,1);
+  Renderer.DrawLine(X-2,Y+5,X+7,Y-5,0,2.2,InkSignal.R,InkSignal.G,InkSignal.B,1);
 end;
 procedure PrimaryButton(const B: TBox; const Caption: UTF8String; Focused: boolean);
 begin
   if Focused then FocusInset(B);
-  Surface(B,7,0.67,0.09,0.31);
-  LabelAt(B.X+17,B.Y+13,16,Caption,B.W-32,false,true);
+  Surface(B,7,InkAccent);
+  LabelAt(B.X+17,B.Y+13,16,Caption,B.W-32,false,true,true);
 end;
 procedure TitleAt(X,Y,Size,W: single; const Title: UTF8String);
 var Line,Rest: UTF8String; I,Cut: integer;
@@ -773,16 +925,16 @@ begin
   P:=X;
   for I:=0 to 5 do
   begin
-    if I<3 then Surface(Box(P,Y+Tones[I]*14-3,Lengths[I],7),3,0.87,0.30,0.51)
-    else Surface(Box(P,Y+Tones[I]*14-3,Lengths[I],7),3,0.42,0.30,0.40);
+    if I<3 then Surface(Box(P,Y+Tones[I]*14-3,Lengths[I],7),3,InkAccent)
+    else Surface(Box(P,Y+Tones[I]*14-3,Lengths[I],7),3,InkGuide);
     P:=P+Lengths[I]+9;
   end;
 end;
 procedure DrawStage(W: integer);
-var C,Song: TJSONObject; Songs: TJSONArray; I,Index: integer;
-    Art,B: TBox; X,TextW,TitleSize,Y: single; CountText: string;
+var Song: TJSONObject; I,Players,Cols,RowCount: integer;
+    Art,B: TBox; X,CellW,CellH,TextW,TitleSize,Y: single; Caption: string;
 begin
-  Rect(0,0,W,ScreenH,0.076,0.080,0.100);
+  Rect(0,0,W,ScreenH,InkStage);
   if ShowingResults then
   begin
     LabelAt(40,36,18,'Puntuación',W-80,true);
@@ -790,41 +942,31 @@ begin
       TitleAt(40,79,Min(42,W/16),W-80,CurrentSong.Title);
       LabelAt(40,186,21,CurrentSong.Artist,W-80,true);
     end;
-    for I:=0 to Min(1,High(Player)) do
+    Players:=Min(10,Length(Player)); Cols:=1;
+    if Players>5 then Cols:=2;
+    RowCount:=Max(1,(Players+Cols-1) div Cols);
+    CellH:=Min(85.0,(ResultButton.Y-265)/RowCount);
+    CellW:=(W-80)/Cols;
+    for I:=0 to Players-1 do
     begin
-      Y:=244+I*95;
-      Rect(40,Y,W-80,1,0.22,0.23,0.26);
-      Rect(40,Y+25,3,36,0.92,0.39,0.60);
-      LabelAt(59,Y+29,23,Player[I].Name,W-270,false,true);
-      LabelAt(W-193,Y+17,40,IntToStr(Player[I].ScoreTotalInt),152,false,true);
+      X:=40+(I div RowCount)*CellW; Y:=216+(I mod RowCount)*CellH;
+      Rect(X,Y,CellW-12,1,InkLine);
+      LabelAt(X+3,Y+8,Min(22,CellH*0.39),Player[I].Name,CellW-91,false,true);
+      LabelAt(X+CellW-84,Y+8,Min(23,CellH*0.40),IntToStr(Player[I].ScoreTotalInt),76,false,true);
     end;
-    if Assigned(View) then LabelAt(40,ResultButton.Y-41,16,View.Get('next',''),W-80,true);
-    PrimaryButton(ResultButton,'Volver al repertorio',StageFocused);
-  end else if HasCarousel then
+    if Assigned(View) then LabelAt(40,ResultButton.Y-36,16,View.Get('next',''),W-80,true);
+    PrimaryButton(ResultButton,'Volver a la sesión',StageFocused);
+  end else if Assigned(StageSong) then
   begin
-    C:=Carousel; Songs:=C.Arrays['songs']; Index:=EnsureRange(C.Get('index',0),0,Songs.Count-1);
-    LabelAt(40,32,18,'Mi repertorio',W-80,true);
-    Song:=TJSONObject(Songs[Index]); Art:=HeroArt(W); Artwork(Song,Art);
-    B:=HeroButton(W); X:=B.X; TextW:=W-X-34; TitleSize:=Min(45,TextW/6.3);
-    LabelAt(X,Art.Y+Art.H*0.17,Min(20,TextW/10),Song.Get('artist',''),TextW,true);
-    TitleAt(X,Art.Y+Art.H*0.30,TitleSize,TextW,Song.Get('title',''));
-    if StageFocused and KeyboardFocusVisible then FocusInset(B);
-    if AddHeld('hero/'+HeroAddAction) then Surface(B,7,0.52,0.08,0.25)
-    else Surface(B,7,0.67,0.09,0.31);
-    if AddConfirmed('hero/'+HeroAddAction) then
-    begin DrawAddCheck(B.X+23,B.Y+B.H/2); LabelAt(B.X+39,B.Y+13,16,'En la cola',B.W-47,false,true); end
-    else LabelAt(B.X+17,B.Y+13,16,'Añadir a la cola',B.W-25,false,true);
-    CountText:=IntToStr(C.Get('total',Songs.Count));
-    if CountText='1' then CountText:=CountText+' canción' else CountText:=CountText+' canciones';
-    Rect(40,SleeveBox(W,0).Y-44,W-80,1,0.18,0.19,0.22);
-    LabelAt(40,SleeveBox(W,0).Y-31,14,CountText,W-80,true);
-    for I:=0 to Songs.Count-1 do
-    begin
-      B:=SleeveBox(W,I); Artwork(TJSONObject(Songs[I]),B);
-      if I=Index then Rect(B.X,B.Y+B.H+5,B.W,2,0.98,0.30,0.52);
-    end;
-    if C.Get('has_previous',false) then DrawArrow(ArrowBox(W,false),false);
-    if C.Get('has_next',false) then DrawArrow(ArrowBox(W,true),true);
+    Song:=StageSong;
+    LabelAt(40,32,18,'Próximo turno',W-80,true);
+    Art:=HeroArt(W); Artwork(Song,Art);
+    B:=HeroButton(W); X:=B.X; TextW:=W-X-34; TitleSize:=Min(44,TextW/6.3);
+    LabelAt(X,Art.Y+Art.H*0.12,Min(19,TextW/10),Song.Get('artist',''),TextW,true);
+    TitleAt(X,Art.Y+Art.H*0.25,TitleSize,TextW,Song.Get('title',''));
+    LabelAt(X,Art.Y+Art.H*0.54,17,Song.Get('names',''),TextW,true);
+    if Pos('start:',Song.Get('action',''))=1 then Caption:='Empezar a cantar' else Caption:='Ver preparación';
+    PrimaryButton(B,Caption,StageFocused and KeyboardFocusVisible);
   end else
   begin
     Y:=ScreenH*0.5;
@@ -854,27 +996,26 @@ end;
 
 function TabPage(I: integer): UTF8String;
 begin
-  case I of 0:Result:='Biblioteca'; 1:Result:='Buscar'; 2:Result:='Cola'; else Result:='Ajustes'; end;
+  case I of 1:Result:='Buscar'; 2:Result:='Cola'; else Result:='Ajustes'; end;
 end;
 
 function MainPage: boolean;
-begin Result:=(Page='Biblioteca') or (Page='Buscar') or (Page='Cola') or (Page='Ajustes'); end;
+begin Result:=(Page='Buscar') or (Page='Cola') or (Page='Ajustes'); end;
 
 function CurrentTab: integer;
 begin
   if MainPage then begin
-    for Result:=0 to 3 do if TabPage(Result)=Page then Exit;
+    for Result:=1 to 3 do if TabPage(Result)=Page then Exit;
   end;
-  if (Page='Ediciones') or (Page='Versión') or (Page='Otros catálogos') then Result:=1
-  else if (Page='Turno') or (Page='Preparaciones') or (Page='Terminar canción') then Result:=2
-  else if (Page='Micrófonos') or (Page='Descargas') or (Page='Móviles') or (Page='Cuenta USDB') or (Page='Entrada 1') or (Page='Entrada 2') then Result:=3
-  else Result:=0;
+  if (Page='Turno') or (Page='Preparaciones') or (Page='Terminar canción') then Result:=2
+  else if (Page='Ediciones') or (Page='Versión') or (Page='Canción') or (Page='Opciones de canción') then Result:=1
+  else Result:=3;
 end;
 
 function TabBox(I:integer):TBox;
-const Left:array[0..3] of integer=(12,108,186,262);
-      Widths:array[0..3] of integer=(92,74,72,76);
-begin Result:=Box(Left[I],14,Widths[I],36); end;
+const Left:array[1..3] of integer=(16,98,255);
+      Widths:array[1..3] of integer=(70,80,78);
+begin Result:=Box(Left[I],10,Widths[I],44); end;
 function FoldBox:TBox;
 begin Result:=Box(346,13,42,38); end;
 function RestoreBox:TBox;
@@ -906,7 +1047,7 @@ end;
 function ContentBottom: integer;
 begin Result:=Round(Height)-FooterHeight-5; end;
 function AddBox(Y: single): TBox;
-begin Result:=Box(337,Y+9,43,43); end;
+begin Result:=Box(337,Y+8,44,44); end;
 function EditorTail(const Value: UTF8String; MaxWidth: single): UTF8String;
 var L,R,M,Start: integer;
 begin
@@ -928,22 +1069,23 @@ begin
   Control:=RowAddKey(R.Get('add_action',''));
   B:=Box(16,Y,368,56);
   if Focused and not AddFocused then FocusInset(B);
-  if (Focused and not AddFocused) or (Hovered and (HoverAdd<>Control)) then Surface(B,6,0.18,0.19,0.22)
-  else Rect(82,Y+58,296,1,0.19,0.20,0.23);
+  if (Focused and not AddFocused) or (Hovered and (HoverAdd<>Control)) then Surface(B,6,InkRaised)
+  else Rect(82,Y+58,296,1,InkRaised);
   Artwork(R,Box(22,Y+5,46,46));
   TextW:=295;
   if R.Get('add_action','')<>'' then
   begin
     TextW:=246; B:=AddBox(Y);
     if Focused and AddFocused and KeyboardFocusVisible then
-      Surface(Box(B.X-1.5,B.Y-1.5,B.W+3,B.H+3),(B.W+3)/2,0.99,0.66,0.78);
-    if AddHeld(Control) then Surface(B,B.W/2,0.35,0.19,0.27)
-    else if HoverAdd=Control then Surface(B,B.W/2,0.30,0.21,0.27)
-    else Surface(B,B.W/2,0.22,0.18,0.23);
+      Surface(Box(B.X-1.5,B.Y-1.5,B.W+3,B.H+3),(B.W+3)/2,InkFocus);
+    if AddHeld(Control) then Surface(B,B.W/2,InkLine)
+    else if HoverAdd=Control then Surface(B,B.W/2,InkRaised)
+    else Surface(B,B.W/2,InkPanel);
     if AddConfirmed(Control) then DrawAddCheck(B.X+B.W/2,B.Y+B.H/2)
+    else if R.Get('assisted',false) then Chevron(B.X+22,B.Y+22,true,6)
     else begin
-      Rect(B.X+14,B.Y+20.5,15,2,1,0.76,0.83);
-      Rect(B.X+20.5,B.Y+14,2,15,1,0.76,0.83);
+      Rect(B.X+14,B.Y+20.5,15,2,InkAccent);
+      Rect(B.X+20.5,B.Y+14,2,15,InkAccent);
     end;
   end;
   LabelAt(82,Y+7,17,R.Get('label',''),TextW,false,true);
@@ -956,9 +1098,9 @@ begin
   for I:=0 to 15 do
   begin
     A:=2*Pi*I/16; B:=2*Pi*(I+1)/16;
-    Renderer.DrawLine(X+5.5*Cos(A),Y+5.5*Sin(A),X+5.5*Cos(B),Y+5.5*Sin(B),0,1.5,0.79,0.80,0.85,1);
+    Renderer.DrawLine(X+5.5*Cos(A),Y+5.5*Sin(A),X+5.5*Cos(B),Y+5.5*Sin(B),0,1.5,InkMuted.R,InkMuted.G,InkMuted.B,1);
   end;
-  Renderer.DrawLine(X+4,Y+4,X+9,Y+9,0,1.5,0.79,0.80,0.85,1);
+  Renderer.DrawLine(X+4,Y+4,X+9,Y+9,0,1.5,InkMuted.R,InkMuted.G,InkMuted.B,1);
 end;
 
 procedure DrawInput(R:TJSONObject; Y:single; Focused:boolean);
@@ -971,7 +1113,7 @@ begin
     B:=Box(16,Y+22,368,39);
   end;
   if Editing then FocusInset(B);
-  Surface(B,6,0.18,0.19,0.22);
+  Surface(B,6,InkRaised);
   X:=B.X+12; Ty:=B.Y+(B.H-18)/2;
   if Query then begin SearchIcon(X+5,B.Y+B.H/2-1); X:=X+26; end;
   Available:=B.X+B.W-X-14;
@@ -979,16 +1121,16 @@ begin
   if R.Get('secret',false) then Value:=StringOfChar('*',Length(Value));
   Value:=EditorTail(Value,Available-4);
   Caret:=X+TextWidth(Value);
-  if Editing and EditSelectedAll and (Value<>'') then Rect(X-1,Ty-3,Caret-X+3,25,0.49,0.15,0.32);
+  if Editing and EditSelectedAll and (Value<>'') then Rect(X-1,Ty-3,Caret-X+3,25,InkLine);
   if Value<>'' then LabelAt(X,Ty,18,Value,Available)
   else if Query then LabelAt(X,Ty,16,R.Get('label','Buscar canciones'),Available,true);
-  if Editing and not EditSelectedAll and ((SDL_GetTicks div 530) mod 2=0) then Rect(Caret+1,Ty-1,1.6,21,1,0.71,0.81);
+  if Editing and not EditSelectedAll and ((SDL_GetTicks div 530) mod 2=0) then Rect(Caret+1,Ty-1,1.6,21,InkAccent);
 end;
 
 procedure DrawControl(R:TJSONObject; Y:single; H:integer; Focused,Hovered:boolean);
 var Kind,Style,Sub,Caption,Control: UTF8String; B:TBox; X,Value:single; QR:TTexture;
 begin
-  Kind:=R.Get('kind',''); Style:=R.Get('style',''); Sub:=R.Get('sub','');
+  Kind:=R.Get('kind',''); Style:=R.Get('style',''); Sub:=R.Get('sub',''); Caption:=R.Get('label','');
   if Kind='qr' then
   begin
     QR:=CachedCover(R.Get('path',''));
@@ -1002,16 +1144,22 @@ begin
   end;
   if Kind='song' then begin SongRow(R,Y,Focused,Hovered); Exit; end;
   if Kind='input' then begin DrawInput(R,Y,Focused); Exit; end;
+  if (Style='checked') or (Style='check') then
+  begin
+    B:=Box(16,Y,368,40); if Focused then FocusInset(B); Surface(B,8,InkPanel);
+    Outline(Box(25,Y+13,14,14),0.77,0.79,0.84); if Style='checked' then DrawAddCheck(32,Y+20);
+    LabelAt(53,Y+11,15,Caption,310,true); Exit;
+  end;
   if Kind='slider' then
   begin
     B:=Box(16,Y,368,H-5);
-    if Focused then begin FocusInset(B); Surface(B,6,0.13,0.14,0.17); end;
+    if Focused then begin FocusInset(B); Surface(B,6,InkStage); end;
     Value:=EnsureRange(R.Get('value',0.0),0.0,100.0);
     LabelAt(24,Y+3,16,R.Get('label',''),286);
     LabelAt(330,Y+3,14,IntToStr(Round(Value))+'%',48,true);
-    Rect(24,Y+35,290,4,0.27,0.28,0.32);
-    Rect(24,Y+35,290*Value/100,4,0.92,0.39,0.60);
-    Surface(Box(19+290*Value/100,Y+31,12,12),6,1,0.78,0.86);
+    Rect(24,Y+35,290,4,InkGuide);
+    Rect(24,Y+35,290*Value/100,4,InkAccent);
+    Surface(Box(19+290*Value/100,Y+31,12,12),6,InkAccent);
     Exit;
   end;
   if Kind='text' then
@@ -1023,17 +1171,17 @@ begin
   B:=Box(16,Y,368,H-6); X:=26;
   Control:=RowAddKey(R.Get('action','')); Caption:=R.Get('label','');
   if Focused and (KeyboardFocusVisible or not AddAction(R.Get('action',''))) then FocusInset(B);
-  if (Style='primary') and AddHeld(Control) then Surface(B,6,0.52,0.08,0.25)
-  else if Style='primary' then Surface(B,6,0.63,0.085,0.29)
-  else if Hovered or Focused then Surface(B,6,0.19,0.20,0.23)
-  else if Style='' then Rect(22,Y+H-5,356,1,0.18,0.19,0.22);
+  if (Style='primary') and AddHeld(Control) then Surface(B,6,InkFocus)
+  else if Style='primary' then Surface(B,6,InkAccent)
+  else if Hovered or Focused then Surface(B,6,InkRaised)
+  else if Style='' then Rect(22,Y+H-5,356,1,InkRaised);
   if Style='back' then begin Chevron(X+3,Y+16,false); X:=X+18; end;
   if (Style='link') or (Style='back') then LabelAt(X,Y+9,15,R.Get('label',''),340,true)
   else if Style='primary' then
   begin
     if AddConfirmed(Control) then begin DrawAddCheck(X+8,Y+18); Caption:='En la cola'; end;
-    if AddConfirmed(Control) then LabelAt(X+24,Y+9,17,Caption,317,false,true)
-    else LabelAt(X,Y+9,17,Caption,341,false,true);
+    if AddConfirmed(Control) then LabelAt(X+24,Y+9,17,Caption,317,false,true,true)
+    else LabelAt(X,Y+9,17,Caption,341,false,true,true);
   end
   else begin
     LabelAt(X,Y+9,16,R.Get('label',''),321);
@@ -1047,7 +1195,7 @@ var Msg,Line,Word:UTF8String; I,Y:integer;
 begin
   Msg:=StatusText; if Msg='' then Exit;
   Y:=Round(Height)-FooterHeight;
-  Rect(16,Y,368,1,0.21,0.22,0.25); Inc(Y,11); Line:='';
+  Rect(16,Y,368,1,InkLine); Inc(Y,11); Line:='';
   while (Msg<>'') and (Y<Height-15) do
   begin
     I:=Pos(' ',Msg); if I=0 then I:=Length(Msg)+1;
@@ -1077,37 +1225,37 @@ begin
     Renderer.SetViewPort(0,0,ScreenW,ScreenH);
     Renderer.SetOrthographicProjection(0,ScreenW,ScreenH,0,-1,100); Renderer.DepthTest:=false;
     B:=RestoreBox; if PanelToggleFocused then FocusInset(B);
-    if PanelHover then Surface(B,6,0.23,0.24,0.27) else Surface(B,6,0.14,0.15,0.18);
+    if PanelHover then Surface(B,6,InkRaised) else Surface(B,6,InkPanel);
     Chevron(B.X+14,B.Y+20,false); LabelAt(B.X+30,B.Y+12,15,'Mostrar panel',106);
     Renderer.SetOrthographicProjection(0,RenderW,RenderH,0,-1,100); Renderer.DepthTest:=true; Exit;
   end;
   Renderer.SetViewPort(W,0,SideWidth,ScreenH); Renderer.SetOrthographicProjection(0,400,Height,0,-1,100); Renderer.DepthTest:=false;
-  Rect(0,0,400,Height,0.105,0.115,0.14); Rect(0,0,1,Height,0.22,0.23,0.26);
-  for I:=0 to 3 do
+  Rect(0,0,400,Height,InkPanel); Rect(0,0,1,Height,InkLine);
+  for I:=1 to 3 do
   begin
-    B:=TabBox(I); Value:=TabPage(I);
+    B:=TabBox(I); Value:=TabPage(I); if I=3 then Value:='Sesión';
     if (I=2) and Assigned(View) and (View.Get('queue_count',0)>0) then
       Value:=Value+' '+IntToStr(View.Get('queue_count',0));
     if Focus=I-10 then FocusInset(B);
-    if CurrentTab=I then Surface(B,7,0.26,0.205,0.26)
-    else if Focus=I-10 then Surface(B,7,0.14,0.15,0.18);
+    if Focus=I-10 then Surface(B,7,InkPanel);
+    if CurrentTab=I then Rect(B.X+6,B.Y+B.H-1,B.W-12,3,InkAccent);
     SetFontStyle(ftRegular); ResetFont; SetFontSize(15);
     LabelX:=B.X+Max(4.0,(B.W-TextWidth(Value))/2);
-    LabelAt(LabelX,B.Y+10,15,Value,B.W-6,I<>CurrentTab);
+    LabelAt(LabelX,B.Y+13,16,Value,B.W-6,I<>CurrentTab);
   end;
   B:=FoldBox; if Focus=-11 then FocusInset(B);
-  if PanelHover or (Focus=-11) then Surface(B,7,0.20,0.21,0.24);
+  if PanelHover or (Focus=-11) then Surface(B,7,InkRaised);
   // Sidebar glyph: a pane divider and a closing chevron.
   Rect(B.X+11,B.Y+11,1.5,16,0.77,0.79,0.84); Chevron(B.X+23,B.Y+19,true,5);
-  Rect(16,61,368,1,0.22,0.23,0.26);
+  Rect(16,61,368,1,InkLine);
   if Singing then
   begin
     B:=TransportBox(false); if Focus=-6 then FocusInset(B);
-    Surface(B,6,0.23,0.19,0.24);
+    Surface(B,6,InkRaised);
     if ScreenSing.Paused then Value:='Reanudar' else Value:='Pausar';
     LabelAt(B.X+12,B.Y+10,16,Value,B.W-24);
     B:=TransportBox(true); if Focus=-5 then FocusInset(B);
-    if Focus=-5 then Surface(B,6,0.18,0.19,0.22);
+    if Focus=-5 then Surface(B,6,InkRaised);
     LabelAt(B.X+12,B.Y+10,16,'Terminar canción',B.W-24,true);
   end;
   TopY:=ContentTop; BottomY:=ContentBottom;
@@ -1201,7 +1349,7 @@ begin
   if Focus= -12 then
   begin
     if ShowingResults then ResultsDismissed:=true
-    else if HasCarousel then RequestAdd(HeroAddAction,'hero/'+HeroAddAction)
+    else if Assigned(StageSong) then Emit(StageSong.Get('action',''))
     else begin SetPanelCollapsed(false); Emit('page:Buscar'); end;
     Exit;
   end;
@@ -1234,10 +1382,10 @@ begin
   AddFocused:=false; CommitEdit; StageFocused:=false;
   if Singing then
   begin
-    SetLength(Targets,7); for I:=0 to 4 do Targets[I]:=I-11;
-    Targets[5]:=-6; Targets[6]:=-5;
+    SetLength(Targets,6); Targets[0]:=-11; for I:=1 to 3 do Targets[I]:=I-10;
+    Targets[4]:=-6; Targets[5]:=-5;
   end else
-  begin SetLength(Targets,6); for I:=0 to 5 do Targets[I]:=I-12; end;
+  begin SetLength(Targets,5); Targets[0]:=-12; Targets[1]:=-11; for I:=1 to 3 do Targets[I+1]:=I-10; end;
   if Assigned(View) then
   begin
     A:=View.Arrays['rows'];
@@ -1262,7 +1410,7 @@ begin
   end;
 end;
 function StagePointer(PX,PY: integer): boolean;
-var W,I: integer; C: TJSONObject; A: TJSONArray;
+var W: integer;
 begin
   W:=ScreenW-SideWidth; Result:=false;
   if Singing or (PX>=W) then Exit;
@@ -1270,17 +1418,10 @@ begin
   Result:=true; CommitEdit; Focus:=-12; StageFocused:=true; PanelToggleFocused:=false;
   if ShowingResults then
   begin if Inside(ResultButton,PX,PY) then ResultsDismissed:=true; Exit; end;
-  if not HasCarousel then
-  begin
-    if ((Page<>'Buscar') or PanelCollapsed) and Inside(EmptyButton,PX,PY) then
-    begin SetPanelCollapsed(false); StageFocused:=false; Emit('page:Buscar'); end;
-    Exit;
-  end;
-  C:=Carousel; A:=C.Arrays['songs'];
-  if C.Get('has_previous',false) and Inside(ArrowBox(W,false),PX,PY) then Emit('carousel:previous')
-  else if C.Get('has_next',false) and Inside(ArrowBox(W,true),PX,PY) then Emit('carousel:next')
-  else for I:=0 to A.Count-1 do if Inside(SleeveBox(W,I),PX,PY) then
-  begin Emit('carousel:select:'+TJSONObject(A[I]).Get('id','')); Exit; end;
+  if Assigned(StageSong) then
+  begin if Inside(HeroButton(W),PX,PY) then Emit(StageSong.Get('action','')); end
+  else if ((Page<>'Buscar') or PanelCollapsed) and Inside(EmptyButton,PX,PY) then
+  begin SetPanelCollapsed(false); StageFocused:=false; Emit('page:Buscar'); end;
 end;
 // Resolve the exact visible control again on release: scrolling, sorting, or an
 // asynchronous search can replace the song under a stationary pointer.
@@ -1288,11 +1429,7 @@ function PointerAdd(PX,PY:integer; out Action:string; out Row:integer):string;
 var W,I,TopY:integer; X,Y:single; R:TJSONObject;
 begin
   Action:=''; Result:=''; Row:=-1; W:=ScreenW-SideWidth;
-  if PX<W then begin
-    if not Singing and not ShowingResults and HasCarousel and Inside(HeroButton(W),PX,PY) then
-    begin Action:=HeroAddAction; Result:='hero/'+Action; end;
-    Exit;
-  end;
+  if PX<W then Exit;
   if PanelCollapsed then Exit;
   X:=(PX-W)*400/SideWidth; Y:=PY*400/SideWidth;
   Row:=RowAt(Round(X),Round(Y)); if Row<0 then Exit;
@@ -1359,9 +1496,9 @@ begin
     begin
       Result:=true; X:=Round((X-ScreenW+SideWidth)*400/SideWidth);
       if Inside(FoldBox,X,Y) then SetPanelCollapsed(true)
-      else if (Y>=TabBox(0).Y) and (Y<TabBox(0).Y+TabBox(0).H) then
+      else if (Y>=TabBox(1).Y) and (Y<TabBox(1).Y+TabBox(1).H) then
       begin
-        for I:=0 to 3 do if Inside(TabBox(I),X,Y) then
+        for I:=1 to 3 do if Inside(TabBox(I),X,Y) then
         begin OpenTab(I); Break; end;
       end else if Singing and (Inside(TransportBox(false),X,Y) or Inside(TransportBox(true),X,Y)) then
       begin CommitEdit; if Inside(TransportBox(false),X,Y) then Focus:=-6 else Focus:=-5; ActivateFocus; end
@@ -1406,7 +1543,7 @@ begin
       if (Key=SDLK_e) and Singing then begin SetPanelCollapsed(false); Emit('end'); Exit; end;
       if (Key>=SDLK_1) and (Key<=SDLK_4) then
       begin
-        SetPanelCollapsed(false); OpenTab(integer(Key-SDLK_1));
+        SetPanelCollapsed(false); OpenTab(Max(1,integer(Key-SDLK_1)));
         Exit;
       end;
       if (Key=SDLK_v) and not PanelCollapsed and (EditAction<>'') then
@@ -1423,15 +1560,10 @@ begin
     end;
     if not Singing and (EditAction='') and ((Focus=-1) or StageFocused or PanelCollapsed) then
     begin
-      if (Key=SDLK_LEFT) or (Key=SDLK_RIGHT) then
-      begin
-        ResultsDismissed:=true; StageFocused:=true; PanelToggleFocused:=false; Focus:=-12;
-        if Key=SDLK_LEFT then Emit('carousel:previous') else Emit('carousel:next'); Exit;
-      end;
       if (Key=SDLK_RETURN) and StageFocused then
       begin
         if ShowingResults then ResultsDismissed:=true
-        else if HasCarousel then RequestAdd(HeroAddAction,'hero/'+HeroAddAction)
+        else if Assigned(StageSong) then Emit(StageSong.Get('action',''))
         else begin SetPanelCollapsed(false); Emit('page:Buscar'); end;
         Exit;
       end;
@@ -1450,7 +1582,8 @@ begin
       begin if EditSelectedAll then EditValue:='' else TrimLast(EditValue); EditSelectedAll:=false; EditChanged; end;
       if (Key=SDLK_LEFT) or (Key=SDLK_RIGHT) then EditSelectedAll:=false;
       if (Key=SDLK_RETURN) and (Composition='') then CommitEdit;
-      if Key=SDLK_ESCAPE then begin EditAction:=''; EditValue:=''; EditSelectedAll:=false; Focus:=-1; SDL_StopTextInput; end;
+      if (Key=SDLK_ESCAPE) and (EditAction='field:query') and (EditValue<>'') then begin EditValue:=''; EditChanged; PublishSearch; end
+      else if Key=SDLK_ESCAPE then begin EditAction:=''; EditValue:=''; EditSelectedAll:=false; Focus:=-1; SDL_StopTextInput; end;
     end
     else if (Key=SDLK_RETURN) or ((Key=SDLK_SPACE) and (Focus<> -1)) then ActivateFocus
     else if (Key=SDLK_LEFT) or (Key=SDLK_RIGHT) or (Key=SDLK_PLUS) then

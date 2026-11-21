@@ -26,9 +26,65 @@ def test_catalogue_pinned_identity_offline_and_accent_lookup(tmp_path, monkeypat
     hit, = allkaraoke.search("sigo aqui alex ubago", tmp_path)
     assert hit["video_id"] == VIDEO and hit["source"] == SONG["source"]
     allkaraoke._index.cache_clear()
+    allkaraoke._current_index.cache_clear()
     monkeypatch.setattr(allkaraoke, "fetch", lambda *args: pytest.fail("should use saved index"))
     assert allkaraoke.search("anything", tmp_path, VIDEO) == [hit]
     assert allkaraoke.search("otro", tmp_path) == []
+
+
+def test_verified_previous_index_survives_offline_upgrade_and_refreshes(tmp_path, monkeypatch):
+    previous = json.dumps([ENTRY]).encode()
+    added = {**ENTRY, "id": "new-chart", "title": "Nueva"}
+    current = json.dumps([ENTRY, added]).encode()
+    old_path = tmp_path / f"allkaraoke-{allkaraoke.PREVIOUS_REVISION}.json"
+    old_path.write_bytes(previous)
+    monkeypatch.setattr(allkaraoke, "PREVIOUS_SHA", hashlib.sha256(previous).hexdigest())
+    monkeypatch.setattr(allkaraoke, "INDEX_SHA", hashlib.sha256(current).hexdigest())
+    monkeypatch.setattr(allkaraoke.time, "monotonic", lambda: 0)
+    attempts = []
+
+    def fetch(*_):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise allkaraoke.requests.ConnectionError("sin red")
+        return current
+
+    monkeypatch.setattr(allkaraoke, "fetch", fetch)
+    assert allkaraoke.search("sigo aqui", tmp_path)
+    assert not allkaraoke.search("nueva", tmp_path)
+    assert len(attempts) == 1
+    monkeypatch.setattr(allkaraoke.time, "monotonic", lambda: 301)
+    assert allkaraoke.search("nueva", tmp_path)[0]["source"] == "allkaraoke:new-chart"
+    assert len(attempts) == 2
+    monkeypatch.setattr(allkaraoke.time, "monotonic", lambda: 601)
+    monkeypatch.setattr(allkaraoke, "_verified_bytes", lambda *_: pytest.fail("reparsed current index"))
+    assert allkaraoke.search("nueva", tmp_path)
+
+
+def test_new_pin_or_different_video_can_reclaim_excluded_source():
+    reviewed_pin = "e6ebb73648ea826702ef15be42255c6b2c2d3c03"
+    row = {**ENTRY, "id": "gims-ciel", "video": "KG6ft_YDp5k"}
+    assert not allkaraoke._songs(json.dumps([row]), reviewed_pin)
+    assert allkaraoke._songs(json.dumps([row]), "future-pin")
+    assert allkaraoke._songs(json.dumps([{**row, "video": VIDEO}]), reviewed_pin)
+
+
+def test_offline_upgrade_rejects_tampered_previous_cache(tmp_path, monkeypatch):
+    old = tmp_path / f"allkaraoke-{allkaraoke.PREVIOUS_REVISION}.json"
+    old.write_text(json.dumps([ENTRY]))
+    monkeypatch.setattr(allkaraoke.time, "monotonic", lambda: 1)
+
+    attempts = []
+
+    def offline(*_):
+        attempts.append(1)
+        raise allkaraoke.requests.ConnectionError("sin red")
+
+    monkeypatch.setattr(allkaraoke, "fetch", offline)
+    for query in ("sigo", "sigo aqui"):
+        with pytest.raises(SongError, match="no está disponible"):
+            allkaraoke.search(query, tmp_path)
+    assert len(attempts) == 1
 
 
 def test_declared_video_title_and_duration_checked_before_review(package, tmp_path, monkeypatch):
@@ -54,7 +110,12 @@ def test_grouped_federation_offers_one_click_for_exact_recording(tmp_path, monke
         while service.futures and time.monotonic() < deadline:
             service.tick()
         row, = [r for r in service.view()["rows"] if r["kind"] == "song"]
-        assert row["action"].startswith("result:editions:") and row["add_action"].startswith("result:best:")
+        assert row["action"].startswith("result:detail:") and row["add_action"].startswith("result:best:")
+        service.handle({"action": row["action"]})
+        actions = {r.get("label"): r.get("action") for r in service.view()["rows"]}
+        assert actions["Solo descargar"].startswith("result:save:")
+        assert actions["Ver otras ediciones"].startswith("page:Ediciones")
+        service.handle({"action": "page:Buscar"})
         service.handle({"action": row["add_action"]})
         turn, = service.store.queue()
         assert turn["source"] == SONG["source"] and not turn["song_id"]

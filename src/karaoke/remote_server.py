@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ipaddress
+import os
+import ssl
 import json
 import re
 import secrets
@@ -21,8 +23,12 @@ import qrcode
 
 WEB = Path(__file__).with_name("remote_web")
 ASSETS = {
+    "/voice-capture.js": ("voice-capture.js", "text/javascript; charset=utf-8"),
+    "/people.js": ("people.js", "text/javascript; charset=utf-8"),
     "/": ("index.html", "text/html; charset=utf-8"),
+    "/instrument-sans.woff2": ("instrument-sans.woff2", "font/woff2"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/palette.css": ("palette.css", "text/css; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
 MAX_BODY = 8192
@@ -161,14 +167,14 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def read_payload(self):
+    def read_payload(self, limit=MAX_BODY):
         if self.headers.get_content_type() != "application/json":
             raise RemoteError("Se esperaba una petición JSON.", 415)
         try:
             length = int(self.headers.get("Content-Length", "-1"))
         except ValueError:
             length = -1
-        if self.headers.get("Transfer-Encoding") or not 0 <= length <= MAX_BODY:
+        if self.headers.get("Transfer-Encoding") or not 0 <= length <= limit:
             raise RemoteError("Tamaño de petición no admitido.", 413)
         try:
             value = json.loads(self.rfile.read(length))
@@ -194,9 +200,13 @@ class _Handler(BaseHTTPRequestHandler):
         if self.command == "POST" and path == "/api/join":
             name, token = server.join(self.client_address[0], self.read_payload())
             cookie = f"{server.cookie_name}={token}; HttpOnly; SameSite=Strict; Path=/api"
+            if server.url.startswith("https://"):
+                cookie += "; Secure"
             return self.reply(200, {"name": name}, headers=(("Set-Cookie", cookie),))
 
         guest, name = server.identify(self.headers.get("Cookie", ""))
+        if self.command == "POST" and path in ("/api/mic-offer", "/api/mic-stop"):
+            return self.reply(200, server.dispatch(guest,name,path[5:],self.read_payload(40000)))
         if self.command == "GET" and path == "/api/me":
             return self.reply(200, {"name": name})
         if self.command == "GET" and path.startswith("/api/cover/"):
@@ -282,6 +292,20 @@ class RemoteServer:
         listener = _Listener(str(address), self.dispatch)
         qr_path = self.directory / ("invite-" + secrets.token_hex(8) + ".png")
         try:
+            cert = os.environ.get('KARAOKE_TLS_CERT')
+            key = os.environ.get('KARAOKE_TLS_KEY')
+            if cert or key:
+                if not cert or not key:
+                    raise RemoteError('Configura los dos archivos de certificado y clave TLS.')
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                context.minimum_version = ssl.TLSVersion.TLSv1_2
+                context.load_cert_chain(cert, key)
+                listener.socket = context.wrap_socket(listener.socket, server_side=True, do_handshake_on_connect=False)
+                hostname = os.environ.get('KARAOKE_TLS_HOST', str(address))
+                if not re.fullmatch(r'[a-zA-Z0-9.-]{1,253}',hostname):
+                    raise RemoteError('El nombre del certificado TLS no es válido.')
+                listener.authority = f'{hostname}:{listener.server_port}'
+                listener.url = 'https://' + listener.authority
             self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
             with qr_path.open("xb") as target:
                 qrcode.make(listener.url + "/#join=" + listener.secret).save(target, format="PNG")

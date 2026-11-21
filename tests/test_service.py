@@ -334,7 +334,7 @@ def test_spanish_search_offers_in_app_picker_without_an_account(service, query, 
     assert next(r for r in service.view()["rows"] if r["kind"] == "song")["add_action"]
     wait(service, lambda: not service.futures)
     row, = [r for r in service.view()["rows"] if r["kind"] == "song"]
-    assert "Elegir en UltraStar España" in row["sub"]
+    assert "Requiere al anfitrión" in row["sub"]
     assert row["add_action"] == f"result:obtain:{service.search_generation}:espana:{slug}"
     service.handle({"action": row["add_action"], "value": "first"})
     service.handle({"action": row["action"]})
@@ -464,7 +464,7 @@ def test_host_secondary_workflow_device_directory_and_recovery(tmp_path, package
         service.close()
     reopened = Service(root)
     try:
-        assert reopened.page == "Biblioteca"
+        assert reopened.page == "Cola"
         assert reopened.names() == ["Ángela", "José"]
         assert reopened.library == future_library.resolve()
         assert [(turn["id"], turn["state"]) for turn in reopened.store.queue()] == [(ready, "queued")]
@@ -484,7 +484,8 @@ def test_paste_spanish_publisher_search_preserves_exact_song_and_stays_in_karaok
     service.handle({"action": "field:query", "value": url})
     wait(service, lambda: not service.futures)
     assert queries == ["Mulán - Todo un hombre haré de ti"]
-    field, row = service.view()["rows"]
+    field, saved_filter, row = service.view()["rows"]
+    assert saved_filter["action"] == "search:saved"
     assert field["value"] == url and row["label"] == "Todo un hombre haré de ti"
     assert row["add_action"].endswith(":community-es:mulan")
-    assert "Elegir en UltraStar España" in row["sub"]
+    assert "Requiere al anfitrión" in row["sub"]

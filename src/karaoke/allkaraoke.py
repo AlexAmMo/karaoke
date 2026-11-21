@@ -12,6 +12,7 @@ import re
 import shutil
 import tempfile
 import threading
+import time
 from urllib.parse import parse_qs, quote, urlsplit
 
 import requests
@@ -19,9 +20,21 @@ import requests
 from . import catalog
 from .songs import SongError, duration, read_chart
 
-REVISION = "978f076b8b8b6641057ba16a66693155aedc2cf2"
+REVISION = "e6ebb73648ea826702ef15be42255c6b2c2d3c03"
 BASE = f"https://raw.githubusercontent.com/Asvarox/allkaraoke/{REVISION}/public/songs/"
-INDEX_SHA = "f3591b4a2fdb42b768286d277383f61ceb47a01c45f464c22f6380dd209b1d97"
+INDEX_SHA = "6782f854ce9bf23aafd34f7c8115c3aacc1e2e977ef8a44289978c7bb84b61ab"
+PREVIOUS_REVISION = "978f076b8b8b6641057ba16a66693155aedc2cf2"
+PREVIOUS_SHA = "f3591b4a2fdb42b768286d277383f61ceb47a01c45f464c22f6380dd209b1d97"
+# Recheck these exact chart/video pairs when promoting the next revision.
+# See docs/validation/catalogo-2026-11-21.md for the preparation results.
+_UNAVAILABLE_EDITIONS = {
+    "e6ebb73648ea826702ef15be42255c6b2c2d3c03": {
+        ("gims-ciel", "KG6ft_YDp5k"),  # Chart names a local MP4.
+        ("melendi-novia-a-la-fuga", "JCS5FcvWvdw"),  # Notes extend beyond the recording.
+        ("barns-courtney-fire", "hLEoictM8p4"),  # Vocal alignment could not be established.
+        ("la-oreja-de-van-gogh-paris", "r73sn8wVHZU"),  # Same acoustic check.
+    },
+}
 _LOCK = threading.Lock()
 
 
@@ -36,21 +49,36 @@ def fetch(url, limit):
         return bytes(value)
 
 
+def _verified_bytes(path, digest):
+    if path.is_file() and path.stat().st_size < 8_000_000:
+        raw = path.read_bytes()
+        if hashlib.sha256(raw).hexdigest() == digest:
+            return raw
+    return None
+
+
 @functools.lru_cache(maxsize=2)
-def _index(directory):
+def _current_index(directory):
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"allkaraoke-{REVISION}.json"
-    raw = path.read_bytes() if path.is_file() and path.stat().st_size < 8_000_000 else b""
-    if hashlib.sha256(raw).hexdigest() != INDEX_SHA:
+    raw = _verified_bytes(path, INDEX_SHA)
+    if raw is None:
         raw = fetch(BASE + "index.json", 8_000_000)
         if hashlib.sha256(raw).hexdigest() != INDEX_SHA:
             raise SongError("El índice de AllKaraoke no coincide con la revisión esperada.")
         with tempfile.NamedTemporaryFile(dir=directory, delete=False) as tmp:
             tmp.write(raw)
         os.replace(tmp.name, path)
+    return _songs(raw, REVISION)
+
+
+def _songs(raw, revision):
+    excluded = _UNAVAILABLE_EDITIONS.get(revision, ())
     songs = []
     for row in json.loads(raw):
         if not row["artist"] or not row["title"] or not row.get("video"):
+            continue
+        if (row["id"], row["video"]) in excluded:
             continue
         songs.append({
             "source": "allkaraoke:" + row["id"], "artist": row["artist"], "title": row["title"],
@@ -61,9 +89,23 @@ def _index(directory):
     return songs
 
 
+@functools.lru_cache(maxsize=2)
+def _index(directory, _retry_window=0):
+    try:
+        return _current_index(directory)
+    except requests.RequestException:
+        # Every chart in the preceding pin has the same blob in this revision.
+        previous = _verified_bytes(directory / f"allkaraoke-{PREVIOUS_REVISION}.json", PREVIOUS_SHA)
+        return _songs(previous, PREVIOUS_REVISION) if previous is not None else None
+
+
 def search(query, directory, video_id=None):
     with _LOCK:
-        songs = _index(directory)
+        # An upgraded host can search its old cache offline and discover the new
+        # songs once connectivity returns, even when the party keeps Karaoke open.
+        songs = _index(directory, int(time.monotonic() // 300))
+    if songs is None:
+        raise SongError("AllKaraoke no está disponible. Se reintentará la conexión.")
     if video_id:
         return [s for s in songs if s["video_id"] == video_id]
     if not catalog.tokens(query):

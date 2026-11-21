@@ -55,7 +55,7 @@ def test_skip_and_reorder_leave_other_turns_in_order(tmp_path):
     store.close()
 
 
-@pytest.mark.parametrize("names", [[], [""], ["Ana", "B", "C"]])
+@pytest.mark.parametrize("names", [[], [""], [str(i) for i in range(11)]])
 def test_invalid_players_roll_back_the_whole_request(tmp_path, names):
     store = Store(tmp_path / "state.sqlite")
     with pytest.raises(ValueError):

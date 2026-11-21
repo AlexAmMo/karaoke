@@ -25,7 +25,8 @@ reverse = subprocess.run(['git', '-C', str(target), 'apply', '--reverse', '--che
 if reverse.returncode:
     subprocess.run(['git', '-C', str(target), 'apply', '--check', str(patch)], check=True)
     subprocess.run(['git', '-C', str(target), 'apply', str(patch)], check=True)
-(target / 'src/base/UKaraokeShell.pas').write_bytes((ROOT / 'native/UKaraokeShell.pas').read_bytes())
+for unit in (ROOT / 'native').glob('UKaraoke*.pas'):
+    (target / 'src/base' / unit.name).write_bytes(unit.read_bytes())
 # Preserve the exact upstream source when its download host is intermittent.
 lua_source = ROOT / 'third_party/sources/lua-5.5.1.tar.gz'
 lua_hash = '1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce'

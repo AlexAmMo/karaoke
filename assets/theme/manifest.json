@@ -1,6 +1,6 @@
 {
   "generator": "scripts/create_theme_assets.py",
-  "generator_sha256": "ab6873702e401a92a60b698072065f41effa6c87f8dcd74dacf27b09668b31c7",
+  "generator_sha256": "cb3487be53c4a6c0ad0c5c2b574ccbfac3f3dd3b62b43556adfa63836d088f56",
   "license": "GPL-3.0-only",
   "provenance": "Original geometry authored for Karaoke: circle/rectangle capsule segments, two-tone lyric band, flat translucent score backing and pause bars. No third-party image input.",
   "assets": [
@@ -11,48 +11,48 @@
     },
     {
       "filename": "Karaoke/guide-left.png",
-      "sha256": "f41aef7c480e8f4c1cede0705abe4aaa8b90fea9c7550b9cfda47afbd23ff880",
+      "sha256": "ae697f4bf669a602884d95baadb88582ecb033ac3a44ad84221543e34d9ff543",
       "bytes": 684
     },
     {
       "filename": "Karaoke/guide-mid.png",
-      "sha256": "56341ad88a4ddadf45cdb2c865e759895a24ffe2972ec51a1ccc547fe78950ed",
+      "sha256": "9c6c21ca2bd56449573c0c800d6a99b1a35ea35a2ef82085edb8dd9fbce4c486",
       "bytes": 103
     },
     {
       "filename": "Karaoke/guide-right.png",
-      "sha256": "32869db6ace01b68ddb72b5108602655b358bf6a54ec278189ede727caf90e4a",
+      "sha256": "d7b72c45c939f7b372b479f3556107ea662ec8a57ec6c9a8c39f68ab5c1f1e50",
       "bytes": 691
     },
     {
       "filename": "Karaoke/lyrics.png",
-      "sha256": "b1c3dbf6ed8fab37314eb246585f52005f2dd14dcec86d4287daef3d2da58812",
+      "sha256": "88feca7602214cdc52eb9c45c55d3328d31f9bd218460a8ae1cdf018f73f69b7",
       "bytes": 99
     },
     {
       "filename": "Karaoke/pause.png",
-      "sha256": "c8471887eeef094082e8f94f1eece72b4cf8b3440772c7755e05c216040b2908",
-      "bytes": 2933
+      "sha256": "9d0cf48e4080682bcd936ad4f46632cb3a7060580f45c562e45d9ee4a376e2e8",
+      "bytes": 2935
     },
     {
       "filename": "Karaoke/score.png",
-      "sha256": "35edb086fb731aa95402a451d4b495c351b39cd18554c979ddd072eda54f948d",
+      "sha256": "0359210c213c37375e30ec20e41040ca2ca18af78b7aaa0d9d0e2de3d32add97",
       "bytes": 75
     },
     {
       "filename": "Karaoke/sung-left.png",
-      "sha256": "fff64a8fb0889d1f2c4954d5477685669edb25ebe240dcbe522e0e4d8aa848d0",
-      "bytes": 655
+      "sha256": "f5165eb87b35185e0fb229bf750b6c7c98e6197658d022cdcead839c427431f7",
+      "bytes": 654
     },
     {
       "filename": "Karaoke/sung-mid.png",
-      "sha256": "5bfbb0bbed59ff0ca55753cd9b57ad1daf01350aa5bf77a27ce2f39947a49dd2",
+      "sha256": "5ed50a830a88abad2b6f499254887ef6ec82a87b49b4a84531c319cee0f79874",
       "bytes": 98
     },
     {
       "filename": "Karaoke/sung-right.png",
-      "sha256": "11c164c024b2a6579f96fa4e079e2cf8659c7164a526416c645456fbe9f8aa12",
-      "bytes": 634
+      "sha256": "0e23a19e402c310e3a62334d770c35da060bbde7d0e0e4474374778d530b42cd",
+      "bytes": 632
     },
     {
       "filename": "Karaoke/white.png",

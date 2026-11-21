@@ -20,7 +20,7 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.2.0'
+VERSION = '0.3.0'
 USDX_COMMIT = '8b9d9e08eca997d2e3fe789084fbac136988f276'
 SYNCER_COMMIT = '1690c6d7505701047b245a3470867c0b3ddae01d'
 
@@ -71,12 +71,17 @@ def collect_licenses(destination: Path):
 
 
 def pyinstaller(destination: Path, work: Path, name='karaoke'):
+    import uv
     run(sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--name', name,
         *(['--windowed', '--osx-bundle-identifier', 'org.alexammo.karaoke'] if sys.platform == 'darwin' else ['--hide-console', 'hide-early'] if sys.platform == 'win32' else []),
         '--distpath', destination, '--workpath', work, '--specpath', ROOT / 'build',
         '--additional-hooks-dir', ROOT / 'scripts/pyinstaller-hooks', '--paths', ROOT / 'src', '--hidden-import', 'karaoke.provider', '--hidden-import', 'karaoke.picker',
         '--hidden-import', 'usdb_syncer.song_loader', '--collect-data', 'usdb_syncer',
         '--copy-metadata', 'usdb-syncer', '--copy-metadata', 'yt-dlp',
+        '--add-binary', str(uv.find_uv_bin()) + ':tools',
+        '--add-data', str(ROOT / 'src/karaoke/generation_worker.py') + ':karaoke',
+        '--add-data', str(ROOT / 'src/karaoke/generation_assets') + ':karaoke/generation_assets',
+        '--add-data', str(ROOT / 'src/karaoke/review_web') + ':karaoke/review_web',
         '--add-data', str(ROOT / 'src/karaoke/remote_web') + ':karaoke/remote_web',
         '--collect-data', 'yt_dlp_ejs', '--hidden-import', 'keyring.backends.macOS' if sys.platform == 'darwin' else 'keyring.backends.Windows',
         ROOT / 'scripts/launcher.py')

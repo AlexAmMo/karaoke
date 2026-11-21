@@ -23,6 +23,10 @@ def save_song(service, song_id, title, chart=None):
         "audio": str(service.library / song_id / "audio.wav"),
         "duration": 4,
     }
+    for name in ("chart", "audio"):
+        path = Path(song[name])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch(exist_ok=True)
     service.store.save_song(song)
     return song
 

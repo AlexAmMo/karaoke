@@ -1,11 +1,11 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const captions = {search: "Buscar", library: "Biblioteca", queue: "Cola"};
+const captions = {search: "Busca una canción", queue: "Próximos turnos"};
 const statuses = {ready: "Lista", waiting: "En espera", working: "Preparando", error: "Necesita atención", host: "Pendiente en el ordenador", starting: "Empezando", singing: "Cantando"};
 const browse = {
   search: {q: "", page: 0},
-  library: {q: "", page: 0},
+
 };
 let invite = new URLSearchParams(location.hash.slice(1)).get("join") || "";
 if (invite) history.replaceState(null, "", location.pathname);
@@ -102,6 +102,7 @@ async function api(route, payload, method = "POST") {
     if (!response.ok) {
       if (response.status === 410 && data.room_closed === true) {
         showJoin();
+        window.closeKaraokeMicrophone?.();
         roomClosed = true;
         $("join").hidden = true;
         $("closed-room").hidden = false;
@@ -263,6 +264,7 @@ function command(op, id, extra = {}, msg = "") {
   });
 }
 function add(item, names = [session.name]) {
+  if (confirmedItem?.id === item.id && confirmedItem.until > Date.now()) return;
   void sendAction({op: "add", id: item.id, names}, (_, origin) => {
     closeOrigin(origin);
     confirmedItem = {id: item.id, until: Date.now() + 1400};
@@ -318,7 +320,7 @@ function activateTab(section) {
   if (isQueue) { if (state) renderQueue(); }
   else {
     $("query").value = browse[tab].q;
-    $("query").placeholder = tab === "library" ? "Filtrar canciones guardadas" : "Artista, canción o enlace";
+    $("query").placeholder = "Artista, canción o enlace";
     $("query-label").textContent = $("query").placeholder;
     void loadResults();
   }
@@ -336,18 +338,15 @@ function renderSongRows(items) {
     const li = element("li", "song");
     const open = button("", () => openSong(item), "song-main");
     open.dataset.focusKey = "song:" + item.id;
-    const sub = [item.artist];
-    if (item.assisted && !item.available) sub.push("Comprobando ediciones…");
-    else if (item.assisted) sub.push("Elegir en el ordenador");
-    else if (!item.available && !item.saved) sub.push("Sin descarga integrada");
+    const sub = [item.artist, item.language, item.status_label];
     open.append(cover(item), detail(item.title, sub.filter(Boolean).join(" · ")));
     li.append(open);
-    if (item.available || item.saved) {
+    if ((item.available && !item.assisted) || item.saved) {
       const confirmed = confirmedItem?.id === item.id && confirmedItem.until > Date.now();
       const control = iconButton("Añadir " + item.title, confirmed ? "check" : "plus", () => add(item));
       control.dataset.focusKey = "add:" + item.id;
       control.classList.toggle("confirmed", Boolean(confirmed));
-      if (confirmed) control.disabled = true;
+      if (confirmed) control.setAttribute("aria-disabled", "true");
       li.append(control);
     }
     return li;
@@ -361,10 +360,9 @@ async function loadResults() {
   const seq = ++browseRequest;
   const {q, page} = browse[section];
   const emptySearch = section === "search" && !q.trim();
-  $("list-heading").hidden = !emptySearch;
-  $("list-heading").textContent = emptySearch ? "De tu biblioteca" : "";
+  $("list-heading").hidden = true;
   try {
-    const data = await api(emptySearch ? "library" : section, {q: q.trim(), page});
+    const data = await api("search", {q: q.trim(), page, saved_only: $("saved-only").checked});
     if (!session || seq !== browseRequest) return;
     const key = JSON.stringify(data.items);
     if (key !== renderedList) {
@@ -372,11 +370,11 @@ async function loadResults() {
       renderSongRows(data.items);
     }
     $("list-status").textContent = data.busy ? "Buscando canciones…" : (data.items.length ? "" :
-      (emptySearch ? "Escribe un artista o una canción para empezar." : (!q && section === "library" ? "Aún no hay canciones guardadas." : "Sin coincidencias. Prueba con otro título o artista.")));
+      ($("saved-only").checked ? "Sin canciones descargadas. Desactiva el filtro para consultar el catálogo." : emptySearch ? "Escribe un artista o una canción para empezar." : "Sin coincidencias. Prueba con otro título o artista."));
     $("pagination").hidden = !page && !data.more;
     $("prev").hidden = !page;
     $("next").hidden = !data.more;
-    if (data.busy) browseTimer = setTimeout(loadResults, 800);
+    if (data.busy || data.items.some(item => item.availability === "working")) browseTimer = setTimeout(loadResults, 800);
     else if (data.items.some(item => !item.cover) && artworkAttempts++ < 3) {
       browseTimer = setTimeout(loadResults, 2500);
     }
@@ -479,15 +477,24 @@ function openSong(item) {
     const preferred = variants.findIndex(row => row.id === item.id && (row.available || row.assisted || row.saved));
     if (preferred >= 0) options.selectedIndex = preferred;
     selected = variants[options.selectedIndex] || item;
-    options.addEventListener("change", () => { selected = variants[options.selectedIndex]; });
+    options.addEventListener("change", () => { selected = variants[options.selectedIndex]; updateActions(); });
     content.append(label, options);
+  }
+  const addLabel = () => selected.assisted ? "Pedir al anfitrión" : "Añadir a la cola";
+  let addControl, saveControl;
+  function updateActions() {
+    if (addControl) addControl.lastChild.textContent = addLabel();
+    if (saveControl) saveControl.hidden = !["direct"].includes(selected.availability);
   }
   if (item.available || item.assisted || item.saved || variants.some(s => s.available || s.assisted)) {
     const names = singerFields(content, [session.name]);
-    content.append(button("Añadir a la cola", () => {
+    addControl = button(addLabel(), () => {
       const values = names();
       if (values && selected) add(selected, values);
-    }, "primary full", "plus"));
+    }, "primary full", "plus");
+    saveControl = button("Solo descargar", () => command("save", selected.id, {}, "Preparando la canción"), "full");
+    content.append(addControl, saveControl);
+    updateActions();
   } else content.append(element("p", "small muted", "Esta ficha no tiene descarga integrada."));
   if (libraryId) {
     const actions = element("div", "sheet-actions");
@@ -557,6 +564,7 @@ function openTurn(stale) {
   if (item.status === "ready" && !state.active) actions.append(button("Empezar a cantar", () => command("start", item.id, {revision}), "primary"));
   if (item.status === "error") actions.append(button("Reintentar", () => command("retry", item.id, {revision})));
   content.append(actions);
+  if (state.singers?.length) window.karaokeVoiceEditor?.(content,item,state,revision,command);
   const names = singerFields(content, item.names || []);
   content.append(button("Guardar cantantes", () => {
     const values = names();
@@ -598,10 +606,12 @@ $("settings-button").addEventListener("click", () => {
     else closeSheet();
   }, "primary full");
   content.append(label, range, pitchLabel, pitch, hint, save);
+  window.karaokePeople?.(content, {api, action:sendAction, state, session});
 });
 $("sheet-close").addEventListener("click", closeSheet);
 $("sheet").addEventListener("close", () => { if (!$("sheet").open) { clearTimeout(candidateTimer); currentSheet = null; } });
 document.querySelectorAll("[data-tab]").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
+$("saved-only").addEventListener("change", () => { browse.search.page = 0; renderedList = ""; void loadResults(); });
 $("query").maxLength = 240;
 $("query").addEventListener("input", () => {
   browse[tab] = {q:$("query").value, page:0};
@@ -616,7 +626,7 @@ $("query").addEventListener("input", () => {
   $("list-status").textContent = "Buscando canciones…";
   browseTimer = setTimeout(loadResults, 280);
 });
-$("query-form").addEventListener("submit", event => { event.preventDefault(); $("query").blur(); void loadResults(); });
+$("query-form").addEventListener("submit", event => { event.preventDefault(); void loadResults(); });
 function pageBy(step) {
   artworkAttempts = 0;
   browse[tab].page = Math.max(0, browse[tab].page + step);

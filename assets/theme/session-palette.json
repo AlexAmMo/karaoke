@@ -1,0 +1,5 @@
+{
+  "stage": "#102321", "panel": "#172c29", "raised": "#243b37", "line": "#425953",
+  "text": "#f7f4e9", "muted": "#b7c8bf", "accent": "#ffb18a", "onAccent": "#332019",
+  "signal": "#acf1cd", "guide": "#81968c", "focus": "#ffe6a1", "error": "#ffa9a1"
+}

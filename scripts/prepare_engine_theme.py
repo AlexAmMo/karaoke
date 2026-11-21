@@ -7,6 +7,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def prepare_theme(engine: Path):
+    fonts = engine / 'game/fonts'
+    shutil.copytree(ROOT / 'assets/fonts', fonts / 'InstrumentSans', dirs_exist_ok=True)
+    layout = fonts / 'fonts.ini'
+    text = layout.read_text(encoding='utf-8-sig')
+    if '[Font_InstrumentSans]' not in text:
+        family = ['[Font_InstrumentSans]', 'Name=Instrument Sans']
+        for style, weight in [('Regular', 'Regular'), ('Bold', 'Bold'), ('Outline', 'Bold'), ('BoldHighRes', 'Bold')]:
+            family.extend([f'{style}File=InstrumentSans/InstrumentSans-{weight}.ttf',
+                           f'{style}MaxResolution=128',
+                           f'{style}FallbackFile1=NotoSans/GoNotoKurrent-{weight}.ttf',
+                           f'{style}FallbackFile2=NotoSans/GoNotoCurrent-{weight}.ttf'])
+        family.extend(['OutlineOutline=0.035', ''])
+        text = text.replace('[Font_NotoSans]', '\n'.join(family) + '\n[Font_NotoSans]', 1)
+        layout.write_text(text, encoding='utf-8')
     themes = engine / 'game/themes'
     source = (themes / 'Modern.ini').read_text(encoding='utf-8-sig')
     replacements = {

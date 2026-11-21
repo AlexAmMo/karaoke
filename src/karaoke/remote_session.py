@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from concurrent.futures import Future, TimeoutError
 from dataclasses import dataclass, field
 import hashlib
@@ -14,7 +14,7 @@ import time
 
 from . import catalog
 from .remote_server import RemoteError, RemoteServer, lan_addresses
-from .service import CatalogueSearch, normalize, source_name, spanish_search_terms
+from .service import has_song_files, CatalogueSearch, work_key, normalize, source_name, spanish_search_terms
 from .songs import SongError
 
 
@@ -66,10 +66,10 @@ class Guest:
 def names_for_turn(names, default):
     if names is None:
         names = [default]
-    if (not isinstance(names, list) or not 1 <= len(names) <= 2 or
+    if (not isinstance(names, list) or not 1 <= len(names) <= 10 or
             any(not isinstance(n, str) or not n.strip() or len(n.strip()) > 40 or
                 not n.strip().isprintable() for n in names)):
-        raise RemoteError("Indica el nombre de uno o dos cantantes.")
+        raise RemoteError("Indica el nombre de uno a diez cantantes.")
     return [n.strip() for n in names]
 
 
@@ -77,6 +77,8 @@ class RemoteSession:
     def __init__(self, host):
         self.host = host
         self.server = RemoteServer(self.dispatch, host.root / "mobile-session")
+        from .mobile_voice import MobileVoices
+        self.mics = MobileVoices()
         self.inbox = queue.Queue(maxsize=96)
         self.guests = {}
         self.searches = OrderedDict()
@@ -93,6 +95,7 @@ class RemoteSession:
     def stop(self):
         self.epoch += 1
         self.server.stop()
+        self.mics.stop()
         for lookup in self.searches.values():
             lookup.cancel()
         for guest in self.guests.values():
@@ -142,6 +145,10 @@ class RemoteSession:
         button("Volver a la cola", "page:Cola", style="back")
 
     def dispatch(self, client, name, operation, payload):
+        if operation in ('mic-offer','mic-stop'):
+            if not self.server.has_guest(client):
+                raise RemoteError('La sala se ha cerrado.',410)
+            return self.mics.submit(client,name,operation,payload)
         reply = Future()
         try:
             self.inbox.put_nowait((self.epoch, reply, client, name, operation, payload))
@@ -202,7 +209,7 @@ class RemoteSession:
     @staticmethod
     def revision(rows):
         # Playback progress and cover downloads must not invalidate a reorder.
-        relevant = [(t["id"], t["state"], t["song_id"], t["names"], t["preparation"]) for t in rows]
+        relevant = [(t["id"], t["state"], t["song_id"], t["names"], t["preparation"], t.get("voices_revision")) for t in rows]
         return hashlib.sha256(json.dumps(relevant).encode()).hexdigest()[:16]
 
     def state(self, name):
@@ -213,14 +220,17 @@ class RemoteSession:
                     else json.loads(t["job_payload"] or "{}").get("song", {}))
             status = t["state"] if t["state"] != "queued" else (
                 "ready" if t["song_id"] else t["preparation"] or "waiting")
+            if status == "ready" and not has_song_files(t):
+                status = "missing"
             if status == "cancelled":
                 status = "error"
             turns.append({"id": t["id"], "title": song.get("title") or "Preparando canción",
                           "artist": song.get("artist") or "", "names": json.loads(t["names"]),
-                          "status": status, "cover": self.cover(song),
+                          "voices": self.host.people.voices(t), "status": status, "cover": self.cover(song),
                           "message": {"error": "Preparación fallida. Puedes reintentar.",
+                                      "missing": "Vuelve a importar el mapa y el audio en el ordenador.",
                                       "host": "Elige la edición en el ordenador."}.get(status, "")})
-        return {"revision": self.revision(rows), "queue": turns, "name": name,
+        return {"revision": self.revision(rows), "queue": turns, "name": name, **self.host.party_state(),
                 "active": self.host.active, "paused": bool(self.host.engine.get("paused")),
                 "music": self.host.store.setting("music", 65),
                 "pitch_precision": self.host.pitch_precision,
@@ -238,7 +248,8 @@ class RemoteSession:
         result = {"id": "lib:" + song["id"], "title": song["title"], "artist": song["artist"],
                   "variant": song["variant"], "duration": song["duration"], "language": song["language"],
                   "cover": self.cover(song), "available": True, "assisted": False,
-                  "saved": True, "source": "Biblioteca", "editions": []}
+                  "saved": True, "availability": "saved", "status_label": "Descargada",
+                  "library_id": "lib:" + song["id"], "source": "En este equipo", "editions": []}
         if family:
             root = song["parent"] or song["id"]
             variants = self.host.store.rows("SELECT * FROM songs WHERE (id=? OR parent=?) AND id!=?",
@@ -250,12 +261,15 @@ class RemoteSession:
         page, query = self.page(payload)
         words = catalog.tokens(query)
         songs = [s for s in self.host.store.rows("SELECT * FROM songs ORDER BY artist,title,variant,id")
-                 if all(w in normalize(s["artist"] + " " + s["title"]) for w in words)]
+                 if all(w in normalize(s["artist"] + " " + s["title"]) for w in words)
+                 and has_song_files(s)]
         start = page * 12
         return {"items": [self.library_row(s, family=True) for s in songs[start:start+12]],
                 "page": page, "more": len(songs) > start + 12, "busy": False}
 
     def search(self, guest, payload):
+        if payload.get("saved_only") is True:
+            return self.library(payload)
         page, query = self.page(payload)
         query = spanish_search_terms(query) or query
         account = self.host.account.generation
@@ -285,38 +299,36 @@ class RemoteSession:
         if start >= len(groups) and lookup.search_cursor and not lookup.search_busy:
             lookup.search(query, more=True)
         items = []
-        for group in groups[start:start+12]:
-            possible = lookup.auto_choices(group)
-            spanish = lookup.spanish_choice(group)
-            song = possible[0] if possible else spanish or group[0]
-            def describe(item, choices, assisted, grouped=False):
+        visible = groups[start:start+12]
+        work_counts = Counter(work_key(group[0]) for group in groups)
+        states = lookup.result_states(visible)
+        for group in visible:
+            def describe(editions, grouped=False):
+                item, info = lookup.describe_result(editions, states)
                 source = catalog.source_key(item)
+                identity = json.dumps(work_key(item), ensure_ascii=False) if grouped else source
+                if grouped and work_counts[work_key(item)] > 1:
+                    identity += "/" + (item.get("language") or "")
                 uid = ("group:" if grouped else "edition:") + hashlib.sha256(
-                    (query + "\0" + source).encode()).hexdigest()[:32]
+                    (query + "\0" + identity).encode()).hexdigest()[:32]
                 guest.selections[uid] = (lookup, source, grouped)
-                return {"id": uid, "title": item["title"], "artist": item["artist"],
+                return {**info, "id": uid, "title": item["title"], "artist": item["artist"],
                         "language": item.get("language", ""), "variant": item.get("variant", ""),
-                        "cover": self.cover(item, query) if grouped else "",
-                        "source": source_name(source), "available": bool(choices or assisted),
-                        "assisted": not choices and bool(assisted),
-                        "edition": item.get("edition") or "", "saved": bool(item.get("library_id")),
-                        "library_id": ("lib:" + item["library_id"]) if item.get("library_id") else ""}
-
-            row = describe(song, possible, spanish, True)
-            if not possible and spanish and time.monotonic() < lookup.prefer_direct_until and (
-                    lookup.catalogue_status.get("AllKaraoke") == "Consultando" or lookup.search_busy):
-                row["available"] = False
-            row["editions"] = [describe(x, lookup.auto_choices([x]), lookup.spanish_choice([x])) for x in group]
+                        "cover": self.cover(item, query) if grouped else "", "source": source_name(source),
+                        "edition": item.get("edition") or "",
+                        "library_id": ("lib:" + info["library_id"]) if info["library_id"] else ""}
+            row = describe(group, True)
+            row["editions"] = [describe([item]) for item in group]
             items.append(row)
         return {"items": items, "page": page, "busy": lookup.search_busy or "Consultando" in lookup.catalogue_status.values(),
                 "more": len(groups) > start + 12 or bool(lookup.search_cursor)}
 
-    def add(self, guest, item_id, names, key):
+    def add(self, guest, item_id, names, key, *, queue=True):
         previous = self.host.store.rows("SELECT turn_id FROM mobile_requests WHERE key=?", (key,))
         if previous:
             return previous[0]["turn_id"]
         if item_id.startswith("lib:"):
-            return self.host.enqueue_song(item_id[4:], names=names, key=key)
+            return self.host.enqueue_song(item_id[4:], names=names, key=key) if queue else None
         selection = guest.selections.get(item_id)
         if not selection or guest.account != self.host.account.generation:
             raise RemoteError("Vuelve a buscar la edición que quieres cantar.", 409)
@@ -326,10 +338,12 @@ class RemoteSession:
             group = [s for s in group if catalog.source_key(s) == source]
         possible = lookup.auto_choices(group)
         if possible:
-            return self.host.request_choices(possible, names=names, key=key, search=lookup)
+            return self.host.request_choices(possible, names=names, key=key, search=lookup, queue=queue)
         song = lookup.spanish_choice(group)
         if not song:
             raise RemoteError("Esta edición no ofrece una descarga integrada.", 409)
+        if not queue:
+            raise RemoteError("Esta edición requiere elegir el paquete en el ordenador.", 409)
         source = "host:" + catalog.source_key(song)
         self.host.message = "Hay una edición pendiente en Cola para elegir en el ordenador."
         return self.host.store.request(source, {"song": song}, names, request_key=key, initial_state="host")
@@ -350,7 +364,7 @@ class RemoteSession:
                 self.host.store.save_song(value, guest.candidate["url"] + ":" + guest.instrumental_song,
                                           "instrumental", guest.instrumental_song, True)
                 guest.prepared = "lib:" + value["id"]
-                guest.message = "Instrumental guardada en Biblioteca."
+                guest.message = "Instrumental descargada."
         except Exception:
             guest.message = "La instrumental no está disponible o no coincide con el mapa."
         finally:
@@ -406,10 +420,33 @@ class RemoteSession:
         op, item = payload.get("op"), payload.get("id", "")
         if not isinstance(item, str) or len(item) > 200:
             raise RemoteError("Selección no válida.")
+        if op == "save":
+            self.add(guest, item, None, None, queue=False)
+            return {"ok": True}
+        if op in ('singer-create','singer-input','singer-me'):
+            if op == 'singer-create':
+                self.host.people.create(payload.get('name'))
+            elif op == 'singer-me':
+                uid = self.host.people.create(name,client)
+                if 'mobile:'+client not in self.mics.inputs():
+                    raise RemoteError('Activa primero el micrófono de este móvil.',409)
+                self.host.people.configure(uid,input_key='mobile:'+client)
+            else:
+                key = payload.get('input') or None
+                if key is not None and (not isinstance(key,str) or key not in self.host.input_options()):
+                    raise RemoteError('Elige una entrada conectada.')
+                self.host.people.configure(item,input_key=key)
+            return {'ok':True}
         if op == "add":
             if not request:
                 raise RemoteError("Falta el identificador de petición.")
-            turn = self.add(guest, item, names_for_turn(payload.get("names"), name), client + ":" + request)
+            names = names_for_turn(payload.get('names'),name)
+            if 'voices' in payload:
+                names = self.host.voice_names(payload['voices'])
+            elif names == [name]:
+                uid = self.host.people.create(name,client)
+                names = self.host.voice_names([{'singer':uid}])
+            turn = self.add(guest,item,names,client+':'+request)
             return {"ok": True, "id": turn}
         if op == "music":
             value = payload.get("value")
@@ -466,7 +503,9 @@ class RemoteSession:
                 self.host.handle({"action": "cancel:" + item})
             elif op == "rename":
                 names = names_for_turn(payload.get("names"), name)
-                self.host.store.execute("UPDATE turns SET names=? WHERE id=?", (json.dumps(names), item))
+                voices = payload.get('voices', [{'name':n} for n in names])
+                self.host.voice_names(voices)
+                self.host.people.set_voices(item,voices)
             elif op == "start":
                 self.host.start(item)
             else:

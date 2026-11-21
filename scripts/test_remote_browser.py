@@ -117,7 +117,9 @@ async def join(browser, profile, name, url, code):
 
 async def late_add(page, observer, title, new_name, *, lose_first_response):
     """Change only delivery timing: every POST is processed by the real host."""
-    await page.locator("[data-tab=library]").click()
+    await page.locator("[data-tab=search]").click()
+    await page.get_by_role("searchbox").fill("")
+    await page.get_by_label("Solo descargadas").check()
     added = asyncio.Event()
     release = asyncio.Event()
 

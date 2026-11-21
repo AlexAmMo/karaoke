@@ -154,12 +154,14 @@ def run(launcher: Path, output: Path, check_remote_cover=False):
                 "Search while singing keeps the current recording playing",
                 session.state().get("token") == first and session.state()["position"] > paused,
             )
-            page("Biblioteca")
+            page("Descargas")
             click("import:open")
             click("field:import", str(chart))
             click("import")
             session.wait(lambda _: session.rows("SELECT id FROM songs WHERE title='Probe C'"))
-            page("Biblioteca")
+            page("Buscar")
+            click("field:query", "")
+            click("search:saved")
             add_result("Probe C")
             add_result("Sigo Aquí")
             session.wait(lambda _: len(queue()) == 3)

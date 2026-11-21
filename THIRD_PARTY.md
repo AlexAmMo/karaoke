@@ -48,3 +48,5 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 ```
+
+Instrument Sans se distribuye bajo SIL Open Font License 1.1. Las fuentes TTF del escritorio y WOFF2 del mando proceden del commit `7fa22308a3d0c94ee2b3cd537a1196b65db34a3e` del [proyecto Instrument Sans](https://github.com/Instrument/instrument-sans). [Licencia de la fuente](assets/fonts/OFL.txt)
