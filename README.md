@@ -6,12 +6,12 @@ La versión 0.3 reúne el catálogo y las descargas en Buscar. Admite hasta diez
 
 ## Instalación
 
-Instala la versión preliminar 0.3.0 con el comando de tu plataforma o elige el paquete de tu equipo. [Descargas de v0.3.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.3.0)
+Instala la versión preliminar 0.3.1 con el comando de tu plataforma o elige el paquete de tu equipo. [Descargas de v0.3.1](https://github.com/AlexAmMo/karaoke/releases/tag/v0.3.1)
 
 **macOS**, desde Terminal (Apple Silicon: macOS 26 o posterior; Intel: macOS 15 o posterior):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.3.0/scripts/install.sh | KARAOKE_VERSION=v0.3.0 bash
+curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.3.1/scripts/install.sh | KARAOKE_VERSION=v0.3.1 bash
 ```
 
 Se instala en `~/Applications/Karaoke.app`. La firma es ad hoc y no está notarizada; el instalador no desactiva Gatekeeper.
@@ -19,7 +19,7 @@ Se instala en `~/Applications/Karaoke.app`. La firma es ad hoc y no está notari
 **Windows x64**, desde PowerShell (objetivo: Windows 10 versión 1809 o posterior y Windows 11; controlador OpenGL 2.0 o superior):
 
 ```powershell
-$env:KARAOKE_VERSION='v0.3.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.3.0/scripts/install.ps1 | iex
+$env:KARAOKE_VERSION='v0.3.1'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.3.1/scripts/install.ps1 | iex
 ```
 
 Se instala en `%LOCALAPPDATA%\Programs\Karaoke` y crea un acceso directo en Inicio. El ejecutable no tiene firma comercial. La validación automatizada usa Windows Server 2022; quedan pendientes pruebas de audio y gráficos en un PC físico. El paquete Intel también se ha probado con Rosetta en Apple Silicon.
@@ -64,7 +64,7 @@ El generador admite vídeos individuales de hasta 15 minutos y descargas de hast
 
 Karaoke conserva la mezcla con la voz original, separa la voz para el análisis y calcula letra, sílabas, tiempos y melodía. Intenta aprovechar los subtítulos del autor que coincidan en palabras y tiempos con la interpretación. En el método de alineación cantada, Karaoke consulta LRCLIB con el título y el artista para buscar una letra que coincida con la grabación. Puedes desactivar la consulta o aportar tu propio TXT. **Alineación cantada** utiliza modelos disponibles para uso no comercial.
 
-Cuando termine, abre **Escuchar y revisar**. Puedes saltar a los pasajes donde los modelos discrepan, escuchar una guía de tono sobre la grabación y corregir la letra, la nota o su posición. **Aprobar para cantar** guarda esa edición en Buscar. Los resultados dependen de la grabación y pueden necesitar correcciones, especialmente con voces superpuestas y rap.
+Si la app puede contrastar la generación con un mapa independiente del mismo vídeo, comprueba automáticamente la letra, la melodía y la sincronía con el audio. La puntuación respeta los silencios de esa edición y las sílabas sin un tono corroborado quedan en estilo libre. Una edición que supera las comprobaciones queda lista para cantar. Cuando falta esa evidencia, abre **Escuchar y revisar**. Puedes saltar a los pasajes donde los modelos discrepan, escuchar una guía de tono sobre la grabación y corregir la letra, la nota o su posición. **Aprobar para cantar** guarda esa edición en Buscar. Los resultados dependen de la grabación y pueden necesitar correcciones, especialmente con voces superpuestas y rap.
 
 ## Micrófonos de los móviles
 

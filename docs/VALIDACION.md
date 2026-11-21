@@ -1,5 +1,10 @@
 # Validación de la implementación
 
+## Generación verificada y reloj del micrófono
+
+- [Comparación sobre las mismas 40 grabaciones y controles de admisión](validation/generacion-youtube-y-retorno.md)
+- [Pruebas de retorno, compensación por entrada y puntuación independiente del renderizado](validation/retorno-y-puntuacion.md)
+
 ## Iteración 0.3
 
 | Qué se probó | Evidencia |

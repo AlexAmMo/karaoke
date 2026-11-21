@@ -361,6 +361,7 @@ class GenerationLab:
             info["duration"],
             job["video"],
             self.host.root / "catalogues",
+            verified_chart=directory / "verified.txt",
         )
 
     def check_resources(self, path):
@@ -484,13 +485,23 @@ class GenerationLab:
             return row["song_id"]
         if row["state"] != "review":
             raise SongError("La generación aún no está lista para revisar.")
-        chart = self.root / uid / "draft" / "song.txt"
+        raw = self.root / uid / "draft" / "song.txt"
+        chart = raw.with_name("verified.txt") if evidence else raw
+        if (
+            evidence
+            and hashlib.sha256(raw.read_bytes()).hexdigest() != evidence["generated_sha256"]
+        ):
+            raise SongError("La letra o las notas han cambiado desde la verificación.")
         source_hash = hashlib.sha256(chart.read_bytes()).hexdigest()
         if evidence and (
             source_hash != evidence["chart_sha256"] or evidence["video_id"] != row["video"]
         ):
             raise SongError("El mapa ha cambiado. Vuelve a revisarlo antes de cantar.")
-        info = import_package(chart, self.host.library)
+        info = import_package(
+            chart,
+            self.host.library,
+            expected_audio_sha256=evidence["audio_sha256"] if evidence else None,
+        )
         if evidence:
             with Path(info["audio"]).open("rb") as stream:
                 if hashlib.file_digest(stream, "sha256").hexdigest() != evidence["audio_sha256"]:
@@ -503,13 +514,15 @@ class GenerationLab:
                 "library_chart_sha256": hashlib.sha256(
                     Path(info["chart"]).read_bytes()
                 ).hexdigest(),
-                "edited": source_hash != provenance.get("chart_sha256"),
+                "edited": not evidence and source_hash != provenance.get("chart_sha256"),
                 "approved_at": time.time(),
             }
             provenance["state"] = "verified" if evidence else "reviewed"
             provenance["automatically_verified"] = bool(evidence)
             if evidence:
                 provenance["verification"] = evidence
+                provenance["generated_chart_sha256"] = evidence["generated_sha256"]
+                provenance["chart_sha256"] = source_hash
             dest = Path(info["chart"]).with_name("generation.json")
             with tempfile.NamedTemporaryFile(
                 "w", encoding="utf-8", dir=dest.parent, delete=False

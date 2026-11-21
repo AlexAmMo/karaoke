@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import shutil
 from pathlib import Path
 import tempfile
 import time
@@ -40,6 +41,15 @@ def run(args):
             host.handle({"action": "field:generate_url", "value": args.video})
             host.handle({"action": "lab:enqueue"})
             uid = host.draft_id
+            if args.resume_package:
+                source = args.resume_package
+                previous = json.loads((source / "generation.json").read_text(encoding="utf-8"))
+                if previous["video_id"] != youtube_id(args.video):
+                    raise ValueError("The saved prediction is for a different recording")
+                saved = host.lab.root / uid / "draft"
+                saved.mkdir(parents=True)
+                for name in ("song.txt", "audio.mp3", "generation.json"):
+                    shutil.copyfile(source / name, saved / name)
             started = time.monotonic()
             last = None
             while time.monotonic() - started < 2400:
@@ -81,12 +91,19 @@ def run(args):
             )
             assert provenance["automatically_verified"] == automatic
             if automatic:
-                assert provenance["verification"]["chart_sha256"] == manifest["chart_sha256"]
+                assert provenance["verification"]["generated_sha256"] == manifest["chart_sha256"]
+                assert (
+                    provenance["review"]["chart_sha256"]
+                    == provenance["verification"]["chart_sha256"]
+                )
             evidence = {
                 "video_id": manifest["video_id"],
                 "title": host.song(song)["title"],
                 "artist": host.song(song)["artist"],
-                "generation_seconds": round(time.monotonic() - started, 1),
+                "resumed_prediction": bool(args.resume_package),
+                ("resume_seconds" if args.resume_package else "generation_seconds"): round(
+                    time.monotonic() - started, 1
+                ),
                 "source": manifest["lyrics"]["kind"],
                 "notes": manifest["notes"],
                 "analyzed_duration_s": round(manifest["duration"], 3),
@@ -131,6 +148,11 @@ if __name__ == "__main__":
     parser.add_argument("--launcher", required=True, type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--expect-verified", action="store_true")
+    parser.add_argument(
+        "--resume-package",
+        type=Path,
+        help="Exercise restart after saving a genuine generated prediction",
+    )
     args = parser.parse_args()
     if not youtube_id(args.video):
         parser.error("Use an exact YouTube URL")

@@ -1,4 +1,5 @@
 import hashlib
+import re
 
 from karaoke import generation_verification as verification
 from karaoke.songs import SongError
@@ -70,7 +71,13 @@ def test_unverified_map_stays_out_of_queue_and_verified_one_keeps_its_turn(tmp_p
             audio_hash = hashlib.file_digest(stream, "sha256").hexdigest()
         chart_hash = hashlib.sha256(chart.read_bytes()).hexdigest()
         (dest / "generation.json").write_text(json.dumps({"chart_sha256": chart_hash}))
-        evidence = dict(chart_sha256=chart_hash, audio_sha256=audio_hash, video_id="0123456789a")
+        chart.with_name("verified.txt").write_bytes(chart.read_bytes())
+        evidence = dict(
+            generated_sha256=chart_hash,
+            chart_sha256=chart_hash,
+            audio_sha256=audio_hash,
+            video_id="0123456789a",
+        )
         src = "allkaraoke:fixture"
         turn = host.store.request(src, {"kind": "allkaraoke"}, ["Luna"])
         host.store.execute("INSERT INTO draft_turns VALUES(?,?,?)", (uid, turn, src))
@@ -84,6 +91,7 @@ def test_unverified_map_stays_out_of_queue_and_verified_one_keeps_its_turn(tmp_p
 
         finish({**evidence, "audio_sha256": "changed"})
         assert host.lab.row(uid)["state"] == "review" and host.store.queue()[0]["song_id"] is None
+        assert not list(host.library.glob("*/song.txt"))
         finish(evidence)
         row = host.lab.row(uid)
         saved = host.store.queue()[0]
@@ -99,3 +107,34 @@ def test_unverified_map_stays_out_of_queue_and_verified_one_keeps_its_turn(tmp_p
         assert host.lab.approve(uid) == row["song_id"]
     finally:
         host.close()
+
+
+def test_generated_sustains_do_not_score_the_silences_in_an_independent_map(tmp_path, monkeypatch):
+    gold = make_chart(tmp_path / "reference.txt")
+    draft = tmp_path / "song.txt"
+    text = gold.read_text()
+    draft.write_text(re.sub(r"(?m)^(: -?\d+) 3 ", r"\1 4 ", text))
+    original = draft.read_bytes()
+    verified = tmp_path / "verified.txt"
+    media = tmp_path / "recording"
+    media.write_bytes(b"exact recording")
+    song = {
+        "source": "allkaraoke:one",
+        "video_id": "0123456789a",
+        "tracks": 1,
+        "reference_duration": 24,
+    }
+    monkeypatch.setattr(verification.allkaraoke, "search", lambda *a, **k: [song])
+    monkeypatch.setattr(verification.allkaraoke, "load_chart", lambda *a: gold)
+    monkeypatch.setattr(verification.acoustic, "require_alignment", lambda *a: None)
+    proof = verification.verify_generated(
+        draft, media, 24, song["video_id"], tmp_path, verified_chart=verified
+    )
+    assert (
+        proof["scoring"] == "confirmed_intervals"
+        and proof["raw_metrics"]["scored_frame_precision"] < 0.8
+    )
+    assert proof["metrics"]["scored_frame_precision"] == proof["metrics"]["correct_class_all"] == 1
+    assert proof["metrics"]["wer"] == 0 and proof["metrics"]["onset_pitch_f1_100ms"] == 1
+    assert draft.read_bytes() == original
+    assert proof["chart_sha256"] == hashlib.sha256(verified.read_bytes()).hexdigest()

@@ -7,7 +7,10 @@ not in an untracked build tree. Existing, unexpected changes are never discarded
 import subprocess
 import hashlib
 import shutil
+import os
+import tempfile
 from pathlib import Path
+from prepare_engine_theme import prepare_theme
 
 ROOT = Path(__file__).resolve().parents[1]
 COMMIT = '8b9d9e08eca997d2e3fe789084fbac136988f276'
@@ -21,10 +24,49 @@ if not (target / '.git').exists():
 actual = subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip()
 if actual != COMMIT:
     raise SystemExit('Unexpected Deluxe checkout. Preserve it and prepare a fresh build/engine.')
-reverse = subprocess.run(['git', '-C', str(target), 'apply', '--reverse', '--check', str(patch)], capture_output=True)
-if reverse.returncode:
-    subprocess.run(['git', '-C', str(target), 'apply', '--check', str(patch)], check=True)
-    subprocess.run(['git', '-C', str(target), 'apply', str(patch)], check=True)
+
+
+def apply_integration():
+    git = ["git", "-C", str(target)]
+    current = patch.read_bytes()
+
+    def applies(data, *options):
+        return subprocess.run(
+            [*git, "apply", "--check", *options, "-"], input=data, capture_output=True
+        ).returncode == 0
+
+    if applies(current, "--reverse"):
+        return
+    delta = current
+    if not applies(current):
+        # Compare two published integrations against the same upstream commit using a
+        # private index. Apply only their delta so local, unrelated build files survive.
+        relative = patch.relative_to(ROOT).as_posix()
+        history = subprocess.run(
+            ["git", "-C", str(ROOT), "log", "--format=%H", "--", relative],
+            capture_output=True, text=True,
+        )
+        earlier = None
+        for revision in history.stdout.splitlines():
+            candidate = subprocess.check_output(["git", "-C", str(ROOT), "show", revision + ":" + relative])
+            if candidate != current and applies(candidate, "--reverse"):
+                earlier = candidate
+                break
+        if earlier is None:
+            raise SystemExit("The Deluxe checkout has unrecognised edits. Keep it and build in a fresh checkout.")
+
+        with tempfile.TemporaryDirectory(prefix="karaoke-patch-") as scratch:
+            env = dict(os.environ, GIT_INDEX_FILE=str(Path(scratch, "index")))
+            trees = []
+            for data in (earlier, current):
+                subprocess.run([*git, "read-tree", COMMIT], env=env, check=True)
+                subprocess.run([*git, "apply", "--cached", "-"], input=data, env=env, check=True)
+                trees.append(subprocess.check_output([*git, "write-tree"], env=env, text=True).strip())
+            delta = subprocess.check_output([*git, "diff", "--binary", *trees])
+    subprocess.run([*git, "apply", "-"], input=delta, check=True)
+
+
+apply_integration()
 for unit in (ROOT / 'native').glob('UKaraoke*.pas'):
     (target / 'src/base' / unit.name).write_bytes(unit.read_bytes())
 # Preserve the exact upstream source when its download host is intermittent.
@@ -37,6 +79,5 @@ if lua_source.exists():
     source_cache.mkdir(parents=True, exist_ok=True)
     shutil.copy2(lua_source, source_cache / lua_source.name)
 # With no local archive, the native recipe uses its verified network downloader.
-from prepare_engine_theme import prepare_theme
 prepare_theme(target)
 print(target)

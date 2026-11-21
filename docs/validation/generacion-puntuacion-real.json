@@ -1,0 +1,23 @@
+{
+  "precision": "strict",
+  "synthetic": true,
+  "reference_sha256": "714a46c9e3d38447a296101c933273597bafa4233d6684aba305502adb169c6b",
+  "raw": {
+    "chart_sha256": "5ed3a759a593f5ac9f85e872833482c7e1d75fd45be8b4568a26ef1ed2f2c504",
+    "scores": [
+      5759,
+      0
+    ],
+    "position_s": 176.878,
+    "packets_per_input": 9234
+  },
+  "verified": {
+    "chart_sha256": "b2dd093b6bb4cca63ad58d9f09b0cffdb9db2ab017ad54772552104524aef978",
+    "scores": [
+      9795,
+      0
+    ],
+    "position_s": 176.878,
+    "packets_per_input": 9684
+  }
+}

@@ -140,7 +140,7 @@ def validate(path: Path) -> dict:
     }
 
 
-def import_package(chart: Path, library: Path) -> dict:
+def import_package(chart: Path, library: Path, *, expected_audio_sha256: str | None = None) -> dict:
     info = validate(chart)
     text, meta = read_chart(chart)
     names = {meta.get("AUDIO") or meta.get("MP3", "")}
@@ -150,9 +150,15 @@ def import_package(chart: Path, library: Path) -> dict:
     text = "#ENCODING:UTF8\n" + text
     digest = hashlib.sha256(text.encode())
     for name in sorted(names):
+        verify_audio = expected_audio_sha256 and name == (meta.get("AUDIO") or meta["MP3"])
+        audio_hash = hashlib.sha256() if verify_audio else None
         with resource(chart.parent, name).open("rb") as f:
             for block in iter(lambda: f.read(1024 * 1024), b""):
                 digest.update(block)
+                if audio_hash is not None:
+                    audio_hash.update(block)
+        if audio_hash is not None and audio_hash.hexdigest() != expected_audio_sha256:
+            raise SongError("El audio ha cambiado. Revisa esta edición antes de cantar.")
     song_id = digest.hexdigest()[:32]
     library.mkdir(parents=True, exist_ok=True)
     target = library / song_id

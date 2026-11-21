@@ -1,0 +1,63 @@
+{
+  "audio_sha256": "0c294545fc1cf0369066c68240595e2b738225948e850ff0f3a9c7beaff0da0f",
+  "method": "independent-chart-and-recording-v2",
+  "scoring": "confirmed_intervals",
+  "raw_metrics": {
+    "ref_words": 290,
+    "hyp_words": 294,
+    "edits": 4,
+    "wer": 0.0138,
+    "exact": 290,
+    "word_mae_p50_p90_s": [
+      0.023,
+      0.062
+    ],
+    "signed_word_p50_by_third_s": [
+      0.001,
+      -0.007,
+      -0.019
+    ],
+    "reference_notes": 431,
+    "generated_scored": 465,
+    "generated_freestyle": 3,
+    "covered_frames": 0.9916,
+    "correct_class_all": 0.9104,
+    "within_one_semitone_all": 0.9124,
+    "correct_when_covered": 0.9181,
+    "matching_onsets": 395,
+    "onset_pitch_f1_100ms": 0.8817,
+    "scored_frame_precision": 0.5
+  },
+  "source": "allkaraoke:bad-bunny-amorfoda",
+  "catalogue_revision": "e6ebb73648ea826702ef15be42255c6b2c2d3c03",
+  "video_id": "kLpH1nSLJSs",
+  "reference_sha256": "714a46c9e3d38447a296101c933273597bafa4233d6684aba305502adb169c6b",
+  "generated_sha256": "5ed3a759a593f5ac9f85e872833482c7e1d75fd45be8b4568a26ef1ed2f2c504",
+  "chart_sha256": "b2dd093b6bb4cca63ad58d9f09b0cffdb9db2ab017ad54772552104524aef978",
+  "metrics": {
+    "ref_words": 290,
+    "hyp_words": 294,
+    "edits": 4,
+    "wer": 0.0138,
+    "exact": 290,
+    "word_mae_p50_p90_s": [
+      0.006,
+      0.049
+    ],
+    "signed_word_p50_by_third_s": [
+      0.001,
+      -0.001,
+      -0.002
+    ],
+    "reference_notes": 431,
+    "generated_scored": 469,
+    "generated_freestyle": 45,
+    "covered_frames": 0.9104,
+    "correct_class_all": 0.9104,
+    "within_one_semitone_all": 0.9104,
+    "correct_when_covered": 1.0,
+    "matching_onsets": 405,
+    "onset_pitch_f1_100ms": 0.9,
+    "scored_frame_precision": 0.9515
+  }
+}
