@@ -51,7 +51,7 @@ def test_web_zip_rejects_duplicate_editions(tmp_path, package):
         provider.prepare_zip(archive, tmp_path, SONG)
 
 
-def test_receive_real_multifile_torrent_from_local_peer(tmp_path, package, monkeypatch):
+def test_receive_real_multifile_torrent_from_local_peer(tmp_path, package):
     """Only tracker and peer are loopback. Transfer pieces through the native BitTorrent engine."""
     seed = lt.session(
         {
@@ -82,7 +82,6 @@ def test_receive_real_multifile_torrent_from_local_peer(tmp_path, package, monke
     tracker = ThreadingHTTPServer(("127.0.0.1", 0), Tracker)
     thread = threading.Thread(target=tracker.serve_forever, daemon=True)
     thread.start()
-    monkeypatch.setattr(provider, "STALL_SECONDS", 12)
     # An original changing melody supplies enough pitch evidence in each third
     # for the production verifier; silence would correctly reject this package.
     lines = ["#TITLE:Canción de prueba", "#ARTIST:Fixture", "#BPM:120", "#MP3:audio.wav"]
@@ -126,7 +125,7 @@ def test_receive_real_multifile_torrent_from_local_peer(tmp_path, package, monke
         params.save_path = str(package.parent.parent)
         handle = seed.add_torrent(params)
         deadline = time.monotonic() + 8
-        while not handle.status().is_seeding:
+        while not handle.status().is_seeding or seed.listen_port() == 0:
             assert time.monotonic() < deadline
             time.sleep(0.05)
         messages = []
