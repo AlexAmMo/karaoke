@@ -1,0 +1,50 @@
+name: Measure the same complete English charts privately
+on:
+  push:
+    branches: [codex/validar-tiempos-40-20261121]
+permissions:
+  contents: read
+jobs:
+  chart:
+    runs-on: windows-latest
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Prepare isolated release environment
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }
+          uv venv .charting --python 3.12
+          uv pip install --python .charting/Scripts/python.exe -r src/karaoke/generation_assets/requirements.txt requests
+      - name: Regenerate the pinned Creative Commons recording
+        shell: pwsh
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          ./.charting/Scripts/python.exe scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$env:RUNNER_TEMP/songs" --language en --shard "$env:SHARD" --shards 20
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./.charting/Scripts/python.exe -u scripts/benchmark_generation_corpus.py "$env:RUNNER_TEMP/songs/manifest.json" "$env:RUNNER_TEMP/complete" --cache "$env:RUNNER_TEMP/models" --lookup-lyrics *> "$env:RUNNER_TEMP/inference.log"
+          if ($LASTEXITCODE) { throw 'Generation failed' }
+          $song = Get-ChildItem "$env:RUNNER_TEMP/complete" -Directory
+          if ($song.Count -ne 1) { throw 'Expected one song' }
+          foreach ($file in @('draft.txt','acoustics.json','metrics.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $song.FullName $file))) { throw "Missing $file" }
+          }
+          tar -cf "$env:RUNNER_TEMP/chart.tar" -C "$env:RUNNER_TEMP/complete" "$($song.Name)/draft.txt" "$($song.Name)/acoustics.json" "$($song.Name)/metrics.json"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          openssl cms -encrypt -aes-256-gcm -binary -outform DER -in "$env:RUNNER_TEMP/chart.tar" -out "$env:RUNNER_TEMP/chart.cms" .github/validation/recipient.crt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sealed-chart-${{ matrix.shard }}
+          path: ${{ runner.temp }}/chart.cms
+          if-no-files-found: error
+          retention-days: 2
