@@ -27,8 +27,6 @@ PILOT = ("bad-bunny-amorfoda", "fito-paez-11-y-6",
 ARMS = ("mix-native", "mix-rms", "vocals-native", "vocals-rms")
 MODEL_REVISION = "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf"
 MODEL_SHA = "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
-LIMIT = 2 * 1024**3
-TIMEOUT = 600
 RATE = 16000
 
 
@@ -52,11 +50,21 @@ def load(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def json_scalar(value):
+    import numpy as np
+    if isinstance(value, np.generic):
+        scalar = value.item()
+        if type(scalar) in (bool, int, float, str):
+            return scalar
+    raise TypeError(f"Unsupported JSON scalar: {type(value).__module__}.{type(value).__name__}")
+
+
 def save(path, value):
+    # Validate every value before creating the immutable evidence file.
+    serialized = json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False, default=json_scalar)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("x", encoding="utf-8") as stream:
-        json.dump(value, stream, indent=2, ensure_ascii=False, allow_nan=False)
-        stream.write("\n")
+        stream.write(serialized + "\n")
 
 
 def module(path, name):
@@ -119,15 +127,23 @@ def plan(args):
             "length_discrepancy": "require prepared mix/vocal length difference <=2 samples; preserve complete native input; clip RMS final bound to each input and record delta",
             "words": "retain raw model words including punctuation and nonpositive duration; production filtering only in separate product_lines",
             "boundaries": "retain and flag crossing times; never string-deduplicate repeated words"},
-        "resources": {"worker_rss_and_footprint_stop_bytes": LIMIT,
-            "sample_seconds": .05, "timeout_seconds_per_arm": TIMEOUT,
+        "resources": {"worker_rss_and_footprint_stop_bytes": args.memory_limit_mib * 1024**2,
+            "sample_seconds": .05, "timeout_seconds_per_arm": 600,
+            "synthetic_timeout_seconds": args.synthetic_timeout_seconds,
             "one_fresh_worker_per_song_and_arm": True,
             "synthetic_control_required_before_cohort": True,
-            "load_feasibility": "unmeasured; the 1.618 GB weight file may exceed the initial budget during int8 conversion",
+            "load_feasibility": "unmeasured for this frozen budget; loading the 1.618 GB weights and int8 conversion may exceed it",
             "failure": "preserve partial evidence and stop cohort, never start an unconfirmed-reaped successor",
             "limit": "sampled stop threshold, not an OS allocation limit or peak guarantee"},
         "cost_estimate": {"minutes": [20, 30], "basis": "previous Turbo CPU timings roughly70–100s per recording; additional load/chunk overhead unknown",
                           "maximum_worker_minutes": 160}, "selftest": selftest()}
+    if args.reuse_prepared is not None:
+        settings["reuse_prepared"] = {
+            "source_plan": record(args.reuse_prepared / "plan.json"),
+            "source_audio_freeze": record(args.reuse_prepared / "audio-frozen.json")}
+    if args.resource_review is not None:
+        settings["budget_justification"] = {name: record(args.resource_review / name) for name in (
+            "model-metadata-only.json", "import-only/frozen.json", "sources/manifest-extended.json")}
     save(args.output / "plan.json", settings)
     for name, item in code.items():
         target = args.output / "source-snapshot" / (name + ".py")
@@ -168,6 +184,30 @@ def prepare(args):
     import soundfile as sf
     started = time.monotonic()
     settings = verify_plan(args.output)
+    if "reuse_prepared" in settings:
+        origin = settings["reuse_prepared"]
+        source_plan = load(check(origin["source_plan"]))
+        source_audio = load(check(origin["source_audio_freeze"]))
+        if source_audio["plan_sha256"] != origin["source_plan"]["sha256"]:
+            raise ValueError("Reused audio belongs to another source plan")
+        for key in ("inputs", "segmentation_plan", "segmentation_freeze", "decode", "preparation"):
+            if source_plan[key] != settings[key]:
+                raise ValueError("Changed audio or decoding assumptions: " + key)
+        prepared = source_audio["prepared"]
+        expected = {(r["id"], kind) for r in settings["inputs"] for kind in ("mix", "vocals")}
+        if len(prepared) != 8 or {(r["id"], r["kind"]) for r in prepared} != expected:
+            raise ValueError("Expected exactly eight previously prepared sources")
+        for row in prepared:
+            info = sf.info(check(row["audio"]))
+            check(row["prepared_from"])
+            if (info.samplerate, info.channels, info.frames) != (RATE, 1, row["samples"]):
+                raise ValueError("Changed reused audio geometry")
+        save(args.output / "audio-frozen.json", {"plan_sha256": digest(args.output / "plan.json"),
+            "prepared": prepared, "reused_from": origin, "reencoded": False,
+            "asr_executed": False, "references_opened": False,
+            "verification_wall_seconds": time.monotonic() - started})
+        print(json.dumps({"verified_reused_sources": len(prepared), "reencoded": False, "asr_executed": False}))
+        return
     prepared = []
     for row in settings["inputs"]:
         folder = args.output / "audio" / row["id"]
@@ -261,6 +301,7 @@ def worker(args):
     production = module(check(settings["code"]["production"]), "rms_asr_production")
     save(output / "before-model.json", {"unix_time": time.time(), "model_sha256": MODEL_SHA})
     from faster_whisper import WhisperModel
+    save(output / "after-import.json", {"unix_time": time.time()})
 
     model = RecordingModel(WhisperModel(settings["model_directory"], device="cpu", compute_type="int8", cpu_threads=3))
     save(output / "after-model.json", {"unix_time": time.time()})
@@ -304,12 +345,21 @@ def controller(args):
     return settings, supervisor, sampler, environment
 
 
+def run_planned_worker(settings, supervisor, command, output, sampler, environment, *, control):
+    resources = settings["resources"]
+    limit = resources["worker_rss_and_footprint_stop_bytes"]
+    timeout = resources["synthetic_timeout_seconds"] if control else resources["timeout_seconds_per_arm"]
+    if limit not in (2048 * 1024**2, 4096 * 1024**2) or not 0 < timeout <= 600:
+        raise ValueError("Unsupported frozen resource budget")
+    return supervisor.run_bounded(command, output, limit, timeout, sampler, environment)
+
+
 def synthetic(args):
-    _, supervisor, sampler, environment = controller(args)
+    settings, supervisor, sampler, environment = controller(args)
     output = args.output / "synthetic-control"
     output.mkdir()
     command = [sys.executable, str(Path(__file__).resolve()), "worker", "--output", str(args.output), "--control"]
-    resources = supervisor.run_bounded(command, output, LIMIT, TIMEOUT, sampler, environment)
+    resources = run_planned_worker(settings, supervisor, command, output, sampler, environment, control=True)
     if not resources["reaped"]:
         raise RuntimeError("Synthetic worker was not confirmed reaped")
     save(args.output / "synthetic-frozen.json", {"plan_sha256": digest(args.output / "plan.json"),
@@ -332,7 +382,7 @@ def execute(args):
             output.mkdir(parents=True)
             command = [sys.executable, str(Path(__file__).resolve()), "worker", "--output",
                        str(args.output), "--song", row["id"], "--arm", arm]
-            resources = supervisor.run_bounded(command, output, LIMIT, TIMEOUT, sampler, environment)
+            resources = run_planned_worker(settings, supervisor, command, output, sampler, environment, control=False)
             if not resources["reaped"]:
                 raise RuntimeError("Worker was not confirmed reaped")
             results.append({"id": row["id"], "arm": arm,
@@ -359,10 +409,77 @@ def selftest():
     assert raw["start"] == -.01
     assert absolute_word({"word": "!", "start": .5, "end": .5}, 0, 16000)["nonpositive_duration"]
     product_check = product_control()
+    budget_check = budget_control()
+    serialization_check = serialization_control()
     assert "torch" not in sys.modules and "faster_whisper" not in sys.modules
     return {"integer_clock_shared_boundary": True, "native_full_input": True,
             "crossing_words_retained": True, "repetitions_preserved": True,
-            "nonpositive_duration_retained": True, "production_call_and_raw_capture": product_check}
+            "nonpositive_duration_retained": True, "production_call_and_raw_capture": product_check,
+            "plan_budget_reaches_supervisor": budget_check,
+            "numpy_scalars_nested_json_without_rounding": serialization_check}
+
+
+def serialization_control():
+    from dataclasses import make_dataclass
+    import tempfile
+    import numpy as np
+
+    Word = make_dataclass("Word", [("word", str), ("start", float), ("end", float), ("probability", float)])
+    Segment = make_dataclass("Segment", [("words", list), ("tokens", list)])
+    precise = np.nextafter(np.float64(.12345678901234567), np.float64(1))
+    word = Word("synthetic", precise, np.float64(.23456789012345678), np.float32(.9375))
+    segment = Segment([word], [np.int64(17)])
+    raw = asdict(segment)
+    absolute = absolute_word(raw["words"][0], 7, 16000)
+    payload = {"raw_segments_local": [raw], "raw_words_absolute": [absolute], "numpy_flag": np.bool_(True)}
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "valid.json"
+        save(target, payload)
+        decoded = load(target)
+        assert set(decoded) == set(payload)
+        stored = decoded["raw_words_absolute"][0]
+        assert set(stored) == set(absolute)
+        assert stored["local_start"] == float(precise)
+        assert stored["start"] == float(precise + 7 / RATE)
+        assert decoded["raw_segments_local"][0]["words"][0]["probability"] == float(word.probability)
+        assert decoded["raw_segments_local"][0]["tokens"] == [17]
+        assert type(decoded["numpy_flag"]) is bool
+        assert type(stored["crosses_input_boundary"]) is bool
+        assert type(stored["nonpositive_duration"]) is bool
+        json.dumps(decoded, allow_nan=False)
+        for index, bad in enumerate((np.float64(np.nan), np.float32(np.inf), np.float64(-np.inf))):
+            invalid = Path(tmp) / f"invalid-{index}.json"
+            try:
+                save(invalid, {"value": bad})
+            except ValueError:
+                assert not invalid.exists()
+            else:
+                raise AssertionError("Non-finite number accepted")
+        try:
+            save(Path(tmp) / "unsupported.json", {"value": object()})
+        except TypeError:
+            assert not (Path(tmp) / "unsupported.json").exists()
+        else:
+            raise AssertionError("Unsupported object silently converted to text")
+    return True
+
+
+def budget_control():
+    from types import SimpleNamespace
+    observed = []
+    def fake_runner(command, output, limit, timeout, sampler, environment):
+        observed.append((limit, timeout))
+        return {"reaped": True}
+    supervisor = SimpleNamespace(run_bounded=fake_runner)
+    for mib in (2048, 4096):
+        settings = {"resources": {"worker_rss_and_footprint_stop_bytes": mib * 1024**2,
+                    "synthetic_timeout_seconds": 120, "timeout_seconds_per_arm": 600}}
+        for control in (True, False):
+            result = run_planned_worker(settings, supervisor, [], Path("unused"), None, {}, control=control)
+            assert result["reaped"]
+    assert observed == [(2048 * 1024**2, 120), (2048 * 1024**2, 600),
+                        (4096 * 1024**2, 120), (4096 * 1024**2, 600)]
+    return True
 
 
 def product_control():
@@ -408,7 +525,17 @@ if __name__ == "__main__":
     parser.add_argument("--song", choices=PILOT)
     parser.add_argument("--arm", choices=ARMS)
     parser.add_argument("--control", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--memory-limit-mib", type=int, choices=(2048, 4096), default=2048,
+                        help="Plan only: RSS and physical footprint stop threshold")
+    parser.add_argument("--synthetic-timeout-seconds", type=int, default=600,
+                        help="Plan only: supervised synthetic control deadline")
+    parser.add_argument("--reuse-prepared", type=Path,
+                        help="Plan only: previous directory whose eight prepared WAVs will be verified and reused")
+    parser.add_argument("--resource-review", type=Path,
+                        help="Plan only: fixed metadata/import/source evidence supporting the proposed budget")
     args = parser.parse_args()
+    if not 0 < args.synthetic_timeout_seconds <= 600:
+        parser.error("Synthetic control deadline must be in 1..600 seconds")
     if args.command == "worker" and not args.control and (args.song is None or args.arm is None):
         parser.error("worker requires --song and --arm")
     if args.command == "selftest":
