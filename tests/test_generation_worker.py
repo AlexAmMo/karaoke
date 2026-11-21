@@ -145,3 +145,41 @@ def test_missing_verse_requires_independent_second_pass_and_ordered_first_pass()
         rescue=lambda: pytest.fail("unnecessary retry"),
     )
     assert direct[0] == lyrics and "recovered_with_windows" not in direct[1]
+
+
+def test_checkpointed_ctc_reconstructs_every_frame_with_original_tie_order():
+    from karaoke.generation_assets.dense_alignment import checkpointed_path
+
+    def exhaustive(emissions, targets):
+        # Small reference lattice retains each history, including its predecessor tie order.
+        labels = [0]
+        for token in targets:
+            labels.extend([token, 0])
+        options = {s: (emissions[0, label], [s]) for s, label in enumerate(labels[:2])}
+        for row in emissions[1:]:
+            previous, options = options, {}
+            for state, label in enumerate(labels):
+                origins = [state, state - 1]
+                if state >= 2 and label and label != labels[state - 2]:
+                    origins.append(state - 2)
+                feasible = [previous[p] for p in origins if p in previous]
+                if feasible:
+                    score, history = max(feasible, key=lambda p: p[0])
+                    options[state] = (score + row[label], [*history, state])
+        return max(
+            (options[s] for s in (len(labels) - 1, len(labels) - 2) if s in options),
+            key=lambda p: p[0],
+        )[1]
+
+    rng = np.random.default_rng(31)
+    for frames, targets in ((1, [1]), (4, [1, 1, 2]), (13, [1, 2, 1, 1]), (24, [2, 3, 1])):
+        for tied in (False, True):
+            emissions = rng.normal(size=(frames, 4)).astype("float32")
+            if tied:
+                emissions.fill(0)
+            expected = exhaustive(emissions, targets)
+            for size in (1, 3, 5, 120):
+                actual = checkpointed_path(emissions, targets, block_frames=size)
+                assert actual.tolist() == expected
+    with pytest.raises(ValueError):
+        checkpointed_path(np.ones((2, 4), dtype="float32"), [1, 1])

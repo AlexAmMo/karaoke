@@ -687,20 +687,16 @@ def chart_quality(voice, lyrics, language, cache):
     import soundfile as sf
 
     duration = sf.info(voice).duration
-    # The CTC traceback uses an int8 matrix of frames by character states.
-    # Bound memory before allocating it for a long recording or pasted text.
-    if (2 * len(normalize(lyrics)) + 3) * math.ceil(duration * 50) > 240_000_000:
-        raise ValueError(
-            "Esta grabación y su letra superan la memoria del alineador. Divide la canción en dos partes."
-        )
+    if __package__:
+        from .generation_assets.dense_alignment import align
+    else:
+        from generation_assets.dense_alignment import align
     refiner = configure_inference(cache)
     syllables = hyphenation.hyphenate_lyrics(lyrics, language)["hyphenated"]
     notify("Alineando sílabas y voz")
     pitch = pitch_detection.detect_pitches_fcpe(str(voice))
     try:
-        timing = forced_alignment.align_lyrics(
-            str(voice), syllables, pitch_data=pitch, language=language
-        )
+        timing, align_stats = align(forced_alignment, voice, syllables, pitch, language)
     except forced_alignment.AlignmentError as exc:
         raise ValueError("No se pudo alinear esta letra con la grabación.") from exc
     if not timing:
@@ -716,6 +712,7 @@ def chart_quality(voice, lyrics, language, cache):
         from generation_assets.pitch_refinement import refine
     corrected = refine(notes, pitch, refiner)
     stats = {
+        **align_stats,
         "refined_pitches": corrected,
         "syllables": len(timing),
         "musical_events": len(events),
