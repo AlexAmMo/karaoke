@@ -95,13 +95,15 @@ jobs:
       - name: Build modified Deluxe
         id: package
         run: bash scripts/build_macos.sh
-      - name: Check native PCM channels, duration and chunk boundaries
+      - name: Check native PCM, capture history and mobile pause clock
         run: |
           mkdir -p build/pcm-test
           fpc -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/pcm-test -FEbuild/pcm-test "-Fl$(brew --prefix sdl2-compat)/lib" scripts/test_pcm_conversion.pas
           build/pcm-test/test_pcm_conversion
           fpc -Funative -FUbuild/pcm-test -FEbuild/pcm-test scripts/test_audio_capture_history.pas
           build/pcm-test/test_audio_capture_history
+          fpc -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/pcm-test -FEbuild/pcm-test "-Fl$(brew --prefix sdl2-compat)/lib" scripts/test_audio_mobile_clock.pas
+          build/pcm-test/test_audio_mobile_clock
       - name: Install the Mac release candidate and sing with the bundled engine
         id: mac_session
         env:

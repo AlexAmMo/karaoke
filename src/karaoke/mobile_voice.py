@@ -135,6 +135,7 @@ class MobileVoices:
         from aiortc.mediastreams import MediaStreamError
 
         resampler = AudioResampler(format="s16", layout="mono", rate=48000, frame_size=960)
+        last_identity = last_position = None
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender:
             sender.setblocking(False)
             try:
@@ -150,6 +151,26 @@ class MobileVoices:
                             if not self.port or slot is None or not self.identity:
                                 continue
                             seq = self.sequence.get(client, 0)
+                            position = (
+                                mono.pts * mono.time_base
+                                if mono.pts is not None and mono.time_base else None
+                            )
+                            if self.identity != last_identity:
+                                # A replacement WebRTC stream must not join its PCM to
+                                # the previous stream's final analysis window.
+                                if seq:
+                                    seq += 1
+                            elif position is not None and last_position is not None:
+                                steps = round((position - last_position) * 50)
+                                if steps == 0:
+                                    continue  # Do not score a repeated capture frame twice.
+                                # Preserve missing 20 ms intervals. A restarted source
+                                # clock gets one explicit discontinuity marker instead.
+                                seq += steps - 1 if steps > 0 else 1
+                            elif (position is None) != (last_position is None):
+                                seq += 1  # Timestamp availability changed: start a new run.
+                            seq %= 1 << 32
+                            last_identity, last_position = self.identity, position
                             self.sequence[client] = (seq + 1) % (1 << 32)
                             packet = (
                                 struct.pack("<32sBI", self.identity[1], slot, seq)

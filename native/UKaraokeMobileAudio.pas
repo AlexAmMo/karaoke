@@ -30,7 +30,7 @@ type TReceiver = class(TThread)
 var Receiver: TReceiver;
     Feed: TMobileSink;
     ActiveSlots: Word;
-    Paused, Discarded: LongInt;
+    Paused, PauseEpoch, Discarded: LongInt;
     SocketFD: TSocket;
     Port: integer;
     Secret: RawByteString;
@@ -40,7 +40,12 @@ var Receiver: TReceiver;
 function MobileDiscarded: integer;
 begin Result:=InterlockedCompareExchange(Discarded,0,0); end;
 procedure MobileSetPaused(Value: boolean);
-begin InterlockedExchange(Paused,Ord(Value)); end;
+begin
+  { The bridge sends no PCM while paused. Remember the edge even if no packet
+    arrives, or pause and resume both occur before the receiver wakes. }
+  if (InterlockedExchange(Paused,Ord(Value))=0) and Value then
+    InterlockedIncrement(PauseEpoch);
+end;
 procedure MobileArm(Slots: Word; Sink: TMobileSink);
 begin
   if (Port=0) or Assigned(Receiver) then Exit;
@@ -123,14 +128,21 @@ procedure TReceiver.Execute;
 var Frame: TMobileFrame; Slot: integer; Previous,NowMs: QWord; Stale,Gap: boolean;
     NeedsReset: array[0..KaraokeMaxSingers-1] of boolean;
     Clocks: array[0..KaraokeMaxSingers-1] of TDeviceCaptureClock;
-    TickRate, EndTick: Int64; I: integer;
+    TickRate, EndTick: Int64; I: integer; SeenPause, CurrentPause: LongInt;
 begin
   for I:=0 to High(Clocks) do Clocks[I].Reset;
   TickRate:=SDL_GetPerformanceFrequency;
+  SeenPause:=InterlockedCompareExchange(PauseEpoch,0,0);
   FillChar(NeedsReset,SizeOf(NeedsReset),1);
   Previous:=GetTickCount64; Stale:=false;
   while not Terminated do
   begin
+    CurrentPause:=InterlockedCompareExchange(PauseEpoch,0,0);
+    if CurrentPause<>SeenPause then
+    begin
+      FillChar(NeedsReset,SizeOf(NeedsReset),1);
+      SeenPause:=CurrentPause;
+    end;
     NowMs:=GetTickCount64;
     if NowMs-Previous>200 then Stale:=true;
     Previous:=NowMs;
