@@ -31,13 +31,13 @@ jobs:
         run: |
           ./.charting/Scripts/python.exe scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$env:RUNNER_TEMP/songs" --language en --shard "$env:SHARD_ID" --shards 5
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-      - name: Generate songs with selective corroborated second-pass recognition
+      - name: Audit repeated refrains and reconstruct every affected complete draft
         shell: pwsh
         run: |
           ./.charting/Scripts/python.exe -u scripts/benchmark_generation_corpus.py "$env:RUNNER_TEMP/songs/manifest.json" "$env:RUNNER_TEMP/complete" --cache "$env:RUNNER_TEMP/models" --lookup-lyrics
       - uses: actions/upload-artifact@v4
         with:
-          name: complete-rescue-chart-metrics-${{ matrix.shard }}
+          name: final-audited-chart-metrics-${{ matrix.shard }}
           path: |
             ${{ runner.temp }}/complete/results.json
           if-no-files-found: error
