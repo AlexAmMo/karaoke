@@ -71,3 +71,38 @@ La lectura nativa del dispositivo duró ocho segundos por versión y muestreó e
 | Salida del acompañamiento por el mezclador → altavoz → micrófono en 0.3.1 | 104 ms |
 
 El resultado acústico es compatible con la medición anterior de 72 ms en dúplex al 44 % de volumen. La comparación directa entre versiones muestra que el retorno físico dúplex de este Mac mantiene su latencia. La nueva calibración mide el acompañamiento por su propia ruta. El adelanto o retraso configurado para puntuar tampoco elimina un eco audible. Queda pendiente una medición con el micrófono por cable del usuario y con hardware Windows. [Lecturas de las tres pruebas acústicas](retorno-acustico-031.json) · [Medición anterior](audio-iteracion.md)
+
+## Qué parte del retardo ve CoreAudio
+
+Con los altavoces silenciados y ambos dispositivos inactivos se consultaron las propiedades HAL mediante `AudioObjectGetPropertyData`. A 48 kHz, macOS identificó dos dispositivos distintos en el mismo dominio de reloj. El búfer HAL en reposo era de 512 muestras para ambos; el bloque de captura observado durante el dúplex era de 64.
+
+| Propiedad HAL | Micrófono integrado | Altavoces integrados |
+|---|---:|---:|
+| Latencia del dispositivo | 14 muestras · 0,29 ms | 60 muestras · 1,25 ms |
+| Latencia adicional del flujo de audio | 1.439 muestras · 29,98 ms | 690 muestras · 14,38 ms |
+| Margen de seguridad de E/S | 36 muestras · 0,75 ms | 48 muestras · 1,00 ms |
+
+Apple especifica que las latencias de dispositivo y flujo se suman. Las dos latencias de flujo aportan **44,35 ms** declarados por el sistema. La biblioteca que distribuye Karaoke se identifica como PortAudio 19.7.0, revisión `147dd722`. Su cálculo de las marcas ADC/DAC usa el periodo, el margen de seguridad y la latencia de dispositivo. Omite la latencia del flujo y, cuando los dispositivos son distintos, también la cola que transporta las muestras de entrada al callback de salida. [Propiedad de latencia del flujo de Apple](https://developer.apple.com/documentation/coreaudio/audiohardwarestream/latency) · [Cálculo de las marcas de tiempo](https://github.com/PortAudio/portaudio/blob/147dd722548358763a8b649b3e4b41dfffbcfbb6/src/hostapi/coreaudio/pa_mac_core.c#L995-L1037) · [Ruta entre dos dispositivos](https://github.com/PortAudio/portaudio/blob/147dd722548358763a8b649b3e4b41dfffbcfbb6/src/hostapi/coreaudio/pa_mac_core.c#L2249-L2265)
+
+**Estimación para este Mac.** Aplicando las propiedades anteriores al algoritmo de PortAudio y al perfil de baja latencia de Karaoke se obtiene una cola de 4.096 muestras con una precarga inicial de 1.024, equivalentes a **21,33 ms**. Junto con los 44,35 ms de los flujos, estas dos contribuciones rondan los 65,7 ms. La diferencia observada entre el pulso acústico y las marcas del driver fue de 64 ms. La proximidad explica el orden de magnitud. La ocupación real de la cola durante cada pulso y el reparto de los 31 ms adicionales del mezclador quedan sin medir. [Latencia predeterminada](https://github.com/PortAudio/portaudio/blob/147dd722548358763a8b649b3e4b41dfffbcfbb6/src/hostapi/coreaudio/pa_mac_core.c#L548-L568) · [Tamaño de la cola](https://github.com/PortAudio/portaudio/blob/147dd722548358763a8b649b3e4b41dfffbcfbb6/src/hostapi/coreaudio/pa_mac_core_utilities.c#L355-L408) · [Precarga inicial](https://github.com/PortAudio/portaudio/blob/147dd722548358763a8b649b3e4b41dfffbcfbb6/src/hostapi/coreaudio/pa_mac_core.c#L1939-L1984)
+
+Con bloques explícitos de 64 muestras y una latencia solicitada de 10 ms para entrada y salida, ese algoritmo prevé una precarga de 256 muestras, unos 5,33 ms. La diferencia teórica respecto al perfil original es de 16 ms.
+
+## Comparación acústica de los dos perfiles
+
+En el mismo portátil se alternaron las dos configuraciones en el orden A/B/B/A. Cada toma abrió el motor desde cero y midió siete pulsos físicos del altavoz al micrófono a 48 kHz, con la salida al 35 % y la entrada al 27 %. La prueba utilizó un binario instrumentado que confirmó el perfil abierto. Las cuatro tomas ocuparon 27,43 s. Al concluir, el sistema recuperó el volumen de salida anterior y quedó silenciado.
+
+| Orden | Perfil dúplex | Pulsos detectados | Mediana acústica | Dispersión del detector |
+|---|---|---:|---:|---:|
+| A | Original | 7/7 | 73 ms | 1 ms |
+| B | 10 ms por sentido, 64 muestras | 7/7 | 57 ms | 0 ms |
+| B | 10 ms por sentido, 64 muestras | 7/7 | 57 ms | 0 ms |
+| A | Original | 7/7 | 73 ms | 0 ms |
+
+El ahorro medido fue de **16 ms (22 %)**. Ambos perfiles siguieron mostrando 9 ms en las marcas ADC/DAC del callback. El descriptor de PortAudio estimaba 117,69 y 53,69 ms de entrada, respectivamente. La reducción de 64 ms en ese descriptor expresa un cambio de capacidad de búfer. El ensayo acústico midió el efecto real sobre el recorrido.
+
+Con salida silenciada se procesó la entrada y su ganancia durante 45 s por perfil, con ocho procesos de cálculo en los diez núcleos lógicos del Mac. Se observaron 33.566 callbacks con el original y 33.607 con el perfil corto. Los cuatro contadores de desbordamiento y agotamiento de entrada y salida fueron cero en ambos. En otras dos sesiones se inyectaron fallos de apertura y de arranque del perfil corto por separado. El motor volvió a abrir la ruta dúplex original y continuó capturando en los dos casos. [Datos del ensayo](retorno-duplex-64.json)
+
+El motor selecciona el perfil corto con CoreAudio en **Mac16,1**, entrada y salida integradas predeterminadas, a 48 kHz y con la latencia del dispositivo en automático. Para comparar se puede arrancar con `KARAOKE_DUPLEX_PROFILE=published`. El motor de distribución se probó silenciado en ambas configuraciones y confirmó el perfil efectivo con cero incidencias. En otros equipos, con micrófonos USB, con auriculares o con una latencia explícita se conservan los parámetros previos. Una regresión valida estos límites.
+
+Los **57 ms** describen el recorrido físico de monitorización de esta pareja integrada. Los **104 ms** del acompañamiento se midieron en la configuración original. Su valor en el nuevo perfil queda pendiente. La compensación guardada para puntuar sigue siendo explícita. Quien ya la hubiera ajustado para esta pareja puede volver a medir en **Sesión → Cantantes → Calibrar esta entrada**. Las interfaces USB y Windows requieren sus propias mediciones.

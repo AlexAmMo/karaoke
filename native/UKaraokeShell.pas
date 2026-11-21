@@ -917,6 +917,12 @@ begin
           if HasAdcTime and Capturing then O.Add('adc_to_callback_ms',AdcToCallbackMs);
         with AudioInputProcessor.DeviceList[I] do
           if HasDacTime and Capturing then O.Add('callback_to_dac_ms',CallbackToDacMs);
+        with AudioInputProcessor.DeviceList[I] do
+        begin
+          O.Add('input_underflows',InputUnderflows); O.Add('output_overflows',OutputOverflows);
+          if Capturing then
+            if ShortDuplex then O.Add('monitor_profile','10ms-64') else O.Add('monitor_profile','published');
+        end;
         O.Add('output_underflows',AudioInputProcessor.DeviceList[I].OutputUnderflows);
         O.Add('input_overflows',AudioInputProcessor.DeviceList[I].Overflows);
         O.Add('channels',AudioInputProcessor.DeviceList[I].AudioFormat.Channels);

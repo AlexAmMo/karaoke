@@ -124,9 +124,14 @@ def test_receive_real_multifile_torrent_from_local_peer(tmp_path, package):
         params = lt.load_torrent_buffer(metainfo)
         params.save_path = str(package.parent.parent)
         handle = seed.add_torrent(params)
-        deadline = time.monotonic() + 8
-        while not handle.status().is_seeding or seed.listen_port() == 0:
-            assert time.monotonic() < deadline
+        # A new Windows runner can still be checking the seed when the socket opens.
+        deadline = time.monotonic() + 30
+        while True:
+            status = handle.status()
+            port = seed.listen_port()
+            if status.is_seeding and port:
+                break
+            assert time.monotonic() < deadline, f"Local seed state={status.state}, port={port}"
             time.sleep(0.05)
         messages = []
         chart = provider.prepare_torrent(torrent, tmp_path, SONG, messages.append)

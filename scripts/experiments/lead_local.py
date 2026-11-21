@@ -138,22 +138,27 @@ def main():
                     core=18,
                     pad=2,
                 )
+                if name == "all_vocals":
+                    settings["input_file_sha256"] = sha
                 if target.is_file() and json.loads(target.read_text())["settings"] == settings:
                     continue
+                reuse = False
                 if name == "all_vocals":
-                    original = json.loads((args.raw_results / (tag + ".json")).read_text())
-                    prior = original["settings"]
-                    if (
-                        prior["source"] != str(stem)
-                        or prior["core"] != 18
-                        or prior["pad"] != 2
-                        or prior["device"] != args.device
-                        or prior["model_sha256"] != MODEL_SHA["some"]
-                    ):
-                        raise ValueError("Mismatched baseline SOME predictions")
+                    cached = args.raw_results / (tag + ".json")
+                    original = json.loads(cached.read_text()) if cached.is_file() else {}
+                    prior = original.get("settings", {})
+                    reuse = (
+                        prior.get("source") == str(stem)
+                        and prior.get("input_file_sha256") == sha
+                        and prior.get("core") == 18
+                        and prior.get("pad") == 2
+                        and prior.get("device") == args.device
+                        and prior.get("model_sha256") == MODEL_SHA["some"]
+                    )
+                if reuse:
                     events, elapsed = original["events"], original["seconds"]
                 else:
-                    src = args.waves / (tag + "." + name + ".wav")
+                    src = stem if name == "all_vocals" else args.waves / (tag + "." + name + ".wav")
                     started = time.monotonic()
                     events = infer(src, net, 18, 2)
                     elapsed = round(time.monotonic() - started, 3)

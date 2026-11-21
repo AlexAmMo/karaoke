@@ -31,7 +31,7 @@ def onset_coverage(reference, hypothesis, radius):
             matches += 1
             i += 1
             j += 1
-    return round(2 * matches / (len(ref) + len(hyp)), 4)
+    return round(2 * matches / (len(ref) + len(hyp)), 4) if ref or hyp else None
 
 
 def evaluate(song, baseline, folder, neural=None, fusion=None, sung=None):
@@ -77,9 +77,10 @@ def evaluate(song, baseline, folder, neural=None, fusion=None, sung=None):
         metric = score(reference, pred, 0, song["duration"], False)
         notes, _ = extract(pred)
         notes = [n for n in notes if 0 <= n.start < song["duration"]]
-        p90 = round(1000 * metric["word_mae_p50_p90_s"][1])
+        errors = metric.get("word_mae_p50_p90_s", [])
+        p90 = round(1000 * errors[1]) if len(errors) == 2 else None
         passed = passes(metric)
-        thirds = metric["signed_word_p50_by_third_s"]
+        thirds = metric.get("signed_word_p50_by_third_s", [None, None, None])
         results.append(
             dict(
                 id=tag,
@@ -87,17 +88,17 @@ def evaluate(song, baseline, folder, neural=None, fusion=None, sung=None):
                 metodo=method,
                 wer=metric["wer"],
                 palabras=metric["ref_words"],
-                errores_palabra=metric["edits"],
+                errores_palabra=metric.get("edits"),
                 p90_ms=p90,
                 clase=metric["correct_class_all"],
                 f1_ataque_tono=metric["onset_pitch_f1_100ms"],
                 f1_solo_ataque_50ms=onset_coverage(human, notes, 0.05),
                 f1_solo_ataque_100ms=onset_coverage(human, notes, 0.10),
-                ataques_tono=metric["matching_onsets"],
+                ataques_tono=metric.get("matching_onsets"),
                 notas_ref=metric["reference_notes"],
-                notas_puntuadas=metric["generated_scored"],
-                notas_libres=metric["generated_freestyle"],
-                palabras_coincidentes=metric["exact"],
+                notas_puntuadas=metric.get("generated_scored"),
+                notas_libres=metric.get("generated_freestyle"),
+                palabras_coincidentes=metric.get("exact", 0),
                 mediana_inicio_ms=round(1000 * thirds[0]) if thirds[0] is not None else "",
                 mediana_medio_ms=round(1000 * thirds[1]) if thirds[1] is not None else "",
                 mediana_final_ms=round(1000 * thirds[2]) if thirds[2] is not None else "",

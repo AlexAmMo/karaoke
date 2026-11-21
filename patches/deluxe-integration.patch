@@ -665,7 +665,7 @@ index 9f8300b..85d73ed 100644
              // we will add a new note
              NewNote := true;
 diff --git a/src/base/URecord.pas b/src/base/URecord.pas
-index ea54f6b..c8b91ce 100644
+index ea54f6b..0261ad6 100644
 --- a/src/base/URecord.pas
 +++ b/src/base/URecord.pas
 @@ -40,9 +40,11 @@ interface
@@ -756,17 +756,19 @@ index ea54f6b..c8b91ce 100644
        procedure LockAnalysisBuffer();
        procedure UnlockAnalysisBuffer();
  
-@@ -120,6 +159,9 @@   TAudioInputSource = record
+@@ -120,6 +159,11 @@   TAudioInputSource = record
    TAudioInputDevice = class
      public
        CfgIndex:      integer;   // index of this device in Ini.InputDeviceConfig
 +      Capturing: boolean;
 +      HasAdcTime, HasDacTime: boolean;
 +      AdcToCallbackMs, CallbackToDacMs, Overflows, OutputUnderflows: LongInt;
++      InputUnderflows, OutputOverflows: LongInt;
++      ShortDuplex: Boolean;
        Name:          UTF8String;    // soundcard name
        Source:        array of TAudioInputSource; // soundcard input-sources
        SourceRestore: integer;  // source-index that will be selected after capturing (-1: not detected)
-@@ -184,7 +226,7 @@   TAudioInputProcessor = class
+@@ -184,7 +228,7 @@   TAudioInputProcessor = class
         * Handle microphone input
         *}
        procedure HandleMicrophoneData(Buffer: PByteArray; Size: integer;
@@ -775,7 +777,7 @@ index ea54f6b..c8b91ce 100644
    end;
  
    TAudioInputBase = class( TInterfacedObject, IAudioInput )
-@@ -207,14 +249,14 @@   TAudioInputBase = class( TInterfacedObject, IAudioInput )
+@@ -207,14 +251,14 @@   TAudioInputBase = class( TInterfacedObject, IAudioInput )
        procedure CaptureStop;
    end;
  
@@ -792,7 +794,7 @@ index ea54f6b..c8b91ce 100644
    ULog,
    UNote;
  
-@@ -275,6 +317,9 @@ constructor TCaptureBuffer.Create;
+@@ -275,6 +319,9 @@ constructor TCaptureBuffer.Create;
    LogBuffer := TMemoryStream.Create;
    fAnalysisBufferLock := SDL_CreateMutex();
    AnalysisBufferSize := Length(AnalysisBuffer);
@@ -802,7 +804,7 @@ index ea54f6b..c8b91ce 100644
  end;
  
  destructor TCaptureBuffer.Destroy;
-@@ -282,7 +327,7 @@ destructor TCaptureBuffer.Destroy;
+@@ -282,7 +329,7 @@ destructor TCaptureBuffer.Destroy;
    FreeAndNil(LogBuffer);
    FreeAndNil(fVoiceStream);
    FreeAndNil(fAudioFormat);
@@ -811,7 +813,7 @@ index ea54f6b..c8b91ce 100644
    SDL_DestroyMutex(fAnalysisBufferLock);
    fAnalysisBufferLock:=nil;
    inherited;
-@@ -303,22 +348,83 @@ procedure TCaptureBuffer.Clear;
+@@ -303,22 +350,83 @@ procedure TCaptureBuffer.Clear;
    if assigned(LogBuffer) then
      LogBuffer.Clear;
    LockAnalysisBuffer();
@@ -899,7 +901,7 @@ index ea54f6b..c8b91ce 100644
  
    // we assume that samples are in S16Int format
    // TODO: support float too
-@@ -338,13 +444,32 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
+@@ -338,13 +446,32 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
      SampleCount := Length(AnalysisBuffer);
    end;
  
@@ -938,7 +940,7 @@ index ea54f6b..c8b91ce 100644
      // copy new samples to analysis buffer
      Move(Buffer[BufferOffset], AnalysisBuffer[Length(AnalysisBuffer)-SampleCount],
           SampleCount * SizeOf(SmallInt));
-@@ -365,45 +490,119 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
+@@ -365,45 +492,119 @@ procedure TCaptureBuffer.ProcessNewBuffer(Buffer: PByteArray; BufferSize: intege
  end;
  
  procedure TCaptureBuffer.AnalyzeBuffer;
@@ -1085,7 +1087,7 @@ index ea54f6b..c8b91ce 100644
  end;
  
  function TCaptureBuffer.ArrayIndexOfMinimum(const AValues: array of real): Integer;
-@@ -432,12 +631,11 @@ procedure TCaptureBuffer.SetFrequenciesAndDelays;
+@@ -432,12 +633,11 @@ procedure TCaptureBuffer.SetFrequenciesAndDelays;
    end;
  end;
  
@@ -1100,7 +1102,7 @@ index ea54f6b..c8b91ce 100644
  
    // analyze halftones
    // Note: at the lowest tone (~65 Hz) and a buffer-size of 4096
-@@ -447,17 +645,16 @@ function TCaptureBuffer.AnalyzePitch(PDA: TPDAType): boolean;
+@@ -447,17 +647,16 @@ function TCaptureBuffer.AnalyzePitch(PDA: TPDAType): boolean;
      PDA_AMDF:
        begin
          Correlation := AverageMagnitudeDifference();
@@ -1121,7 +1123,7 @@ index ea54f6b..c8b91ce 100644
  end;
  
  // Average Magnitude Difference Function (AMDF) is defined as
-@@ -476,7 +673,7 @@ function TCaptureBuffer.AverageMagnitudeDifference(): TCorrelationArray;
+@@ -476,7 +675,7 @@ function TCaptureBuffer.AverageMagnitudeDifference(): TCorrelationArray;
        Correlation[ToneIndex] := 0;
        for SampleIndex := 0 to (AnalysisBufferSize-Delays[ToneIndex]-1) do
        begin
@@ -1130,7 +1132,7 @@ index ea54f6b..c8b91ce 100644
        end;
        Correlation[ToneIndex] := Correlation[ToneIndex] / (AnalysisBufferSize-Delays[ToneIndex]-1);
      end;
-@@ -504,8 +701,8 @@ function TCaptureBuffer.CircularAverageMagnitudeDifference(): TCorrelationArray;
+@@ -504,8 +703,8 @@ function TCaptureBuffer.CircularAverageMagnitudeDifference(): TCorrelationArray;
      begin
        // Suggestion for calculation efficiency improvement from deuteragenie:
        // Replacing 'i mod buffersize' by 'i & (buffersize-1)' when i is positive and buffersize is a power of two should speed the modulo compuation by 5x-10x
@@ -1141,7 +1143,7 @@ index ea54f6b..c8b91ce 100644
      end;
      Correlation[ToneIndex] := Correlation[ToneIndex] / AnalysisBufferSize;
    end;
-@@ -522,6 +719,7 @@ function TCaptureBuffer.MaxSampleVolume: single;
+@@ -522,6 +721,7 @@ function TCaptureBuffer.MaxSampleVolume: single;
    LockAnalysisBuffer();
    try
      lMaxVol := 0;
@@ -1149,7 +1151,7 @@ index ea54f6b..c8b91ce 100644
      for lSampleIndex := 0 to High(AnalysisBuffer) do
      begin
        if Abs(AnalysisBuffer[lSampleIndex]) > lMaxVol then
-@@ -564,6 +762,7 @@ procedure TCaptureBuffer.BoostBuffer(Buffer: PByteArray; Size: integer);
+@@ -564,6 +764,7 @@ procedure TCaptureBuffer.BoostBuffer(Buffer: PByteArray; Size: integer);
      else Boost := 1;
    end;
  
@@ -1157,7 +1159,7 @@ index ea54f6b..c8b91ce 100644
    // at the moment we will boost SInt16 data only
    if (AudioFormat.Format = asfS16) then
    begin
-@@ -594,7 +793,11 @@ procedure TCaptureBuffer.StartCapture(Format: TAudioFormatInfo);
+@@ -594,7 +795,11 @@ procedure TCaptureBuffer.StartCapture(Format: TAudioFormatInfo);
    // copy the new input-device audio-format ...
    fAudioFormat := Format.Copy;
    // and adjust it because capture buffers are always mono
@@ -1170,7 +1172,7 @@ index ea54f6b..c8b91ce 100644
  
    if (Ini.VoicePassthrough = 1) then
    begin
-@@ -605,6 +808,7 @@ procedure TCaptureBuffer.StartCapture(Format: TAudioFormatInfo);
+@@ -605,6 +810,7 @@ procedure TCaptureBuffer.StartCapture(Format: TAudioFormatInfo);
  
  procedure TCaptureBuffer.StopCapture();
  begin
@@ -1178,7 +1180,7 @@ index ea54f6b..c8b91ce 100644
    FreeAndNil(fVoiceStream);
  end;
  
-@@ -810,65 +1014,46 @@ function TAudioInputProcessor.CheckPlayersConfig(PlayerCount: cardinal): integer
+@@ -810,65 +1016,46 @@ function TAudioInputProcessor.CheckPlayersConfig(PlayerCount: cardinal): integer
   *   Length - number of bytes in Buffer
   *   Input - Soundcard-Input used for capture
   *}
@@ -1276,17 +1278,18 @@ index ea54f6b..c8b91ce 100644
    end;
  end;
  
-@@ -972,7 +1157,8 @@ procedure TAudioInputBase.CaptureStart;
+@@ -972,7 +1159,9 @@ procedure TAudioInputBase.CaptureStart;
      if (DeviceUsed) then
      begin
        //Log.BenchmarkStart(2);
 -      Device.Start();
 +      Device.HasAdcTime:=false; Device.HasDacTime:=false; Device.Overflows:=0; Device.OutputUnderflows:=0;
++      Device.InputUnderflows:=0; Device.OutputOverflows:=0; Device.ShortDuplex:=false;
 +      Device.Capturing := Device.Start();
        //Log.BenchmarkEnd(2);
        //Log.LogBenchmark('Device.Start', 2) ;
      end;
-@@ -998,6 +1184,7 @@ procedure TAudioInputBase.CaptureStop;
+@@ -998,6 +1187,7 @@ procedure TAudioInputBase.CaptureStop;
        continue;
  
      Device.Stop();
@@ -1601,7 +1604,7 @@ index d002eed..5ca0d8a 100644
  	<string>NSApplication</string>
  	<key>NSCameraUsageDescription</key>
 diff --git a/src/media/UAudioInput_Portaudio.pas b/src/media/UAudioInput_Portaudio.pas
-index b1efcf5..bcd1294 100644
+index b1efcf5..00539d2 100644
 --- a/src/media/UAudioInput_Portaudio.pas
 +++ b/src/media/UAudioInput_Portaudio.pas
 @@ -45,7 +45,7 @@ implementation
@@ -1609,7 +1612,7 @@ index b1efcf5..bcd1294 100644
    {$ENDIF}
    portaudio,
 -  ctypes,
-+  ctypes, Math, sdl2, UCommon, UKaraokeCalibration, UKaraokeCaptureHistory,
++  ctypes, Math, sdl2, UCommon, UKaraokeCalibration, UKaraokeCaptureHistory, UKaraokeOutput,
    UAudioCore_Portaudio,
    UUnicodeUtils,
    UTextEncoding,
@@ -1626,7 +1629,7 @@ index b1efcf5..bcd1294 100644
        PaDeviceIndex:  TPaDeviceIndex;
      public
 -      function Open():  boolean;
-+      function Open(TryDuplex: boolean): boolean;
++      function Open(TryDuplex, AllowShort: boolean): boolean;
        function Close(): boolean;
        function Start(): boolean; override;
        function Stop():  boolean; override;
@@ -1642,18 +1645,18 @@ index b1efcf5..bcd1294 100644
  end;
  
 -function TPortaudioInputDevice.Open(): boolean;
-+function TPortaudioInputDevice.Open(TryDuplex: boolean): boolean;
++function TPortaudioInputDevice.Open(TryDuplex, AllowShort: boolean): boolean;
  var
    Error:       TPaError;
 -  inputParams: TPaStreamParameters;
 -  deviceInfo:  PPaDeviceInfo;
-+  inputParams,outputParams: TPaStreamParameters;
++  inputParams,outputParams,shortInput,shortOutput: TPaStreamParameters;
 +  deviceInfo,outputInfo: PPaDeviceInfo;
 +  C: integer;
    {$IFDEF UsePortmixer}
    SourceIndex: integer;
    {$ENDIF}
-@@ -162,11 +168,40 @@ function TPortaudioInputDevice.Open(): boolean;
+@@ -162,11 +168,53 @@ function TPortaudioInputDevice.Open(): boolean;
    Log.LogStatus('Open ' + deviceInfo^.name, 'Portaudio');
    Log.LogStatus('Latency of ' + deviceInfo^.name + ': ' + floatToStr(inputParams.suggestedLatency), 'Portaudio');
  
@@ -1663,7 +1666,7 @@ index b1efcf5..bcd1294 100644
 +  // decoder and its software output queue remain independent of the voice.
 +  CaptureClock.Reset;
 +  ClockFrequency:=SDL_GetPerformanceFrequency;
-+  DuplexChannels:=0; Error:=paInvalidDevice;
++  DuplexChannels:=0; ShortDuplex:=false; Error:=paInvalidDevice;
 +  if TryDuplex and (KaraokeOutputDevice='coreaudio') and
 +     (GetEnvironmentVariable('KARAOKE_MONITOR_PATH')<>'mixer') then
 +  begin
@@ -1674,8 +1677,21 @@ index b1efcf5..bcd1294 100644
 +    begin
 +      outputParams.channelCount:=Min(2,outputInfo^.maxOutputChannels); outputParams.sampleFormat:=paInt16;
 +      outputParams.suggestedLatency:=outputInfo^.defaultLowOutputLatency;
-+      Error:=Pa_OpenStream(RecordStream,@inputParams,@outputParams,AudioFormat.SampleRate,
-+          paFramesPerBufferUnspecified,paNoFlag,@MicrophoneCallback,pointer(Self));
++      if AllowShort and KnownShortDuplex(KaraokeOutputDevice, AudioFormat.SampleRate,
++          (inputParams.device=Pa_GetDefaultInputDevice) and (inputParams.device<>outputParams.device),
++          Ini.InputDeviceConfig[CfgIndex].Latency=-1) then
++      begin
++        // The shorter bridge still uses 64-sample device callbacks. Keep the
++        // original parameters intact for both duplex and capture-only retries.
++        shortInput:=inputParams; shortOutput:=outputParams;
++        shortInput.suggestedLatency:=0.010; shortOutput.suggestedLatency:=0.010;
++        Error:=Pa_OpenStream(RecordStream,@shortInput,@shortOutput,AudioFormat.SampleRate,
++            64,paNoFlag,@MicrophoneCallback,pointer(Self));
++        ShortDuplex:=Error=paNoError;
++      end;
++      if Error<>paNoError then
++        Error:=Pa_OpenStream(RecordStream,@inputParams,@outputParams,AudioFormat.SampleRate,
++            paFramesPerBufferUnspecified,paNoFlag,@MicrophoneCallback,pointer(Self));
 +      if Error=paNoError then DuplexChannels:=outputParams.channelCount;
 +    end;
 +  end;
@@ -1696,26 +1712,32 @@ index b1efcf5..bcd1294 100644
    if (Error <> paNoError) then
    begin
      Log.LogError('Error opening stream: ' + Pa_GetErrorText(Error), 'TPortaudioInputDevice.Open');
-@@ -212,11 +247,17 @@ function TPortaudioInputDevice.Start(): boolean;
+@@ -212,11 +260,23 @@ function TPortaudioInputDevice.Start(): boolean;
      Stop();
  
    // TODO: Do not open the device here (takes too much time).
 -  if (not Open()) then
-+  if (not Open(GetEnvironmentVariable('KARAOKE_IPC')<>'')) then
++  if (not Open(GetEnvironmentVariable('KARAOKE_IPC')<>'',true)) then
      Exit;
  
    // start capture
    Error := Pa_StartStream(RecordStream);
++  if (Error<>paNoError) and ShortDuplex then
++  begin
++    Close(); RecordStream:=nil;
++    if not Open(true,false) then Exit;
++    Error:=Pa_StartStream(RecordStream);
++  end;
 +  if (Error<>paNoError) and (DuplexChannels>0) then
 +  begin
 +    Close(); RecordStream:=nil;
-+    if not Open(false) then Exit;
++    if not Open(false,false) then Exit;
 +    Error:=Pa_StartStream(RecordStream);
 +  end;
    if (Error <> paNoError) then
    begin
      Log.LogError('Error starting stream: ' + Pa_GetErrorText(Error), 'TPortaudioInputDevice.Start');
-@@ -525,10 +566,44 @@ function MicrophoneCallback(input: pointer; output: pointer; frameCount: culong;
+@@ -525,10 +585,46 @@ function MicrophoneCallback(input: pointer; output: pointer; frameCount: culong;
        timeInfo: PPaStreamCallbackTimeInfo; statusFlags: TPaStreamCallbackFlags;
        inputDevice: TAudioInputDevice): cint; cdecl;
  var
@@ -1726,7 +1748,7 @@ index b1efcf5..bcd1294 100644
    AudioFormat := inputDevice.AudioFormat;
 -  AudioInputProcessor.HandleMicrophoneData(input, frameCount * AudioFormat.FrameSize, inputDevice);
 +  CapturedEnd := SDL_GetPerformanceCounter;
-+  Gap := (statusFlags and paInputOverflow) <> 0;
++  Gap := (statusFlags and (paInputOverflow or paInputUnderflow)) <> 0;
 +  if Assigned(timeInfo) and (timeInfo^.inputBufferAdcTime > 0) then
 +    with TPortaudioInputDevice(inputDevice) do
 +      CapturedEnd := CaptureClock.Align(CapturedEnd, ClockFrequency,
@@ -1741,7 +1763,9 @@ index b1efcf5..bcd1294 100644
 +    if CalibrationActive then CalibrationOutput(PSmallInt(output),frameCount,OutChannels,AudioFormat.SampleRate,
 +        CalibrationClockMs(SDL_GetPerformanceCounter,SDL_GetPerformanceFrequency),true);
 +  end;
++  if (statusFlags and paInputUnderflow)<>0 then Inc(InputDevice.InputUnderflows);
 +  if (statusFlags and paInputOverflow)<>0 then Inc(InputDevice.Overflows);
++  if (statusFlags and paOutputOverflow)<>0 then Inc(InputDevice.OutputOverflows);
 +  if (statusFlags and paOutputUnderflow)<>0 then Inc(InputDevice.OutputUnderflows);
 +  if (OutChannels>0) and Assigned(timeInfo) and (timeInfo^.outputBufferDacTime>0) and
 +      (timeInfo^.outputBufferDacTime>=timeInfo^.currentTime) and

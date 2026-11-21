@@ -1,7 +1,7 @@
-{ Deterministic regression for the capture timeline used by the native scorer. }
+{ Deterministic regressions for device routing and the capture timeline used by the scorer. }
 program test_audio_capture_history;
 {$mode delphi}{$H+}
-uses SysUtils, Math, UKaraokeCaptureHistory;
+uses SysUtils, Math, UKaraokeCaptureHistory, UKaraokeOutput;
 
 const Rate = 48000; FramesPerBlock = 240; FramesPerNote = 4800;
       TestNotes = 300; WindowSize = 2048;
@@ -12,6 +12,36 @@ var Clock: TDeviceCaptureClock; Gap: Boolean; Aligned: Int64; History: TCaptureH
 procedure Check(Value: Boolean; const MessageText: String);
 begin
   if not Value then raise Exception.Create(MessageText);
+end;
+
+procedure CheckDuplexProfile;
+const BuiltInInput = 'coreaudio:BuiltInMicrophoneDevice';
+      BuiltInOutput = 'coreaudio:BuiltInSpeakerDevice';
+      Hardware = 'Mac16,1';
+begin
+  Check(PreferShortDuplex('coreaudio', Hardware, BuiltInInput, BuiltInOutput, '',
+    Rate, true, true), 'Validated built-in pair must use the measured profile');
+  Check(PreferShortDuplex('coreaudio', Hardware, BuiltInInput, BuiltInOutput, '10ms-64',
+    Rate, true, true), 'Explicit measured profile');
+  Check(not PreferShortDuplex('coreaudio', Hardware, BuiltInInput, BuiltInOutput, 'published',
+    Rate, true, true), 'Original profile requested');
+  Check(not PreferShortDuplex('coreaudio', Hardware, BuiltInInput, BuiltInOutput, 'typo',
+    Rate, true, true), 'Unknown profile uses original parameters');
+  Check(not PreferShortDuplex('wasapi', Hardware, BuiltInInput, BuiltInOutput, '',
+    Rate, true, true), 'Backend must match');
+  Check(not PreferShortDuplex('coreaudio', 'Mac16,2', BuiltInInput, BuiltInOutput, '',
+    Rate, true, true), 'Model must match');
+  Check(not PreferShortDuplex('coreaudio', Hardware, 'USB Mic', BuiltInOutput, '',
+    Rate, true, true), 'Preserve USB input settings');
+  Check(not PreferShortDuplex('coreaudio', Hardware, BuiltInInput, 'AirPods', '',
+    Rate, true, true), 'Preserve other output settings');
+  Check(not PreferShortDuplex('coreaudio', Hardware, BuiltInInput, BuiltInOutput, '',
+    44100, true, true), 'Unsupported sample rate');
+  Check(not PreferShortDuplex('coreaudio', Hardware, BuiltInInput, BuiltInOutput, '',
+    Rate, false, true), 'Custom input or single device');
+  Check(not PreferShortDuplex('coreaudio', Hardware, BuiltInInput, BuiltInOutput, '',
+    Rate, true, false), 'Explicit input latency must be honoured');
+  Writeln('PASS native duplex selection for validated hardware, custom settings and fallback');
 end;
 
 function Frequency(N: Integer): Double;
@@ -30,6 +60,7 @@ begin
 end;
 
 begin
+  CheckDuplexProfile;
   Clock.Reset; Gap := False;
   Check(Clock.Align(86400000000, 1000000, 1234, Gap) = 86400000000, 'Clock epoch mismatch');
   Aligned := Clock.Align(86400022000, 1000000, 1234.010, Gap);

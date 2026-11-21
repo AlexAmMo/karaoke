@@ -75,8 +75,11 @@ def measure(args):
                 "adc_to_callback_ms": summarize(adc),
                 "callback_to_dac_ms": summarize(dac),
                 "adc_to_dac_ms": summarize(trips),
+                "monitor_profile": active.get("monitor_profile"),
+                "input_underflows": active.get("input_underflows"),
                 "input_overflows": active["input_overflows"],
                 "output_underflows": active["output_underflows"],
+                "output_overflows": active.get("output_overflows"),
             }
         finally:
             session.close()

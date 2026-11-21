@@ -62,6 +62,14 @@ def run(args):
                 "computer": platform.platform(),
                 "audio_driver": current.get("audio_driver"),
                 "capture_backend": current.get("capture_backend"),
+                "monitor_profile": next(
+                    (
+                        d.get("monitor_profile")
+                        for d in active.get("devices", [])
+                        if d["index"] == device["index"]
+                    ),
+                    None,
+                ),
                 "output_frames": current.get("output_frames"),
                 "output_hz": current.get("output_hz"),
                 "input_hz": device.get("hz"),
