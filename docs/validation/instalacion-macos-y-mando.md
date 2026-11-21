@@ -1,5 +1,18 @@
 # Instalación de la aplicación y audio del mando en macOS
 
+## Paquetes finales de Karaoke 0.3.0
+
+Cada Mac instaló su ZIP del commit `f73f563` y completó tres sesiones con el motor incluido. Pasaron las 21 comprobaciones de cada sesión, incluidos los dos cierres durante la reproducción y la recuperación de la cola al reabrir. Los tiempos corresponden a cada recorrido completo. Los tamaños y SHA-256 de los ZIP coinciden con los de los archivos subidos a GitHub.
+
+| ZIP | Tamaño en bytes | SHA-256 | Tres sesiones | Evidencia |
+|---|---:|---|---|---|
+| `Karaoke-0.3.0-macos-arm64.zip` | 359.864.032 | `23a4a4c400a857cb8fd07a107b328d971f935d1efd80981c11ac6357bc44c912` | 53,38 s · 47,32 s · 47,00 s | [Apple Silicon](https://github.com/AlexAmMo/karaoke/actions/runs/44908926828/job/136860362379) |
+| `Karaoke-0.3.0-macos-x86_64.zip` | 395.334.675 | `dcfe28936801138766a2a6af67a483e8a697a91f09888e296e483573e9bf6353` | 44,96 s · 41,98 s · 41,54 s | [Intel](https://github.com/AlexAmMo/karaoke/actions/runs/44908926828/job/136860362615) |
+
+En ambas arquitecturas, la aplicación instalada descodificó la señal Opus de un teléfono simulado y admitió dos mandos con búsquedas independientes. La prueba del conversor PCM conservó las muestras mono en ambos canales y produjo 96.000 tramas al convertir dos segundos de 44,1 a 48 kHz. El recolector resolvió las 133 entradas de fuentes en Apple Silicon y las 138 en Intel.
+
+## Pruebas previas de instalación y firma
+
 El 21 de noviembre de 2026 se instaló el ZIP candidato en una carpeta temporal con `scripts/install.sh`. Se comprobó su SHA-256, la versión mínima declarada y el sello de la aplicación. Las sesiones utilizaron el motor y los recursos contenidos en el ZIP y una base de datos nueva. Las comprobaciones de canto usaron señal sintética y salida de audio de prueba.
 
 | Paquete | Prueba del motor | Prueba de los mandos |
@@ -18,3 +31,5 @@ Los dos colectores comparten diez SHA-256 de Qt/PySide 6.11.3 comprobados con lo
 El generador final de Windows instaló un entorno Python 3.12 nuevo en 60,0 s. Con los modelos preparados tardó 66,3 s en procesar una mezcla de ocho segundos de «Mr. Fancy Pants». Produjo un mapa importable de 39 notas. Este ensayo comprueba instalación y ejecución. El [informe musical](generacion-iteracion.md) compara notas y sílabas frente a referencias independientes. [Trabajo de Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44900914301/job/136836416498)
 
 En macOS Intel se reprodujo un cierre al iniciar la separación vocal. PyTorch y CTranslate2 traían dos compilaciones de Intel OpenMP con la misma ABI. El proceso de generación ahora elige una sola biblioteca antes de cargar los modelos. En Apple Silicon bajo Rosetta se comprobó mediante la traza de dyld que todo el proceso de alta calidad usó una sola copia. El importador validó 39 notas con el perfil de calidad y 33 con el estándar para la misma mezcla de ocho segundos.
+
+En macOS 15.7.9 sobre Intel, el entorno del generador de calidad se instaló en 20,3 s. Procesó los ocho segundos de la mezcla en 140,0 s y produjo un mapa de 39 notas. [Instalación y ejecución en macOS Intel](https://github.com/AlexAmMo/karaoke/actions/runs/44900914301/job/136836416684)
