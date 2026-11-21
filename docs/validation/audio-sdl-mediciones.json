@@ -329,5 +329,186 @@
       "state_interval_p95_s": 0.219,
       "max_state_interval_s": 0.313
     }
+  },
+  "windows_x64_f73f563": {
+    "ci": "https://github.com/AlexAmMo/karaoke/actions/runs/44908926828/job/136860362577",
+    "zip_sha256": "6ff6e112088ba72675b83cb24a85734f4a6636051f849bcb446b0db291edfe15",
+    "startup_seconds": 15.22,
+    "injected_pitch": {
+      "driver": "SDL dummy",
+      "input": "PCM sintético a 48 kHz",
+      "sample_count": 33,
+      "p50_first_ms": 21,
+      "p95_first_ms": 41.0,
+      "p95_confirm_ms": 77.0,
+      "worst_ms": 55,
+      "measurements": [
+        {
+          "hz": 65.406,
+          "first_ms": 21,
+          "confirm_ms": 58
+        },
+        {
+          "hz": 82.407,
+          "first_ms": 39,
+          "confirm_ms": 77
+        },
+        {
+          "hz": 97.999,
+          "first_ms": 19,
+          "confirm_ms": 56
+        },
+        {
+          "hz": 130.813,
+          "first_ms": 3,
+          "confirm_ms": 39
+        },
+        {
+          "hz": 174.614,
+          "first_ms": 2,
+          "confirm_ms": 37
+        },
+        {
+          "hz": 220.0,
+          "first_ms": 21,
+          "confirm_ms": 58
+        },
+        {
+          "hz": 293.665,
+          "first_ms": 55,
+          "confirm_ms": 90
+        },
+        {
+          "hz": 391.995,
+          "first_ms": 20,
+          "confirm_ms": 58
+        },
+        {
+          "hz": 493.883,
+          "first_ms": 36,
+          "confirm_ms": 73
+        },
+        {
+          "hz": 659.255,
+          "first_ms": 21,
+          "confirm_ms": 58
+        },
+        {
+          "hz": 783.991,
+          "first_ms": 19,
+          "confirm_ms": 56
+        },
+        {
+          "hz": 65.406,
+          "first_ms": 41,
+          "confirm_ms": 77
+        },
+        {
+          "hz": 82.407,
+          "first_ms": 41,
+          "confirm_ms": 76
+        },
+        {
+          "hz": 97.999,
+          "first_ms": 19,
+          "confirm_ms": 56
+        },
+        {
+          "hz": 130.813,
+          "first_ms": 40,
+          "confirm_ms": 75
+        },
+        {
+          "hz": 174.614,
+          "first_ms": 19,
+          "confirm_ms": 56
+        },
+        {
+          "hz": 220.0,
+          "first_ms": 21,
+          "confirm_ms": 53
+        },
+        {
+          "hz": 293.665,
+          "first_ms": 4,
+          "confirm_ms": 40
+        },
+        {
+          "hz": 391.995,
+          "first_ms": 20,
+          "confirm_ms": 56
+        },
+        {
+          "hz": 493.883,
+          "first_ms": 21,
+          "confirm_ms": 56
+        },
+        {
+          "hz": 659.255,
+          "first_ms": 4,
+          "confirm_ms": 40
+        },
+        {
+          "hz": 783.991,
+          "first_ms": 20,
+          "confirm_ms": 55
+        },
+        {
+          "hz": 65.406,
+          "first_ms": 38,
+          "confirm_ms": 73
+        },
+        {
+          "hz": 82.407,
+          "first_ms": 40,
+          "confirm_ms": 76
+        },
+        {
+          "hz": 97.999,
+          "first_ms": 38,
+          "confirm_ms": 74
+        },
+        {
+          "hz": 130.813,
+          "first_ms": 3,
+          "confirm_ms": 41
+        },
+        {
+          "hz": 174.614,
+          "first_ms": 37,
+          "confirm_ms": 72
+        },
+        {
+          "hz": 220.0,
+          "first_ms": 1,
+          "confirm_ms": 37
+        },
+        {
+          "hz": 293.665,
+          "first_ms": 3,
+          "confirm_ms": 38
+        },
+        {
+          "hz": 391.995,
+          "first_ms": 2,
+          "confirm_ms": 38
+        },
+        {
+          "hz": 493.883,
+          "first_ms": 21,
+          "confirm_ms": 59
+        },
+        {
+          "hz": 659.255,
+          "first_ms": 20,
+          "confirm_ms": 55
+        },
+        {
+          "hz": 783.991,
+          "first_ms": 38,
+          "confirm_ms": 73
+        }
+      ]
+    }
   }
 }
