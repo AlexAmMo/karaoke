@@ -2,6 +2,7 @@ import asyncio
 import socket
 import struct
 from fractions import Fraction
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -77,6 +78,45 @@ def test_webrtc_received_only_for_current_performer_and_room():
     asyncio.run(run())
 
 
+def test_capture_timeline_waits_for_deferred_udp_delivery(monkeypatch):
+    """The sender can finish before its last datagram becomes readable."""
+    emitted = []
+
+    class DeferredFinalDatagram:
+        def __init__(self, *args):
+            self.socket = socket.socket(*args)
+            self.pending = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            def deliver():
+                try:
+                    for packet, address in self.pending:
+                        self.socket.sendto(packet, address)
+                finally:
+                    self.socket.close()
+
+            asyncio.get_running_loop().call_soon(deliver)
+
+        def setblocking(self, value):
+            self.socket.setblocking(value)
+
+        def sendto(self, packet, address):
+            emitted.append(struct.unpack("<32sBI", packet[:37])[2])
+            if len(emitted) == 1:
+                return self.socket.sendto(packet, address)
+            self.pending.append((packet, address))
+            return len(packet)
+
+    monkeypatch.setattr("karaoke.mobile_voice.socket", SimpleNamespace(
+        socket=DeferredFinalDatagram, AF_INET=socket.AF_INET, SOCK_DGRAM=socket.SOCK_DGRAM))
+    test_capture_timeline_preserves_gaps_and_resets_at_turn_boundaries(
+        [0, 960], [3, 4], 2, "stereo")
+    assert emitted == [3, 4]
+
+
 @pytest.mark.parametrize("layout", ["mono", "stereo"])
 @pytest.mark.parametrize("timestamps, expected, initial_sequence", [
     ([0, 960, 4800, 5760], [0, 1, 5, 6], 0),
@@ -138,6 +178,13 @@ def test_capture_timeline_preserves_gaps_and_resets_at_turn_boundaries(
             track = Track(receiver, udp.getsockname()[1])
             await receiver._listen("guest", "Ana", track, peer, receiver.epoch)
             sequences = []
+            # sendto completing does not make every datagram immediately readable.
+            # Wait for the required packets, then retain the extra-packet check.
+            loop = asyncio.get_running_loop()
+            async with asyncio.timeout(2):
+                while len(sequences) < len(expected):
+                    packet = await loop.sock_recv(udp, 4096)
+                    sequences.append(struct.unpack("<32sBI", packet[:37])[2])
             while True:
                 try:
                     packet = udp.recv(4096)
