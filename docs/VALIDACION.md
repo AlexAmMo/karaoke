@@ -23,6 +23,7 @@ Esta rama de desarrollo conserva la publicación 0.3.1. Las alternativas de gene
 - [Siguientes límites de nota: STARS condicionado y alternativas descartadas](validation/research-proximos-limites-nota-2026-11-21.md)
 - [HeartTranscriptor: conversión CPU medida, corrección del validador y archivos congelados](validation/research-heart-cpu-2026-11-21.md)
 - [Heart ASR: cuatro voces completas, auditoría y deterioro que impide ampliar](validation/research-heart-asr-2026-11-21.md)
+- [Modo de texto de Heart: diferencia contrastada con el ejemplo oficial](validation/research-heart-decoding-2026-11-21.md)
 
 Los adaptadores Heart del commit `b52f17d` pasan la [ejecución 44949524476](https://github.com/AlexAmMo/karaoke/actions/runs/44949524476): **309 pruebas y una omisión en macOS** (76,60 s), **308 y dos omisiones en Ubuntu** (33,66 s), **306 y cuatro omisiones en Windows** (54,58 s). Se añade una omisión común por SciPy, disponible sólo en el entorno opcional de investigación; ese control de audio sí pasó allí sin reconocedores. Las otras omisiones siguen siendo de plataforma. CI valida código y sintaxis de instaladores; no carga Heart ni ejecuta inferencia en esos runners. El log se conserva en `build/ci-heart-44949524476/run.log`.
 
