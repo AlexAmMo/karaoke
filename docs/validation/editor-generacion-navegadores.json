@@ -1,0 +1,20 @@
+[
+  {
+    "engine": "chromium",
+    "editable_notes": 435,
+    "enabled_tone_guide": true,
+    "played_original_at_flagged_time": true,
+    "saved_edit_survived_reload": true,
+    "approved_song_in_library": true,
+    "page_errors": []
+  },
+  {
+    "engine": "webkit",
+    "editable_notes": 435,
+    "enabled_tone_guide": true,
+    "played_original_at_flagged_time": true,
+    "saved_edit_survived_reload": true,
+    "approved_song_in_library": true,
+    "page_errors": []
+  }
+]
