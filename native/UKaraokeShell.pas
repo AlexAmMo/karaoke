@@ -18,6 +18,7 @@ implementation
 uses UKaraokePalette, SysUtils, Classes, Math, fpjson, jsonparser, UGraphic, UDisplay, URenderer,
   UText, UIni, USongs, USong, UPath, UMusic, URecord, UNote, UScreenMain, UScreenSong,
   UKaraokeCalibration, UKaraokeMobileAudio, UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
+function SDL_GetDefaultAudioInfo(var Name: PAnsiChar; Spec: PSDL_AudioSpec; Capture: integer): integer; cdecl; external SDL_LibName name 'SDL_GetDefaultAudioInfo';
 procedure SDL_free(mem: pointer); cdecl; external SDL_LibName name 'SDL_free';
 var
   Started: boolean = false;
@@ -32,6 +33,8 @@ var
   Sequence: integer = 0;
   SynthPosition: int64 = 0;
   SynthTick: cardinal;
+  SynthPattern: array[0..KaraokeMaxSingers-1] of boolean;
+  SynthDelayMs: array[0..KaraokeMaxSingers-1] of integer;
   SynthFrequency: array[0..KaraokeMaxSingers-1] of double;
   SynthFeeding, MobileSlot: array[0..KaraokeMaxSingers-1] of boolean;
   CaptureActive: boolean;
@@ -39,7 +42,9 @@ var
   CaptureCount: integer;
   ActiveMobileSecret: RawByteString;
   CalibrationState, CalibrationMessage: UTF8String;
-  CalibrationStarted: cardinal;
+  CalibrationStarted, OutputChecked: cardinal;
+  OutputName, CalibrationInputName, CalibrationOutputName: UTF8String;
+  CalibrationDevice, CalibrationChannel, CalibrationOutputRate: integer;
   CalibrationResult: TCalibrationResult;
   CaptureTestFrame: boolean;
   Gains: array[0..KaraokeMaxSingers-1] of single;
@@ -393,7 +398,7 @@ begin
     for I:=0 to CaptureCount-1 do
     begin
       if ShellSynthetic or MobileSlot[I] then AudioInputProcessor.Sound[I].TestStop;
-      MobileSlot[I]:=false;
+      MobileSlot[I]:=false; SynthPattern[I]:=false;
       AudioInputProcessor.Sound[I].RouteDelayMs:=0;
       AudioInputProcessor.Sound[I].MonitorGain:=Gains[I];
     end;
@@ -426,11 +431,23 @@ begin
       AudioInputProcessor.Sound[Slot].TestFeed(@Frame[0], SizeOf(Frame));
   end;
 end;
+procedure RefreshOutputIdentity;
+var RawName: PAnsiChar; Spec: TSDL_AudioSpec;
+begin
+  RawName:=nil; OutputName:=''; OutputChecked:=SDL_GetTicks;
+  if SDL_GetDefaultAudioInfo(RawName,@Spec,0)=0 then
+    if Assigned(RawName) then begin OutputName:=UTF8String(RawName); SDL_free(RawName); end;
+end;
+
 procedure BeginCalibration(J: TJSONObject);
 var Routes: TJSONObject; Entries: TJSONArray; Entry: TJSONObject;
 begin
   if Singing or Assigned(Display.NextScreen) then begin ErrorText:='Mide el retorno entre canciones.'; Exit; end;
   if TestingInput then begin ShellCaptureStop; TestingInput:=false; end;
+  RefreshOutputIdentity;
+  CalibrationInputName:=J.Get('name',''); CalibrationDevice:=J.Get('device',-1);
+  CalibrationChannel:=J.Get('channel',-1); CalibrationOutputName:=OutputName;
+  CalibrationOutputRate:=KaraokeOutputHz;
   CalibrationState:='failed';
   CalibrationMessage:='No se pudo abrir la entrada seleccionada.';
   CalibrationResult:=Default(TCalibrationResult);
@@ -452,7 +469,12 @@ end;
 procedure FinishCalibration;
 begin
   CalibrationResult:=CalibrationFinish;
-  ShellCaptureStop;
+  ShellCaptureStop; RefreshOutputIdentity;
+  if OutputName<>CalibrationOutputName then
+  begin
+    CalibrationResult:=Default(TCalibrationResult); CalibrationState:='failed';
+    CalibrationMessage:='Cambió la salida durante la medición. Repite los pulsos con la salida elegida.'; Exit;
+  end;
   if CalibrationResult.Success then begin CalibrationState:='done'; CalibrationMessage:='Recorrido del altavoz al micrófono.'; end
   else begin CalibrationState:='failed'; CalibrationMessage:='No se distinguieron suficientes pulsos. Acerca el micrófono al altavoz y repite la medida.'; end;
 end;
@@ -461,6 +483,9 @@ var I,K,N: integer; Names: TJSONArray; Found: boolean; FileName: string;
 begin
   if Singing or Assigned(Display.NextScreen) then begin ErrorText:='Hay una interpretación en curso.'; Exit; end;
   if TestingInput then begin ShellCaptureStop; TestingInput:=false; end;
+  RefreshOutputIdentity;
+  if Assigned(J.Find('output_device')) and (J.Get('output_device','')<>OutputName) then
+  begin ErrorText:='Cambió la salida de audio. Comprueba el ajuste del micrófono y vuelve a iniciar.'; Exit; end;
   FileName:=J.Get('chart','');
   if not FileExists(FileName) then begin ErrorText:='No se encuentra el mapa.'; Exit; end;
   if Songs.ShellImport(Path(FileName)) then CatSongs.Refresh;
@@ -503,15 +528,24 @@ var Op: string; I,K,D,C,P: integer; SilentFrame: SmallInt; Probe: TJSONObject;
 begin
   Op:=J.Get('op','');
   ErrorText:='';
-  if CalibrationActive and ((Op='start') or (Op='testinput') or (Op='scan') or (Op='device') or (Op='calibrate')) then
+  if CalibrationActive and ((Op='gain') or (Op='start') or (Op='testinput') or (Op='scan') or (Op='device') or (Op='calibrate')) then
   begin ErrorText:='La medición termina en unos segundos.'; Exit; end;
   if Op='calibrate' then BeginCalibration(J)
   else if Op='start' then BeginSong(J)
+  else if (Op='test-pattern') and ShellSynthetic and Singing then
+  begin
+    I:=J.Get('player',-1);
+    if (I>=0) and (I<CaptureCount) and not MobileSlot[I] then
+    begin
+      SynthPattern[I]:=true; SynthDelayMs[I]:=EnsureRange(J.Get('delay_ms',0),-500,500);
+    end;
+  end
   else if (Op='test-tone') and ShellSynthetic then
   begin
     I := J.Get('player',0);
     if (I >= 0) and (I <= High(SynthFrequency)) then
     begin
+      SynthPattern[I]:=false;
       SynthFeeding[I] := J.Get('connected',true);
       SynthFrequency[I] := EnsureRange(J.Get('hz',0.0),0.0,2000.0);
     end;
@@ -597,7 +631,7 @@ procedure ShellTick;
 var J,O: TJSONObject; A,Scores,Devices,Levels: TJSONArray; SR: TSearchRec;
     Commands: TStringList; Forgotten: TSong;
     I,K,N: integer; NowTick: cardinal; Buf: array[0..4095] of SmallInt;
-    Frequency: double; Name,FocusKey: string; NewFocus: integer; EnterSearch: boolean;
+    Frequency,SampleTime,SongTime: double; Name,FocusKey: string; NewFocus: integer; EnterSearch: boolean;
 begin
   if not ShellEnabled then Exit;
   NowTick:=SDL_GetTicks;
@@ -647,6 +681,8 @@ begin
       end;
       PendingForget.Delete(0);
     end;
+  // Query the system between performances; some SDL drivers contact the sound server.
+  if not Singing and not CalibrationActive and ((OutputChecked=0) or (NowTick-OutputChecked>5000)) then RefreshOutputIdentity;
   if CalibrationActive and (NowTick-CalibrationStarted>=CalibrationDurationMs) then FinishCalibration;
   if Singing then PollMobileAudio;
   if ShellSynthetic and (Singing or TestingInput) and not Assigned(Display.NextScreen) then
@@ -654,11 +690,21 @@ begin
     N:=Min(4096,Round((NowTick-SynthTick)*48));
     if N>0 then
     begin
+      SongTime:=AudioPlayback.Position;
       for I:=0 to PlayersPlay-1 do
       begin
         if not SynthFeeding[I] then Continue;
         Frequency := SynthFrequency[I];
-        for K:=0 to N-1 do Buf[K]:=Round(8000*Sin(2*Pi*Frequency*(SynthPosition+K)/48000));
+        for K:=0 to N-1 do
+        begin
+          if SynthPattern[I] then
+          begin
+            // Deterministic alternating A4/C5 test fixture, delayed at the input.
+            SampleTime:=SongTime-(N-K)/48000-SynthDelayMs[I]/1000.0;
+            if Odd(Floor((SampleTime-1.0)*4)) then Frequency:=523.251 else Frequency:=440;
+          end;
+          Buf[K]:=Round(8000*Sin(2*Pi*Frequency*(SynthPosition+K)/48000));
+        end;
         AudioInputProcessor.Sound[I].TestFeed(@Buf[0],N*2);
       end;
       Inc(SynthPosition,N); SynthTick:=NowTick;
@@ -751,6 +797,9 @@ begin
       J.Add('max_singers',KaraokeMaxSingers); J.Add('mobile_port',MobilePort);
       J.Add('output_frames',KaraokeOutputFrames); J.Add('output_hz',KaraokeOutputHz);
       O:=TJSONObject.Create; J.Add('calibration',O);
+      O.Add('name',CalibrationInputName); O.Add('device',CalibrationDevice); O.Add('channel',CalibrationChannel);
+      O.Add('output_device',CalibrationOutputName); O.Add('output_hz',CalibrationOutputRate);
+      J.Add('output_device',OutputName);
       O.Add('status',CalibrationState); O.Add('message',CalibrationMessage);
       O.Add('roundtrip_ms',CalibrationResult.RoundtripMs); O.Add('spread_ms',CalibrationResult.SpreadMs);
       O.Add('samples',CalibrationResult.Samples);

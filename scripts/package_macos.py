@@ -64,10 +64,11 @@ def collect_licenses(destination: Path):
         source = ROOT / name
         if source.exists():
             copy_file(source, destination / name)
+    copy_file(ROOT / 'assets/fonts/OFL.txt', destination / 'Instrument-Sans/OFL.txt')
     for name in ('ffmpeg', 'ffprobe', 'ffplay'):
         result = subprocess.run([name, '-L'], text=True, capture_output=True)
         (destination / f'{name}-license.txt').write_text(result.stdout + result.stderr, encoding='utf-8')
-    (destination / 'SOURCE.json').write_text(json.dumps({'application': 'https://github.com/AlexAmMo/karaoke', 'application_commit': output('git', '-C', ROOT, 'rev-parse', 'HEAD') if subprocess.run(['git', '-C', str(ROOT), 'rev-parse', '--verify', 'HEAD'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0 else 'uncommitted-development-build', 'engine': {'repository': 'https://github.com/UltraStar-Deluxe/USDX', 'commit': USDX_COMMIT, 'modifications': 'scripts/prepare_engine.py and native/UKaraokeShell.pas in application source'}, 'syncer': {'repository': 'https://github.com/bohning/usdb_syncer', 'commit': SYNCER_COMMIT}, 'python_dependencies': 'uv.lock in application source', 'distribution_note': 'A release must accompany binaries with corresponding-source assets and native dependency provenance. This file alone is not a source offer.'}, indent=2), encoding='utf-8')
+    (destination / 'SOURCE.json').write_text(json.dumps({'application': 'https://github.com/AlexAmMo/karaoke', 'application_commit': output('git', '-C', ROOT, 'rev-parse', 'HEAD') if subprocess.run(['git', '-C', str(ROOT), 'rev-parse', '--verify', 'HEAD'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0 else 'uncommitted-development-build', 'engine': {'repository': 'https://github.com/UltraStar-Deluxe/USDX', 'commit': USDX_COMMIT, 'modifications': 'patches/deluxe-integration.patch, native/UKaraoke*.pas and scripts/prepare_engine_theme.py in application source'}, 'syncer': {'repository': 'https://github.com/bohning/usdb_syncer', 'commit': SYNCER_COMMIT}, 'python_dependencies': 'uv.lock in application source', 'distribution_note': 'A release must accompany binaries with corresponding-source assets and native dependency provenance. This file alone is not a source offer.'}, indent=2), encoding='utf-8')
 
 
 def pyinstaller(destination: Path, work: Path, name='karaoke'):
@@ -220,16 +221,19 @@ def audit_macos(app: Path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--skip-python', action='store_true', help='Reuse build/python-dist after a previous PyInstaller build')
+    parser.add_argument('--engine', type=Path, default=ROOT / 'build/engine/UltraStar Deluxe.app')
+    parser.add_argument('--output', type=Path, default=ROOT / 'dist')
     args = parser.parse_args()
     if sys.platform != 'darwin':
         raise SystemExit('Run this packager on macOS.')
-    engine = ROOT / 'build/engine/UltraStar Deluxe.app'
+    engine = args.engine.resolve()
     if not engine.exists():
         raise SystemExit('Build the engine first: scripts/build_macos.sh')
     python_dist = ROOT / 'build/python-dist'
     if not args.skip_python:
         pyinstaller(python_dist, ROOT / 'build/pyinstaller-macos')
-    app = ROOT / 'dist/Karaoke.app'
+    args.output.mkdir(parents=True, exist_ok=True)
+    app = args.output.resolve() / 'Karaoke.app'
     if app.exists():
         shutil.rmtree(app)
     macos = app / 'Contents/MacOS'
@@ -255,13 +259,18 @@ def main():
     # Sign leaves first, then nested bundles and outer application. Ad hoc is explicit.
     for binary in (p for p in app.rglob('*') if macho(p) and p.name not in ('karaoke', 'ultrastardx')):
         run('codesign', '--force', '--sign', '-', binary, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # The engine lives in Resources, which the outer signature can seal as ordinary data.
+    # Sign its final binary and plist as a bundle before sealing the launcher.
+    engine_bundle = resources / 'Engine.app'
+    run('codesign', '--force', '--deep', '--sign', '-', engine_bundle)
+    run('codesign', '--verify', '--deep', '--strict', engine_bundle)
     run('codesign', '--force', '--deep', '--sign', '-', app)
     run('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
     env = dict(os.environ, PATH=str(resources / 'bin') + ':/usr/bin:/bin')
     for name in ('ffmpeg', 'ffprobe', 'ffplay'):
         run(resources / 'bin' / name, '-version', env=env, stdout=subprocess.DEVNULL, timeout=30)
     run(resources / 'bin/deno', '--version', env=env, stdout=subprocess.DEVNULL, timeout=30)
-    archive = ROOT / 'dist' / f'Karaoke-{VERSION}-macos-{platform.machine()}.zip'
+    archive = args.output.resolve() / f'Karaoke-{VERSION}-macos-{platform.machine()}.zip'
     run('ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, archive)
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     archive.with_suffix('.zip.sha256').write_text(f'{digest}  {archive.name}\n')

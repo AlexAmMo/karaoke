@@ -45,7 +45,7 @@ begin
     if fpBind(SocketFD,@Addr,SizeOf(Addr))<>0 then Exit;
     {$IFDEF MSWINDOWS}
     Mode:=1;
-    if WinSock2.ioctlsocket(SocketFD,FIONBIO,Mode)<>0 then Exit;
+    if WinSock2.ioctlsocket(SocketFD,LongInt(FIONBIO),Mode)<>0 then Exit;
     {$ELSE}
     if fpFcntl(SocketFD,F_SETFL,O_NONBLOCK)<>0 then Exit;
     {$ENDIF}

@@ -14,7 +14,7 @@ else
 fi
 number="${tag#v}"
 asset="Karaoke-$number-macos-$arch.zip"
-base="https://github.com/$repo/releases/download/$tag"
+base="${KARAOKE_ASSET_BASE_URL:-https://github.com/$repo/releases/download/$tag}"
 work="$(mktemp -d -t karaoke-install)"
 trap 'rm -rf "$work"' EXIT
 curl --fail --show-error --location "$base/$asset" -o "$work/$asset"
@@ -27,15 +27,17 @@ actual="$(shasum -a 256 "$work/$asset" | awk '{print $1}')"
 app="$work/extracted/Karaoke.app"
 [[ -x "$app/Contents/MacOS/karaoke" ]] || { echo 'El paquete está incompleto.' >&2; exit 1; }
 /usr/bin/codesign --verify --deep --strict "$app"
+/usr/bin/codesign --verify --deep --strict "$app/Contents/Resources/Engine.app"
 minimum="$(/usr/bin/plutil -extract LSMinimumSystemVersion raw -o - "$app/Contents/Info.plist")"
 current="$(sw_vers -productVersion)"
 # Compare dotted numeric versions without requiring Python/Homebrew.
 if ! awk -v current="$current" -v minimum="$minimum" 'BEGIN {split(current,a,"."); split(minimum,b,"."); for(i=1;i<=3;i++){if(a[i]+0>b[i]+0)exit 0; if(a[i]+0<b[i]+0)exit 1} exit 0}'; then
   echo "Este paquete requiere macOS $minimum; tienes $current." >&2; exit 1
 fi
-mkdir -p "$HOME/Applications"
-target="$HOME/Applications/Karaoke.app"
-backup="$HOME/Applications/Karaoke.previous.app"
+install_dir="${KARAOKE_INSTALL_DIR:-$HOME/Applications}"
+mkdir -p "$install_dir"
+target="$install_dir/Karaoke.app"
+backup="$install_dir/Karaoke.previous.app"
 if pgrep -f "$target/Contents/MacOS/karaoke" >/dev/null; then
   echo 'Cierra Karaoke antes de actualizar.' >&2; exit 1
 fi

@@ -95,6 +95,15 @@ jobs:
       - name: Build modified Deluxe
         id: package
         run: bash scripts/build_macos.sh
+      - name: Install the Mac release candidate and sing with the bundled engine
+        env:
+          SDL_AUDIO_DRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          export KARAOKE_VERSION="v$(uv run python -c 'from karaoke import __version__; print(__version__)')"
+          export KARAOKE_ASSET_BASE_URL="file://$PWD/dist" KARAOKE_INSTALL_DIR="$RUNNER_TEMP/karaoke-install/Applications"
+          bash scripts/install.sh
+          uv run --locked python scripts/test_session.py --launcher "$KARAOKE_INSTALL_DIR/Karaoke.app/Contents/MacOS/karaoke" --check-panel --output "build/macos-install-session.json"
       - name: Package source and provenance
         run: |
           uv run python scripts/package_sources.py
@@ -109,6 +118,7 @@ jobs:
             dist/*.zip
             dist/*.sha256
             dist/*source*.tar.gz
+            build/macos-install-session.json
           if-no-files-found: error
 
   windows:
@@ -249,6 +259,10 @@ jobs:
         if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
         timeout-minutes: 5
         run: uv run python scripts/test_pitch_precision.py --launcher "$env:KARAOKE_CI_LAUNCHER"
+      - name: Score ten independent inputs and verify route compensation
+        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
+        timeout-minutes: 5
+        run: uv run python scripts/test_group_audio.py --launcher "$env:KARAOKE_CI_LAUNCHER"
       - name: Verify turn menus and room closure with three mobile browsers
         if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
         timeout-minutes: 5
