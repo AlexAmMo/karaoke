@@ -95,6 +95,11 @@ jobs:
       - name: Build modified Deluxe
         id: package
         run: bash scripts/build_macos.sh
+      - name: Check native PCM channels, duration and chunk boundaries
+        run: |
+          mkdir -p build/pcm-test
+          fpc -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/pcm-test -FEbuild/pcm-test "-Fl$(brew --prefix sdl2-compat)/lib" scripts/test_pcm_conversion.pas
+          build/pcm-test/test_pcm_conversion
       - name: Install the Mac release candidate and sing with the bundled engine
         env:
           SDL_AUDIO_DRIVER: dummy
@@ -253,6 +258,15 @@ jobs:
         run: pacman --noconfirm -S --needed mingw-w64-ucrt-x86_64-mesa
       - name: Prepare disposable software-rendered test copy
         run: uv run python scripts/prepare_ci_graphics.py --package dist/Karaoke --tools "${{ steps.msys.outputs.msys2-location }}/ucrt64/bin" --output build/windows-ci-runtime
+      - name: Check native PCM with the Windows package SDL runtime
+        run: |
+          New-Item -ItemType Directory -Force build/pcm-test | Out-Null
+          $Compiler = "C:/FPC/$env:FPC_VERSION/bin/i386-win32/fpc.exe"
+          & $Compiler -Px86_64 -Twin64 -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/pcm-test -FEbuild/pcm-test scripts/test_pcm_conversion.pas
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:PATH = "$PWD/dist/Karaoke/engine;$env:PATH"
+          & ./build/pcm-test/test_pcm_conversion.exe
+          exit $LASTEXITCODE
       - name: Verify Windows desktop with software graphics and dummy audio
         timeout-minutes: 3
         run: uv run python scripts/smoke_desktop.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke --package-archive dist/Karaoke-0.3.0-windows-x86_64.zip --source-run "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --check-cursor

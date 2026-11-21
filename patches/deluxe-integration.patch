@@ -1653,9 +1653,28 @@ index 68cc46e..f0febc9 100644
  
  function TAudioPlayback_SDL.FinalizeAudioPlaybackEngine(): boolean;
 diff --git a/src/media/UAudioPlayback_SoftMixer.pas b/src/media/UAudioPlayback_SoftMixer.pas
-index e31c71b..9473607 100644
+index e31c71b..c03591a 100644
 --- a/src/media/UAudioPlayback_SoftMixer.pas
 +++ b/src/media/UAudioPlayback_SoftMixer.pas
+@@ -38,6 +38,7 @@ interface
+   sdl2,
+   SysUtils,
+   URingBuffer,
++  UKaraokePCM,
+   UMusic,
+   UAudioPlaybackBase;
+ 
+@@ -57,9 +58,8 @@   TGenericPlaybackStream = class(TAudioPlaybackStream)
+ 
+       SourceBuffer:      PByteArray;
+       SourceBufferSize:  integer;
+-      SourceBufferCount: integer; // number of available bytes in SourceBuffer
+ 
+-      Converter: TAudioConverter;
++      Converter: TKaraokePCM;
+       Status:    TStreamStatus;
+       InternalLock: PSDL_Mutex;
+       fVolume: single;
 @@ -137,6 +137,7 @@   TAudioMixerStream = class
    TAudioPlayback_SoftMixer = class(TAudioPlaybackBase)
      private
@@ -1672,7 +1691,7 @@ index e31c71b..9473607 100644
        function InitializePlayback(): boolean; override;
        function FinalizePlayback: boolean; override;
  
-@@ -190,6 +192,7 @@ implementation
+@@ -190,10 +192,11 @@ implementation
  
  uses
    Math,
@@ -1680,7 +1699,20 @@ index e31c71b..9473607 100644
    ULog,
    UIni,
    UFFT,
-@@ -399,6 +402,8 @@ function TGenericPlaybackStream.Open(SourceStream: TAudioSourceStream): boolean;
+-  UAudioConverter,
++  UMediaCore_SDL,
+   UMain;
+ 
+ { TAudioMixerStream }
+@@ -371,7 +374,6 @@ procedure TGenericPlaybackStream.Reset();
+   FreeMem(SourceBuffer);
+   SourceBuffer := nil;
+   SourceBufferSize := 0;
+-  SourceBufferCount := 0;
+ 
+   NeedsRewind := false;
+ 
+@@ -399,6 +401,8 @@ function TGenericPlaybackStream.Open(SourceStream: TAudioSourceStream): boolean;
    end;
  
    SourceBufferSize := SOURCE_BUFFER_FRAMES * SourceStream.GetAudioFormatInfo().FrameSize;
@@ -1689,7 +1721,35 @@ index e31c71b..9473607 100644
    GetMem(SourceBuffer, SourceBufferSize);
    fVolume := 1.0;
  
-@@ -509,18 +514,16 @@ procedure TGenericPlaybackStream.Stop();
+@@ -431,21 +435,16 @@ function TGenericPlaybackStream.InitFormatConversion(): boolean;
+ var
+   SrcFormatInfo: TAudioFormatInfo;
+   DstFormatInfo: TAudioFormatInfo;
++  SrcFormat, DstFormat: Word;
+ begin
+   Result := false;
+-
+   SrcFormatInfo := SourceStream.GetAudioFormatInfo();
+   DstFormatInfo := GetAudioFormatInfo();
+-
+-  // TODO: selection should not be done here, use a factory (TAudioConverterFactory) instead 
+-
+-  {$IF 1}
+-  Converter := TAudioConverter_SWResample.Create();
+-  {$ELSE}
+-  Converter := TAudioConverter_SDL.Create();
+-  {$IFEND}
+-
+-  Result := Converter.Init(SrcFormatInfo, DstFormatInfo);
++  if not ConvertAudioFormatToSDL(SrcFormatInfo.Format, SrcFormat) or
++     not ConvertAudioFormatToSDL(DstFormatInfo.Format, DstFormat) then Exit;
++  Converter := TKaraokePCM.Create(SrcFormat, SrcFormatInfo.Channels, Round(SrcFormatInfo.SampleRate),
++                                  DstFormat, DstFormatInfo.Channels, Round(DstFormatInfo.SampleRate));
++  Result := Converter.Ready;
+ end;
+ 
+ procedure TGenericPlaybackStream.Play();
+@@ -509,18 +508,16 @@ procedure TGenericPlaybackStream.Stop();
  var
    Mixer: TAudioMixerStream;
  begin
@@ -1713,7 +1773,174 @@ index e31c71b..9473607 100644
  end;
  
  function TGenericPlaybackStream.GetLoop(): boolean;
-@@ -979,6 +982,8 @@ function TGenericVoiceStream.Open(ChannelMap: integer; FormatInfo: TAudioFormatI
+@@ -564,17 +561,14 @@ procedure TGenericPlaybackStream.FlushBuffers();
+ begin
+   SampleBufferCount := 0;
+   SampleBufferPos := 0;
+-  SourceBufferCount := 0;
++  if Converter <> nil then Converter.Clear;
+   LastReadSize := 0;
+ end;
+ 
+ function TGenericPlaybackStream.ReadData(Buffer: PByteArray; BufferSize: integer): integer;
+ var
+-  ConversionInputCount: integer;
+-  ConversionOutputSize: integer;   // max. number of converted data (= buffer size)
+-  ConversionOutputCount: integer;  // actual number of converted data
+-  SourceSize: integer;
+-  NeededSampleBufferSize: integer;
++  AvailableBytes, ReadBytes, SourceSize, Offset: integer;
++  EndOfSource: boolean;
+   BytesNeeded: integer;
+   SourceFormatInfo, OutputFormatInfo: TAudioFormatInfo;
+   SourceFrameSize, OutputFrameSize: integer;
+@@ -641,102 +635,48 @@ function TGenericPlaybackStream.ReadData(Buffer: PByteArray; BufferSize: integer
+       Move(SampleBuffer[SampleBufferPos], SampleBuffer[0], SampleBufferCount);
+     SampleBufferPos := 0;
+ 
+-    // resize buffer to a reasonable size
+-    if (BufferSize > SampleBufferCount) then
+-    begin
+-      // Note: use BufferSize instead of BytesNeeded to minimize the need for resizing
+-      SampleBufferSize := BufferSize;
+-      ReallocMem(SampleBuffer, SampleBufferSize);
+-      if (not assigned(SampleBuffer)) then
+-        Exit;
+-    end;
+-
+-    // fill sample-buffer (fetch and convert one block of source data per loop)
+-    while (SampleBufferCount < BytesNeeded) do
++    while SampleBufferCount < BytesNeeded do
+     begin
+-      // move remaining source data from the previous pass to front of buffer
+-      if (SourceBufferCount > 0) then
+-      begin
+-        Move(SourceBuffer[SourceBufferSize-SourceBufferCount],
+-             SourceBuffer[0],
+-             SourceBufferCount);
+-      end;
+-
+-      SourceSize := SourceStream.ReadData(
+-          @SourceBuffer[SourceBufferCount], SourceBufferSize-SourceBufferCount);
+-
+-      // end-of-file reached -> stop playback
+-      if (SourceStream.EOF) then
+-      begin
+-        if (Loop) then
+-          SourceStream.Position := 0
+-        else
+-          Stop();
+-      end;
+-
+-      // break on error (-1) or if no data is available (0), e.g. while seeking
+-      if (SourceSize <= 0) then
++      AvailableBytes := Converter.Available;
++      if AvailableBytes < 0 then begin Stop(); Break; end;
++      if AvailableBytes > 0 then
+       begin
+-        // if we do not have data -> exit
+-        if (SourceBufferCount = 0) then
++        if SampleBufferSize < SampleBufferCount + AvailableBytes then
+         begin
+-          FlushBuffers();
+-          Exit;
++          SampleBufferSize := SampleBufferCount + AvailableBytes;
++          ReallocMem(SampleBuffer, SampleBufferSize);
+         end;
+-        // if we have some data, stop retrieving data from the source stream
+-        // and use the data we have so far
+-        Break;
++        ReadBytes := Converter.Read(@SampleBuffer[SampleBufferCount], AvailableBytes);
++        if ReadBytes <= 0 then Break;
++        Inc(SampleBufferCount, ReadBytes);
++        Continue;
+       end;
+-
+-      SourceBufferCount := SourceBufferCount + SourceSize;
+-
+-      if (SkipSourceCount > 0) then
++      if Converter.Finished then
+       begin
+-        // skip data and update source buffer count
+-        SourceBufferCount := SourceBufferCount - SkipSourceCount;
+-        SkipSourceCount := -SourceBufferCount;
+-        // continue with next pass if we skipped all data
+-        if (SourceBufferCount <= 0) then
+-        begin
+-          SourceBufferCount := 0;
+-          Continue;
+-        end;
++        if SampleBufferCount = 0 then Stop();
++        Break;
+       end;
+-
+-      // calc buffer size (might be bigger than actual resampled byte count)
+-      ConversionOutputSize := Converter.GetOutputBufferSize(SourceBufferCount);
+-      NeededSampleBufferSize := SampleBufferCount + ConversionOutputSize;
+-
+-      // resize buffer if necessary
+-      if (SampleBufferSize < NeededSampleBufferSize) then
++      SourceSize := SourceStream.ReadData(PByte(SourceBuffer), SourceBufferSize);
++      EndOfSource := SourceStream.EOF;
++      if SourceSize > 0 then
+       begin
+-        SampleBufferSize := NeededSampleBufferSize;
+-        ReallocMem(SampleBuffer, SampleBufferSize);
+-        if (not assigned(SampleBuffer)) then
+-        begin
+-          FlushBuffers();
+-          Exit;
+-        end;
++        Offset := Min(SkipSourceCount, SourceSize);
++        Dec(SkipSourceCount, Offset);
++        if (SourceSize > Offset) and not Converter.Push(@SourceBuffer[Offset], SourceSize - Offset) then
++        begin Stop(); Break; end;
+       end;
+-
+-      // resample source data (Note: ConversionInputCount might be adjusted by Convert())
+-      ConversionInputCount := SourceBufferCount;
+-      ConversionOutputCount := Converter.Convert(
+-          SourceBuffer, @SampleBuffer[SampleBufferCount], ConversionInputCount);
+-      if (ConversionOutputCount = -1) then
++      if EndOfSource then
+       begin
+-        FlushBuffers();
+-        Exit;
++        if Loop then SourceStream.Position := 0
++        else if not Converter.Finish then begin Stop(); Break; end;
+       end;
+-
+-      // adjust sample- and source-buffer count by the number of converted bytes
+-      SampleBufferCount := SampleBufferCount + ConversionOutputCount;
+-      SourceBufferCount := SourceBufferCount - ConversionInputCount;
++      // Voice and asynchronous decoder inputs may temporarily have no samples.
++      if (SourceSize <= 0) and (not EndOfSource or Loop) then Break;
+     end;
+ 
+     // copy data to result buffer
+     CopyCount := Min(BytesNeeded, SampleBufferCount);
+-    Move(SampleBuffer[0], Buffer[BufferSize - BytesNeeded], CopyCount);
++    if CopyCount > 0 then Move(SampleBuffer[0], Buffer[0], CopyCount);
+     Dec(BytesNeeded, CopyCount);
+     SampleBufferPos := CopyCount;
+ 
+@@ -865,13 +805,8 @@ function TGenericPlaybackStream.GetPosition: real;
+   begin
+     LockSampleBuffer();
+ 
+-    // the duration of source stream data that is buffered in this stream.
+-    // (this is the data retrieved from the source but has not been resampled)
+-    BufferedTime := SourceBufferCount / SourceStream.GetAudioFormatInfo().BytesPerSec;
+-
+-    // the duration of data that is buffered in this stream.
+-    // (this is the already resampled data that has not yet been passed to the audio engine)
+-    BufferedTime := BufferedTime + (SampleBufferCount - SampleBufferPos) / Engine.FormatInfo.BytesPerSec;
++    BufferedTime := (Max(0, Converter.Available) + SampleBufferCount - SampleBufferPos) /
++                    Engine.FormatInfo.BytesPerSec;
+ 
+     // Now consider the samples left in the engine's (e.g. SDL) buffer.
+     // Otherwise the result calculated so far will not change until the callback
+@@ -979,6 +914,8 @@ function TGenericVoiceStream.Open(ChannelMap: integer; FormatInfo: TAudioFormatI
    // - the buffer-size must be a multiple of the FrameSize
    BufferSize := (Ceil(MAX_VOICE_DELAY * Self.FormatInfo.BytesPerSec) div Self.FormatInfo.FrameSize) *
                  Self.FormatInfo.FrameSize;
@@ -1722,7 +1949,7 @@ index e31c71b..9473607 100644
    VoiceBuffer := TRingBuffer.Create(BufferSize);
  
    BufferLock := SDL_CreateMutex();
-@@ -1019,7 +1024,9 @@ procedure TGenericVoiceStream.WriteData(Buffer: PByteArray; BufferSize: integer)
+@@ -1019,7 +956,9 @@ procedure TGenericVoiceStream.WriteData(Buffer: PByteArray; BufferSize: integer)
    try
      if (VoiceBuffer = nil) then
        Exit;
@@ -1732,7 +1959,7 @@ index e31c71b..9473607 100644
    finally
      SDL_UnlockMutex(BufferLock);
    end;
-@@ -1035,6 +1042,7 @@ function TGenericVoiceStream.ReadData(Buffer: PByte; BufferSize: integer): integ
+@@ -1035,6 +974,7 @@ function TGenericVoiceStream.ReadData(Buffer: PByte; BufferSize: integer): integ
      if (VoiceBuffer = nil) then
        Exit;
      Result := VoiceBuffer.Read(Buffer, BufferSize);
@@ -1740,7 +1967,7 @@ index e31c71b..9473607 100644
    finally
      SDL_UnlockMutex(BufferLock);
    end;
-@@ -1073,15 +1081,25 @@ function TAudioPlayback_SoftMixer.InitializePlayback: boolean;
+@@ -1073,15 +1013,25 @@ function TAudioPlayback_SoftMixer.InitializePlayback: boolean;
      Exit;
    end;
  
@@ -1767,7 +1994,7 @@ index e31c71b..9473607 100644
  
    FreeAndNil(MixerStream);
    FreeAndNil(FormatInfo);
-@@ -1098,6 +1116,9 @@ procedure TAudioPlayback_SoftMixer.AudioCallback(Buffer: PByteArray; Size: integ
+@@ -1098,6 +1048,9 @@ procedure TAudioPlayback_SoftMixer.AudioCallback(Buffer: PByteArray; Size: integ
    OldMask := GetExceptionMask;
    SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
    MixerStream.ReadData(Buffer, Size);
@@ -2028,13 +2255,14 @@ index 77a31ec..1e1f29f 100644
    // include defines but no constants
    {$I config-darwin.inc}
 diff --git a/src/ultrastardx.dpr b/src/ultrastardx.dpr
-index 3c445a7..97d067b 100644
+index 3c445a7..7d8f249 100644
 --- a/src/ultrastardx.dpr
 +++ b/src/ultrastardx.dpr
-@@ -189,6 +189,11 @@ uses
+@@ -189,6 +189,12 @@ uses
    URenderer_OpenGL  in 'base\URenderer_OpenGL.pas',
    UGraphic          in 'base\UGraphic.pas',
    ULanguage         in 'base\ULanguage.pas',
++  UKaraokePCM in 'base\UKaraokePCM.pas',
 +  UKaraokeOutput in 'base\UKaraokeOutput.pas',
 +  UKaraokeCalibration in 'base\UKaraokeCalibration.pas',
 +  UKaraokeMobileAudio in 'base\UKaraokeMobileAudio.pas',
@@ -2043,7 +2271,7 @@ index 3c445a7..97d067b 100644
    UMain             in 'base\UMain.pas',
    UDraw             in 'base\UDraw.pas',
    URecord           in 'base\URecord.pas',
-@@ -392,6 +397,11 @@ begin
+@@ -392,6 +398,11 @@ begin
        Report := Report + BackTraceFunction(ExceptAddr);
        for I := 0 to ExceptFrameCount - 1 do
          Report := Report + LineEnding + BackTraceFunction(ExceptFrames[I]);
