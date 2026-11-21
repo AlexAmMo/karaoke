@@ -1,0 +1,185 @@
+{
+  "date": "2026-11-21",
+  "tag": "v0.3.1",
+  "release_url": "https://github.com/AlexAmMo/karaoke/releases/tag/v0.3.1",
+  "application_commit": "cf33bf4734dc49f0487d5e52d77662b441b82589",
+  "source_build": "https://github.com/AlexAmMo/karaoke/actions/runs/44924838402",
+  "staging_run": "https://github.com/AlexAmMo/karaoke/actions/runs/44924880563",
+  "package_sha256": {
+    "arm64": "f7878e4a228d0326a33b143ccd92b5968574093fa93b52f8caab86ec271d5147",
+    "x86_64": "20ea3372af041c7df4521aee40768c9f3532a64c1b8bd127d56b473bf0db7272",
+    "windows": "b47e9d51b2c1592e2563f63a7b678079c1d29fa39b9c4bf2d1858fc1053ad97a"
+  },
+  "release_asset_count": 19,
+  "all_remote_assets_match_verified_reports": true,
+  "all_checksum_sidecars_match": true,
+  "macos_hardware": {
+    "machine": "MacBook Pro M4, Mac16,1",
+    "os": "macOS 26.6.2",
+    "public_installer_exit_code": 0,
+    "version": "Karaoke 0.3.1",
+    "launcher_sha256": "0b7137d27b4438be221bcb34f52f6adab90ed0713daaec263761899a74036931",
+    "engine_sha256": "a1f9666ef7eb831c8ddb950c66e49c27931a9118f082cf7c34f2f328c20df28e",
+    "existing_files_unchanged_after_install": 204,
+    "songs_preserved_after_startup": 5,
+    "settings_preserved_after_startup": 6,
+    "desktop_shortcut_opens_installed_app": true,
+    "desktop_synthetic_idle_seconds": 1.22,
+    "default_data_startup_observed": true,
+    "output_muted": true,
+    "physical_audio_remeasured": false,
+    "synthetic_audio_only_for_singing": true,
+    "session_checks": 21,
+    "session_passed": true,
+    "session_elapsed_seconds": 33.81,
+    "session_check_names": [
+      "Explicit synthetic demo is identified in both engine and interface",
+      "Second launcher cannot acquire the running session lock",
+      "Three turns reuse two prepared packages",
+      "Real engine recognizes independent A and B pitch classes",
+      "Per-player monitoring gains are independent",
+      "Collapsing the panel expands the stage without interrupting song, score, audio or queue",
+      "System cursor remains enabled during singing, folding and restoring the panel",
+      "Restoring the panel restores geometry and keeps the active turn and score",
+      "Muting return preserves analysis and accumulating score",
+      "Another package imports while the current song continues",
+      "Engine produces independent final scores",
+      "Results do not automatically start the next turn",
+      "Cancelling a repeated turn retains its library package",
+      "Newly selected song starts without restarting the engine launcher",
+      "Closing native game shuts down the main app",
+      "Main app releases its instance lock on close",
+      "Restarting restores the visible panel for session setup",
+      "Interrupted turn and pending queue recover in original order",
+      "Restoring a session never resumes playback automatically",
+      "Host can explicitly skip to another ready turn",
+      "Final close succeeds"
+    ],
+    "search_to_queue_to_singing": {
+      "query": "Probe A",
+      "catalogue_http_unreachable": true,
+      "controls": [
+        "Buscar",
+        "Campo de búsqueda",
+        "Añadir a la cola",
+        "Cola",
+        "Empezar a cantar"
+      ],
+      "passed": true
+    },
+    "amorfoda": {
+      "video": "kLpH1nSLJSs",
+      "source": "allkaraoke:bad-bunny-amorfoda",
+      "scoring": "confirmed_intervals",
+      "raw_sha256": "5ed3a759a593f5ac9f85e872833482c7e1d75fd45be8b4568a26ef1ed2f2c504",
+      "chart_sha256": "16d15eb353b7c2d0541de8d670396cc7f14531a53ff4445867a2ab68fbf49632",
+      "preserved_named_turn": true,
+      "native_position_s": 2.095,
+      "synthetic_input": true
+    },
+    "native_closes_succeeded": true,
+    "desktop_custom_data_attempt": "Custom --data-dir below Desktop did not reach IPC within45s; process stayed alive, stopped by test. System temporary directory and default user-data directory both started successfully. No crash observed."
+  },
+  "prior_physical_audio_evidence": {
+    "acoustic_sequence_ms": [
+      73,
+      57,
+      57,
+      73
+    ],
+    "improvement_ms": 16,
+    "report": "retorno-y-puntuacion.md",
+    "remeasured_in_this_delivery": false
+  },
+  "limits": [
+    "Windows physical GPU and microphone pending",
+    "Mobile controls exercised in browser profiles, not real handsets",
+    "macOS public installation on development Mac, not a clean machine",
+    "First custom --data-dir below Desktop timed out; normal user data and OS temporary paths succeeded; cause not investigated"
+  ],
+  "windows_virtual_machine": {
+    "passed": true,
+    "workflow_url": "https://github.com/AlexAmMo/karaoke/actions/runs/44928052615",
+    "application_commit": "cf33bf4734dc49f0487d5e52d77662b441b82589",
+    "tag": "v0.3.1",
+    "environment": {
+      "physical_hardware": false,
+      "runner": "GitHub-hosted windows-2022 Azure virtual machine",
+      "os": "Microsoft Windows NT 10.0.20348.0",
+      "powershell": "5.1.20348.5773",
+      "graphics": "Mesa llvmpipe in a disposable copy of the publicly installed application",
+      "audio": "SDL dummy output with synthetic singers; no physical microphone or speaker measurement",
+      "mobile_controllers": "Three isolated Playwright Chrome contexts using iPhone 13, Pixel 7 and iPhone SE device profiles; no physical phones or wireless hardware"
+    },
+    "public_installation": {
+      "passed": true,
+      "unauthenticated_public_installer": "https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.3.1/scripts/install.ps1",
+      "release_url": "https://github.com/AlexAmMo/karaoke/releases/tag/v0.3.1",
+      "version": "Karaoke 0.3.1",
+      "launcher_sha256": "49f344d61baa471d54d4904d4de5374ab212c5f1a5f0b720b08592458dcd1c54",
+      "launcher_matches_staged_package": true,
+      "package_sha256": "b47e9d51b2c1592e2563f63a7b678079c1d29fa39b9c4bf2d1858fc1053ad97a",
+      "shortcut": "Start menu Karaoke.lnk target and working directory match installed executable",
+      "preservation": "Preexisting sentinel file SHA-256 unchanged; Windows test does not assert preservation of a populated song library",
+      "download_seconds": 15.8
+    },
+    "scoring": {
+      "passed": true,
+      "synthetic_singers": 2,
+      "precision_levels": [
+        "Flexible",
+        "Normal",
+        "Strict"
+      ],
+      "offsets_tested_semitones": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "level_offset_combinations": 12,
+      "pitch_setting_change_applies_next_turn": true,
+      "input_dropout_second_singer_continuity_silent_frame_recovery": true,
+      "individual_score_gain_comparisons": 24
+    },
+    "mobile_controllers": {
+      "passed": true,
+      "count": 3,
+      "browser": "Chrome through Playwright",
+      "profiles": [
+        "iPhone 13",
+        "Pixel 7",
+        "iPhone SE"
+      ],
+      "checks": [
+        "Join local room",
+        "Search downloaded songs and add turns",
+        "Delayed add response preserves open menu and edits",
+        "Retry after lost response preserves edits without duplicate turn",
+        "Queue synchronization across three controllers",
+        "Simulated offline/reconnection synchronization",
+        "Remove queued song",
+        "Room closure reaches editing and returning guests and stops polling"
+      ]
+    },
+    "evidence_files": {
+      "result.json": {
+        "bytes": 1150,
+        "sha256": "14c5e339a27bd9ce5769909e613723f6b78497fb7d483b33469eaefb52d8e187"
+      },
+      "installation.log": {
+        "bytes": 1099,
+        "sha256": "629a56ea92b895b2102a955cd7fdba7af79e01cc2d0d9c2ef9714e8b43034c8c"
+      },
+      "workflow.log": {
+        "bytes": 152195,
+        "sha256": "58d297568217c3841e668dc5fa7843ef4a266c5bebb6f581f146434c0dd2001b"
+      },
+      "run.json": {
+        "bytes": 2650,
+        "sha256": "cc19f14b9fd9d71b9ca2e846efe4651001ed2055c86eed9ea357b9cdb720c09d"
+      }
+    }
+  },
+  "passed": true
+}

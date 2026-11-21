@@ -16,6 +16,7 @@
 | Grabación original, letra, notas y tiempos frente a mapas humanos | [Generación, controles y límites observados](validation/generacion-iteracion.md) |
 | Paquetes macOS e instalación del entorno opcional | [Instalación y pruebas por arquitectura](validation/instalacion-macos-y-mando.md) |
 | Actualizar una biblioteca existente, abrir el paquete final y cerrar durante el canto | [Entrega 0.3.0](validation/entrega-0.3.0.md) |
+| Instalar 0.3.1 desde la release pública, conservar biblioteca y ajustes, recuperar la cola y probar Windows | [Entrega 0.3.1 en Mac físico y Windows virtualizado](validation/entrega-0.3.1.md) |
 
 ## Historial de la versión 0.1
 
