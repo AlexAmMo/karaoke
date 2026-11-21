@@ -442,7 +442,7 @@ class GenerationLab:
                 if path:
                     view.fields["draft_lyrics"] = path
 
-            view.submit(lambda: view.choose_folder("chart"), chosen)
+            view.submit(lambda: view.choose_folder("lyrics"), chosen)
         elif op == "clear":
             view.fields.pop("draft_lyrics", None)
         elif op == "enqueue":

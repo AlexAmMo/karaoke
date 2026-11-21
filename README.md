@@ -2,7 +2,7 @@
 
 Karaoke doméstico instalado en el ordenador: UltraStar Deluxe muestra letras, notas y puntuación; un lateral permite preparar biblioteca y próximos turnos sin abrir otra ventana.
 
-La rama de desarrollo incluye búsqueda por artista y título, paquetes opcionales con voz y notas, importación de TXT/ZIP y portadas en biblioteca, búsqueda y cola. Las pruebas y sus condiciones están en [Validación](docs/VALIDACION.md).
+La rama de desarrollo incluye búsqueda por artista y título, paquetes opcionales con voz y notas, importación de TXT/ZIP y portadas en búsqueda, escenario y cola. Las pruebas y sus condiciones están en [Validación](docs/VALIDACION.md).
 
 ## Instalación
 
@@ -34,7 +34,7 @@ Los instaladores verifican SHA-256 y conservan la biblioteca y los ajustes fuera
 
 Al cantar, la barra de la canción indica la nota que debes alcanzar. Si ves tu trazo semitransparente por encima, baja el tono. Si aparece por debajo, súbelo. Los aciertos se iluminan sobre la barra. El trazo se interrumpe cuando el micrófono deja de detectar un tono.
 
-Karaoke agrupa las fuentes de una misma canción en una fila. Pulsar el título permite consultar sus ediciones. Las canciones preparadas se conservan en **Biblioteca** para otra sesión. Desde la biblioteca también puedes importar una carpeta, un TXT con su grabación o un ZIP.
+Karaoke agrupa las fuentes de una misma canción en una fila. Pulsar el título permite consultar sus ediciones. **Solo descargadas** reúne las copias que ya puedes cantar. Si prefieres guardar la canción para otro día, pulsa su título y elige **Solo descargar**. En **Sesión → Descargas e importación** puedes importar una carpeta, un TXT con su grabación o un ZIP.
 
 Los 39 paquetes de UltraStar Deluxe Songs incluyen mapa, audio y licencia. Los mapas de AllKaraoke y USDB usan el audio identificado por la edición. La aplicación comprueba su correspondencia en segundo plano. Si falta el audio o la comparación resulta dudosa, la cola indica el motivo y permite continuar con otra canción. Para UltraStar España se abre el selector del proveedor dentro de Karaoke. Accede con tu cuenta de UltraStar España y pulsa **Descargar torrent** en la edición. Karaoke recibe el mapa y el audio del mismo paquete, comprueba su sincronía y deja el turno en la cola. Durante la transferencia comparte fragmentos con otros pares. La descarga depende de que haya fuentes disponibles. Puedes pegar el enlace de búsqueda de UltraStar España en **Buscar**. Las fichas sin una vía de descarga integrada se indican por separado. La primera consulta de los índices públicos requiere conexión. En **Ajustes → Cuenta USDB** puedes conectar tu cuenta para ampliar los resultados.
 
@@ -52,9 +52,9 @@ Si no se abre la página, comprueba que el teléfono esté en el wifi de casa y 
 
 ## Interfaz y controles
 
-El escenario usa fondo grafito, acento frambuesa, portada protagonista y una tira de canciones. El lateral muestra miniatura, artista y acciones en una sola fila. Las portadas se resuelven en segundo plano desde el paquete, la ficha USDB o el sencillo y el álbum identificados en MusicBrainz. Cuando corresponde se intenta la imagen del artista en Wikimedia Commons. Sin imagen disponible se muestran iniciales. El detalle conserva la procedencia.
+El escenario muestra el próximo turno sobre verde tinta, con la acción principal en melocotón. El lateral muestra miniatura, artista y acciones en una sola fila. Las portadas se resuelven en segundo plano desde el paquete, la ficha USDB o el sencillo y el álbum identificados en MusicBrainz. Cuando corresponde se intenta la imagen del artista en Wikimedia Commons. Sin imagen disponible se muestran iniciales. El detalle conserva la procedencia.
 
-Puedes plegar el lateral con la flecha de su encabezado o **Cmd/Ctrl+B**, y recuperarlo con **Mostrar panel**. La canción, la cola y los ajustes siguen activos. **Cmd/Ctrl+1–4** abre Biblioteca, Buscar, Cola o Ajustes. **Tab/Mayús+Tab** recorre el carrusel y los controles; con el carrusel enfocado, las flechas eligen canción e **Intro** la añade a la cola. El canto conserva su proporción 4:3 al ampliar el escenario.
+Puedes plegar el lateral con la flecha de su encabezado o **Cmd/Ctrl+B**, y recuperarlo con **Mostrar panel**. La canción, la cola y los ajustes siguen activos. **Cmd/Ctrl+1** o **2** abre Buscar, **3** abre Cola y **4** abre Sesión. **Tab/Mayús+Tab** recorre los controles. En una fila, selecciona `+` y pulsa **Intro** para añadir un turno. El canto conserva su proporción 4:3 al ampliar el escenario.
 
 ## Desarrollo y ejecución local
 

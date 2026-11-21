@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from fractions import Fraction
 from collections import Counter
 import contextlib
 import gc
@@ -88,9 +89,20 @@ def prepare(cache, profile, model_dir=None):
     notify('Preparando modelos locales')
     pins = {'asr': str(model_dir) if model_dir else ASR_REPO + '@' + ASR_REV,
             'separator': 'adefossez/HTDemucs@' + SEPARATOR_REV}
-    whisper = model_dir or snapshot_download(ASR_REPO, revision=ASR_REV,
-                                              allow_patterns=['model.bin', '*.json', '*.txt'])
-    separator = hf_hub_download('adefossez/HTDemucs', '955717e8.safetensors', revision=SEPARATOR_REV)
+    def cached(download, *args, **kwargs):
+        try:
+            return download(*args, local_files_only=True, **kwargs)
+        except FileNotFoundError:
+            return download(*args, **kwargs)
+        except Exception as exc:
+            from huggingface_hub.errors import LocalEntryNotFoundError
+            if not isinstance(exc, LocalEntryNotFoundError):
+                raise
+            return download(*args, **kwargs)
+
+    whisper = model_dir or cached(snapshot_download, ASR_REPO, revision=ASR_REV,
+                                 allow_patterns=['model.bin', '*.json', '*.txt'])
+    separator = cached(hf_hub_download, 'adefossez/HTDemucs', '955717e8.safetensors', revision=SEPARATOR_REV)
     if digest(separator) != SEPARATOR_SHA:
         raise ValueError('La firma de la separación vocal no coincide.')
     if profile == 'quality':
@@ -167,7 +179,6 @@ def split_vocals(audio, directory, separator):
     import soundfile as sf
     import torch
     from demucs.apply import apply_model
-    from demucs.hf import load_safetensors_model
     decoded = directory / 'mix.wav'
     subprocess.run(['ffmpeg', '-nostdin', '-loglevel', 'error', '-i', str(audio), '-map', '0:a:0',
                     '-vn', '-ar', '44100', '-ac', '2', '-c:a', 'pcm_f32le', str(decoded)], check=True)
@@ -178,7 +189,18 @@ def split_vocals(audio, directory, separator):
     mean, std = mono.mean(), mono.std()
     if std < 1e-7:
         raise ValueError('No se ha encontrado señal en la grabación.')
-    model = load_safetensors_model(separator).eval()
+    # The pinned safetensors has one HTDemucs and no executable checkpoint state.
+    # Direct initialization also supports the last PyTorch build for Intel macOS.
+    from demucs.htdemucs import HTDemucs
+    from safetensors import safe_open
+    with safe_open(separator, framework='pt') as weights:
+        meta = weights.metadata()
+        kwargs = json.loads(meta['kwargs'])
+        segment = kwargs['segment']
+        kwargs['segment'] = Fraction(segment['numerator'], segment['denominator'])
+        model = HTDemucs(**kwargs)
+        model.load_state_dict({k: weights.get_tensor(k) for k in weights.keys()})
+    model.eval()
     with torch.inference_mode():
         stems = apply_model(model, ((wave - mean) / std)[None], device='cpu', shifts=0,
                             overlap=.25, split=True, progress=False, num_workers=0)
@@ -250,8 +272,103 @@ def standard_notes(voice, words):
     return notes
 
 
+def musical_events(voice, timing, cache, language):
+    import soundfile as sf
+    from services import game_notes
+    chunks = []
+    # Overlapping local contexts keep memory independent of song length. Only the middle
+    # of each window owns its events, so the network can see notes on both sides of a seam.
+    with sf.SoundFile(voice) as stream:
+        sr = stream.samplerate
+        duration = len(stream) / sr
+        for window in range(0, math.ceil(duration), 12):
+            start, stop = max(0, window - 1.5), min(duration, window + 13.5)
+            if not any(t['start'] < stop and t['end'] > start for t in timing):
+                continue
+            stream.seek(round(start * sr))
+            signal = stream.read(round((stop-start) * sr), dtype='float32', always_2d=True).mean(axis=1)
+            for a, b, voiced, midi in game_notes.extract(game_notes.model_folder(str(cache)), signal, [], language):
+                middle = start + (a+b) / 2
+                if voiced and window <= middle < window+12 and b > a:
+                    chunks.append((max(0, start+a), min(duration, start+b), round(midi)))
+    # Adjacent windows can describe overlapping pieces of the same note.
+    events = []
+    for a, b, midi in sorted(chunks):
+        if events and a < events[-1][1]:
+            prev_a, prev_b, prev_pitch = events[-1]
+            if prev_pitch == midi:
+                events[-1] = (prev_a, max(b, prev_b), midi)
+                continue
+            seam = (a + prev_b) / 2
+            events[-1] = (prev_a, seam, prev_pitch)
+            a = seam
+        if b > a:
+            events.append((a, b, midi))
+    return events
+
+
+def join_syllables_and_notes(syllables, events, pitch, duration):
+    """Use two independent observations: consonant/word anchors from CTC and note events from GAME."""
+    import numpy as np
+    from bisect import bisect_left, bisect_right
+    starts = [event[0] for event in events]
+    ends = [event[1] for event in events]
+    anchors = []
+    for i, syllable in enumerate(syllables):
+        anchor = syllable['start']
+        next_start = syllables[i+1]['start'] if i+1 < len(syllables) else duration
+        previous = anchors[-1] if anchors else 0
+        candidates = starts[bisect_left(starts, max(previous+.045, anchor-.08)):
+                            bisect_right(starts, min(next_start-.045, anchor+.10))]
+        if candidates:
+            anchor = min(candidates, key=lambda t: abs(t - anchor))
+        anchors.append(max(previous, anchor))
+    frames, f0 = np.asarray(pitch['times']), np.asarray(pitch['frequencies'])
+    result = []
+    for i, syllable in enumerate(syllables):
+        a = anchors[i]
+        next_a = anchors[i+1] if i+1 < len(anchors) else duration
+        # A musical hold often outlasts the last consonant. Preserve the acoustic
+        # note events up to the next syllable, stopping in an actual interlude.
+        b = min(next_a, max(a + .045, syllable['end']) + 10.0)
+        available = events[bisect_right(ends, a):bisect_left(starts, b)]
+        relevant = []
+        release = max(a, syllable['end'])
+        for event in available:
+            if event[0] > release + .25:
+                break
+            relevant.append(event)
+            release = max(release, event[1])
+        rendered = []
+        for left, right, midi in relevant:
+            left, right = max(a, left), min(b, right)
+            if right-left < .035:
+                continue
+            if rendered and rendered[-1]['pitch'] == midi and left-rendered[-1]['end'] < .045:
+                rendered[-1]['end'] = right
+            else:
+                rendered.append(dict(syllable, start=left, end=right, pitch=int(midi), musical_support=1.0))
+        if not rendered:
+            right = min(next_a, max(a + .02, syllable['end']))
+            first, last = np.searchsorted(frames, (a, right))
+            voiced = f0[first:last]; voiced = voiced[voiced > 0]
+            midi = None
+            if len(voiced) >= 3:
+                contour = np.rint(69 + 12 * np.log2(voiced/440)).astype(int)
+                midi = int(Counter(contour).most_common(1)[0][0])
+            rendered.append(dict(syllable, start=a, end=right, pitch=midi, musical_support=0.0))
+        text = syllable['syllable']
+        for part, note in enumerate(rendered):
+            if len(rendered) > 1:
+                note['syllable'] = text.rstrip() if part == 0 else '~'
+                if part == len(rendered)-1 and text.endswith(' '):
+                    note['syllable'] += ' '
+            result.append(note)
+    return result
+
+
 def chart_quality(voice, lyrics, language, cache):
-    from services import forced_alignment, hyphenation, note_pipeline, pitch_detection
+    from services import forced_alignment, hyphenation, pitch_detection
     syllables = hyphenation.hyphenate_lyrics(lyrics, language)['hyphenated']
     notify('Alineando sílabas y voz')
     pitch = pitch_detection.detect_pitches_fcpe(str(voice))
@@ -259,9 +376,15 @@ def chart_quality(voice, lyrics, language, cache):
     if not timing:
         raise ValueError('No se pudo alinear la letra con la voz.')
     notify('Calculando notas y prolongaciones')
-    notes, stats = note_pipeline.build_notes(str(voice), timing, pitch, language, str(cache))
-    # The upstream engine can use FCPE when GAME cannot run. Record which path really completed.
-    stats.update(syllables=len(timing), low_confidence_syllables=sum(bool(t['low_confidence']) for t in timing))
+    events = musical_events(voice, timing, cache, language)
+    if not events:
+        raise ValueError('No se detectó una melodía vocal que pueda convertirse en notas.')
+    import soundfile as sf
+    notes = join_syllables_and_notes(timing, events, pitch, sf.info(voice).duration)
+    uncertain = [{'start': round(t['start'], 3), 'end': round(t['end'], 3)} for t in notes
+                 if t.get('low_confidence') or t['pitch'] is None or t['musical_support'] < .25]
+    stats = {'syllables': len(timing), 'musical_events': len(events), 'uncertain_notes': len(uncertain),
+             'review_regions': uncertain[:120]}
     return notes, stats
 
 
@@ -313,7 +436,7 @@ def generate(args):
             subprocess.run(['ffmpeg', '-nostdin', '-loglevel', 'error', '-i', str(audio), '-map', '0:a:0',
                             '-vn', '-c:a', 'libmp3lame', '-q:a', '2', str(payload / 'audio.mp3')], check=True)
         report = {'schema': 1, 'state': 'draft', 'automatically_verified': False, 'profile': args.profile,
-                  'method': 'ctc-fcpe-game' if args.profile == 'quality' else 'whisper-pyin',
+                  'method': 'sung-ctc+free-game+fcpe' if args.profile == 'quality' else 'whisper-pyin',
                   'language': language, 'duration': duration, 'lyrics': source, 'models': pins,
                   'input_sha256': digest(audio), 'audio_sha256': digest(payload / 'audio.mp3'),
                   'chart_sha256': digest(chart), 'chart': 'song.txt', 'audio': 'audio.mp3', 'notes': len(notes),

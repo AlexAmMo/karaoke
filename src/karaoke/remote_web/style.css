@@ -10,12 +10,12 @@
 [hidden],.symbols {display: none !important}
 body {margin: 0; min-width: 250px}
 button,input,select {font: inherit}
-button {cursor:pointer; color:var(--text); background:var(--well); border:0; border-radius:.55rem; min-height:44px; padding:.5rem .9rem; font-weight:600}
+button {cursor:pointer; color:var(--text); background:var(--well); border:0; border-radius:8px; min-height:44px; padding:.5rem .9rem; font-weight:600}
 button:disabled {opacity:.48; cursor:default}
 button:focus-visible,input:focus-visible,select:focus-visible {outline:2px solid var(--focus); outline-offset:3px}
 ::selection {background:#ffb18a; color:var(--onAccent)}
 svg {width:22px;height:22px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;fill:none;flex-shrink:0}
-input,select {background:var(--surface); border:1px solid var(--line); border-radius:.55rem; color:var(--text); caret-color:var(--accent); width:100%; min-height:48px; padding:.65rem .85rem}
+input,select {background:var(--surface); border:1px solid var(--line); border-radius:8px; color:var(--text); caret-color:var(--accent); width:100%; min-height:48px; padding:.65rem .85rem}
 input::placeholder {color:var(--muted)}
 label {display:block;font-weight:600;margin:1rem 0 .4rem}
 .shell {max-width:46rem;margin:0 auto;padding:env(safe-area-inset-top) max(1.1rem, env(safe-area-inset-right)) calc(6rem + env(safe-area-inset-bottom)) max(1.1rem, env(safe-area-inset-left))}
@@ -34,7 +34,7 @@ h2 {font-size:1.1rem;line-height:1.24;letter-spacing:-.015em}
 .primary {background:var(--primary);color:var(--onAccent)}
 #enter {width:100%;margin-top:1.5rem}
 #join-error,.error {color:var(--error);margin-top:.65rem}
-.notice {background:var(--well);border-radius:.55rem;padding:.65rem .8rem;color:var(--text);margin-bottom:1rem}
+.notice {background:var(--well);border-radius:8px;padding:.65rem .8rem;color:var(--text);margin-bottom:1rem}
 .notice button {color:var(--accent);margin-left:.5rem}
 #transport:empty {display:none}
 #transport {margin:0 0 1.6rem;padding-bottom:1.1rem;border-bottom:1px solid var(--line)}
@@ -44,7 +44,7 @@ h2 {font-size:1.1rem;line-height:1.24;letter-spacing:-.015em}
 .player-label {color:var(--accent);font-size:.8rem;font-weight:650}
 .player-actions {display:flex;gap:.3rem;flex-wrap:wrap}
 .player-actions .main-action {color:var(--onAccent);background:var(--primary)}
-.search-field {display:flex;align-items:center;gap:.65rem;border:1px solid var(--guide);border-radius:.65rem;padding:0 .85rem;background:var(--surface);color:var(--muted)}
+.search-field {display:flex;align-items:center;gap:.65rem;border:1px solid var(--guide);border-radius:8px;padding:0 .85rem;background:var(--surface);color:var(--muted)}
 .search-field input {padding:.7rem 0;border:0;background:transparent;min-width:0;outline:none}
 .search-field:focus-within {border-color:var(--accent)}
 .search-field input:focus-visible {outline:none}
@@ -60,7 +60,7 @@ h2 {font-size:1.1rem;line-height:1.24;letter-spacing:-.015em}
 .title,.sub {overflow-wrap:anywhere;line-height:1.35}
 .title {font-size:1rem;font-weight:650}
 .sub {font-size:.86rem;font-weight:400}
-.row-action {border-radius:.5rem;background:transparent;color:var(--accent)}
+.row-action {border-radius:8px;background:transparent;color:var(--accent)}
 .row-action.confirmed {color:var(--signal);background:#25372e}
 #pagination {display:flex;justify-content:space-between;gap:.5rem;margin:1rem 0}
 nav {position:fixed;inset:auto 0 0;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
@@ -68,7 +68,7 @@ nav>div {display:flex;max-width:40rem;margin:auto}
 nav button {background:none;color:var(--muted);flex:1;border-radius:0;display:flex;flex-direction:column;align-items:center;gap:.12rem;font-size:.79rem;min-height:3.8rem}
 nav button[aria-current] {color:var(--accent)}
 #queue-count {font-variant-numeric:tabular-nums}
-#feedback {position:fixed;left:50%;transform:translateX(-50%);bottom:calc(4.55rem + env(safe-area-inset-bottom));max-width:min(90vw,30rem);width:max-content;background:var(--text);color:var(--onAccent);border-radius:.55rem;font-weight:600;padding:.55rem .9rem;font-size:.88rem;pointer-events:none}
+#feedback {position:fixed;left:50%;transform:translateX(-50%);bottom:calc(4.55rem + env(safe-area-inset-bottom));max-width:min(90vw,30rem);width:max-content;background:var(--text);color:var(--onAccent);border-radius:8px;font-weight:600;padding:.55rem .9rem;font-size:.88rem;pointer-events:none}
 #feedback:empty {display:none}
 dialog {padding:1.2rem;max-width:30rem;width:calc(100% - 2rem);max-height:85dvh;overflow:auto;border:1px solid var(--line);border-radius:1rem;color:var(--text);background:var(--panel)}
 dialog::backdrop {background:#07110ec9}
@@ -89,3 +89,7 @@ dialog::backdrop {background:#07110ec9}
 .filter input {width:1rem;height:1rem;min-height:0;accent-color:var(--signal);margin:0}
 button {transition:background-color 120ms ease-out}
 @media (prefers-reduced-motion: reduce) {button {transition:none}}
+
+#feedback button {pointer-events:auto;margin-left:.55rem;color:var(--text);background:var(--stage)}
+
+#preparations {margin-top:1.1rem} #preparations summary {color:var(--muted);cursor:pointer;padding:.55rem 0;min-height:44px} #preparation-list .details {flex:1}

@@ -1,403 +1,90 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-17T21:16:10.355836+00:00",
+  "generatedAt": "2026-11-21T12:00:00Z",
   "title": "Design System: Karaoke",
   "extensions": {
     "colorMeta": {
-      "raspberry": {
+      "stage": {
+        "role": "semantic",
+        "displayName": "Fondo de escenario",
+        "canonical": "#102321"
+      },
+      "panel": {
+        "role": "semantic",
+        "displayName": "Panel y mando",
+        "canonical": "#172c29"
+      },
+      "raised": {
+        "role": "semantic",
+        "displayName": "Control activo",
+        "canonical": "#243b37"
+      },
+      "line": {
+        "role": "semantic",
+        "displayName": "Separador",
+        "canonical": "#425953"
+      },
+      "text": {
+        "role": "semantic",
+        "displayName": "Texto principal",
+        "canonical": "#f7f4e9"
+      },
+      "muted": {
+        "role": "semantic",
+        "displayName": "Texto secundario",
+        "canonical": "#b7c8bf"
+      },
+      "accent": {
         "role": "primary",
-        "displayName": "Raspberry",
-        "canonical": "#ab174f"
+        "displayName": "Acción y sílaba actual",
+        "canonical": "#ffb18a"
       },
-      "focus-pink": {
-        "role": "primary",
-        "displayName": "Focus pink",
-        "canonical": "#fca8c7"
+      "onAccent": {
+        "role": "semantic",
+        "displayName": "Texto en acción",
+        "canonical": "#332019"
       },
-      "row-focus": {
-        "role": "primary",
-        "displayName": "Row focus",
-        "canonical": "#fca8c7"
+      "signal": {
+        "role": "semantic",
+        "displayName": "Señal presente",
+        "canonical": "#acf1cd"
       },
-      "add-focus": {
-        "role": "primary",
-        "displayName": "Add focus",
-        "canonical": "#fca8c7"
+      "guide": {
+        "role": "semantic",
+        "displayName": "Nota de referencia",
+        "canonical": "#81968c"
       },
-      "stage-focus": {
-        "role": "primary",
-        "displayName": "Stage focus",
-        "canonical": "#fca8c7"
+      "focus": {
+        "role": "semantic",
+        "displayName": "Foco del teclado",
+        "canonical": "#ffe6a1"
       },
-      "sleeve-selection": {
-        "role": "primary",
-        "displayName": "Sleeve selection",
-        "canonical": "rgb(98% 30% 52%)",
-        "tonalRamp": [
-          "oklch(15% 0.07416 5.30)",
-          "oklch(26% 0.13773 5.30)",
-          "oklch(38% 0.18011 5.30)",
-          "oklch(49% 0.21190 5.30)",
-          "oklch(61% 0.21190 5.30)",
-          "oklch(72% 0.18011 5.30)",
-          "oklch(84% 0.12714 5.30)",
-          "oklch(95% 0.04238 5.30)"
-        ]
-      },
-      "stage-graphite": {
-        "role": "neutral",
-        "displayName": "Stage graphite",
-        "canonical": "#13141a"
-      },
-      "panel-graphite": {
-        "role": "neutral",
-        "displayName": "Panel graphite",
-        "canonical": "#1b1d24"
-      },
-      "control-dark": {
-        "role": "neutral",
-        "displayName": "Control dark",
-        "canonical": "#2e3038"
-      },
-      "control-hover": {
-        "role": "neutral",
-        "displayName": "Control hover",
-        "canonical": "#30333b"
-      },
-      "tab-selected": {
-        "role": "neutral",
-        "displayName": "Tab selected",
-        "canonical": "#423442"
-      },
-      "transport-dark": {
-        "role": "neutral",
-        "displayName": "Transport dark",
-        "canonical": "#3b303d"
-      },
-      "status-dark": {
-        "role": "neutral",
-        "displayName": "Status dark",
-        "canonical": "#1b1d24"
-      },
-      "add-background": {
-        "role": "neutral",
-        "displayName": "Add background",
-        "canonical": "rgb(22% 18% 22%)",
-        "tonalRamp": [
-          "oklch(15% 0.00798 326.10)",
-          "oklch(26% 0.01482 326.10)",
-          "oklch(38% 0.01938 326.10)",
-          "oklch(49% 0.02280 326.10)",
-          "oklch(61% 0.02280 326.10)",
-          "oklch(72% 0.01938 326.10)",
-          "oklch(84% 0.01368 326.10)",
-          "oklch(95% 0.00456 326.10)"
-        ]
-      },
-      "divider": {
-        "role": "neutral",
-        "displayName": "Divider",
-        "canonical": "#383b42"
-      },
-      "slider-track": {
-        "role": "neutral",
-        "displayName": "Slider track",
-        "canonical": "#454752"
-      },
-      "text-selection": {
-        "role": "primary",
-        "displayName": "Text selection",
-        "canonical": "rgb(60% 5.5% 22%)",
-        "tonalRamp": [
-          "oklch(15% 0.05886 12.61)",
-          "oklch(26% 0.10931 12.61)",
-          "oklch(38% 0.14294 12.61)",
-          "oklch(49% 0.16816 12.61)",
-          "oklch(61% 0.16816 12.61)",
-          "oklch(72% 0.14294 12.61)",
-          "oklch(84% 0.10090 12.61)",
-          "oklch(95% 0.03363 12.61)"
-        ]
-      },
-      "text-light": {
-        "role": "neutral",
-        "displayName": "Text light",
-        "canonical": "rgb(97% 96% 97%)",
-        "tonalRamp": [
-          "oklch(15% 0.00151 325.61)",
-          "oklch(26% 0.00280 325.61)",
-          "oklch(38% 0.00366 325.61)",
-          "oklch(49% 0.00431 325.61)",
-          "oklch(61% 0.00431 325.61)",
-          "oklch(72% 0.00366 325.61)",
-          "oklch(84% 0.00259 325.61)",
-          "oklch(95% 0.00086 325.61)"
-        ]
-      },
-      "text-muted": {
-        "role": "neutral",
-        "displayName": "Text muted",
-        "canonical": "#babfc9"
-      },
-      "initial-1": {
-        "role": "secondary",
-        "displayName": "Initial 1",
-        "canonical": "rgb(36% 18% 28%)",
-        "tonalRamp": [
-          "oklch(15% 0.02636 346.95)",
-          "oklch(26% 0.04895 346.95)",
-          "oklch(38% 0.06401 346.95)",
-          "oklch(49% 0.07531 346.95)",
-          "oklch(61% 0.07531 346.95)",
-          "oklch(72% 0.06401 346.95)",
-          "oklch(84% 0.04518 346.95)",
-          "oklch(95% 0.01506 346.95)"
-        ]
-      },
-      "initial-2": {
-        "role": "secondary",
-        "displayName": "Initial 2",
-        "canonical": "rgb(19% 30% 36%)",
-        "tonalRamp": [
-          "oklch(15% 0.01487 233.14)",
-          "oklch(26% 0.02761 233.14)",
-          "oklch(38% 0.03611 233.14)",
-          "oklch(49% 0.04248 233.14)",
-          "oklch(61% 0.04248 233.14)",
-          "oklch(72% 0.03611 233.14)",
-          "oklch(84% 0.02549 233.14)",
-          "oklch(95% 0.00850 233.14)"
-        ]
-      },
-      "initial-3": {
-        "role": "secondary",
-        "displayName": "Initial 3",
-        "canonical": "rgb(22% 32% 24%)",
-        "tonalRamp": [
-          "oklch(15% 0.01610 150.16)",
-          "oklch(26% 0.02991 150.16)",
-          "oklch(38% 0.03911 150.16)",
-          "oklch(49% 0.04601 150.16)",
-          "oklch(61% 0.04601 150.16)",
-          "oklch(72% 0.03911 150.16)",
-          "oklch(84% 0.02761 150.16)",
-          "oklch(95% 0.00920 150.16)"
-        ]
-      },
-      "initial-4": {
-        "role": "secondary",
-        "displayName": "Initial 4",
-        "canonical": "rgb(35% 24% 18%)",
-        "tonalRamp": [
-          "oklch(15% 0.01636 49.52)",
-          "oklch(26% 0.03039 49.52)",
-          "oklch(38% 0.03974 49.52)",
-          "oklch(49% 0.04676 49.52)",
-          "oklch(61% 0.04676 49.52)",
-          "oklch(72% 0.03974 49.52)",
-          "oklch(84% 0.02805 49.52)",
-          "oklch(95% 0.00935 49.52)"
-        ]
-      },
-      "initial-5": {
-        "role": "secondary",
-        "displayName": "Initial 5",
-        "canonical": "rgb(26% 22% 37%)",
-        "tonalRamp": [
-          "oklch(15% 0.02287 295.28)",
-          "oklch(26% 0.04247 295.28)",
-          "oklch(38% 0.05553 295.28)",
-          "oklch(49% 0.06534 295.28)",
-          "oklch(61% 0.06534 295.28)",
-          "oklch(72% 0.05553 295.28)",
-          "oklch(84% 0.03920 295.28)",
-          "oklch(95% 0.01307 295.28)"
-        ]
-      },
-      "initial-6": {
-        "role": "secondary",
-        "displayName": "Initial 6",
-        "canonical": "rgb(36% 19% 22%)",
-        "tonalRamp": [
-          "oklch(15% 0.02221 9.36)",
-          "oklch(26% 0.04124 9.36)",
-          "oklch(38% 0.05393 9.36)",
-          "oklch(49% 0.06345 9.36)",
-          "oklch(61% 0.06345 9.36)",
-          "oklch(72% 0.05393 9.36)",
-          "oklch(84% 0.03807 9.36)",
-          "oklch(95% 0.01269 9.36)"
-        ]
-      },
-      "lyric-active": {
-        "role": "secondary",
-        "displayName": "Azul de sílaba activa",
-        "canonical": "rgb(0% 36% 62%)",
-        "tonalRamp": [
-          "oklch(15% 0.04538 249.37)",
-          "oklch(26% 0.08427 249.37)",
-          "oklch(38% 0.11020 249.37)",
-          "oklch(49% 0.12965 249.37)",
-          "oklch(61% 0.12965 249.37)",
-          "oklch(72% 0.11020 249.37)",
-          "oklch(84% 0.07779 249.37)",
-          "oklch(95% 0.02593 249.37)"
-        ]
-      },
-      "lyric-ready": {
-        "role": "neutral",
-        "displayName": "Letra disponible",
-        "canonical": "rgb(13% 18% 23%)",
-        "tonalRamp": [
-          "oklch(15% 0.01019 248.84)",
-          "oklch(26% 0.01892 248.84)",
-          "oklch(38% 0.02474 248.84)",
-          "oklch(49% 0.02911 248.84)",
-          "oklch(61% 0.02911 248.84)",
-          "oklch(72% 0.02474 248.84)",
-          "oklch(84% 0.01747 248.84)",
-          "oklch(95% 0.00582 248.84)"
-        ]
-      },
-      "lyric-next": {
-        "role": "neutral",
-        "displayName": "Letra siguiente",
-        "canonical": "rgb(32% 37% 42%)",
-        "tonalRamp": [
-          "oklch(15% 0.00910 248.37)",
-          "oklch(26% 0.01691 248.37)",
-          "oklch(38% 0.02211 248.37)",
-          "oklch(49% 0.02601 248.37)",
-          "oklch(61% 0.02601 248.37)",
-          "oklch(72% 0.02211 248.37)",
-          "oklch(84% 0.01561 248.37)",
-          "oklch(95% 0.00520 248.37)"
-        ]
-      },
-      "note-sung": {
-        "role": "secondary",
-        "displayName": "Cian cantado",
-        "canonical": "rgb(38 181 244)",
-        "tonalRamp": [
-          "oklch(15% 0.05054 234.12)",
-          "oklch(26% 0.09387 234.12)",
-          "oklch(38% 0.12275 234.12)",
-          "oklch(49% 0.14441 234.12)",
-          "oklch(61% 0.14441 234.12)",
-          "oklch(72% 0.12275 234.12)",
-          "oklch(84% 0.08665 234.12)",
-          "oklch(95% 0.02888 234.12)"
-        ]
-      },
-      "note-guide": {
-        "role": "secondary",
-        "displayName": "Azul guía",
-        "canonical": "rgb(35 150 224)",
-        "tonalRamp": [
-          "oklch(15% 0.05130 243.47)",
-          "oklch(26% 0.09527 243.47)",
-          "oklch(38% 0.12459 243.47)",
-          "oklch(49% 0.14657 243.47)",
-          "oklch(61% 0.14657 243.47)",
-          "oklch(72% 0.12459 243.47)",
-          "oklch(84% 0.08794 243.47)",
-          "oklch(95% 0.02931 243.47)"
-        ]
-      },
-      "lyrics-upper": {
-        "role": "neutral",
-        "displayName": "Banda superior de letra",
-        "canonical": "rgb(248 249 251 / 0.9725490196)",
-        "tonalRamp": [
-          "oklch(15% 0.00100 264.54)",
-          "oklch(26% 0.00186 264.54)",
-          "oklch(38% 0.00243 264.54)",
-          "oklch(49% 0.00286 264.54)",
-          "oklch(61% 0.00286 264.54)",
-          "oklch(72% 0.00243 264.54)",
-          "oklch(84% 0.00172 264.54)",
-          "oklch(95% 0.00057 264.54)"
-        ]
-      },
-      "lyrics-lower": {
-        "role": "neutral",
-        "displayName": "Banda inferior de letra",
-        "canonical": "rgb(228 233 238 / 0.9725490196)",
-        "tonalRamp": [
-          "oklch(15% 0.00303 247.92)",
-          "oklch(26% 0.00562 247.92)",
-          "oklch(38% 0.00735 247.92)",
-          "oklch(49% 0.00865 247.92)",
-          "oklch(61% 0.00865 247.92)",
-          "oklch(72% 0.00735 247.92)",
-          "oklch(84% 0.00519 247.92)",
-          "oklch(95% 0.00173 247.92)"
-        ]
-      },
-      "score-backing": {
-        "role": "neutral",
-        "displayName": "Respaldo de puntuación",
-        "canonical": "rgb(10 18 30 / 0.6745098039)",
-        "tonalRamp": [
-          "oklch(15% 0.00971 258.29)",
-          "oklch(26% 0.01803 258.29)",
-          "oklch(38% 0.02358 258.29)",
-          "oklch(49% 0.02774 258.29)",
-          "oklch(61% 0.02774 258.29)",
-          "oklch(72% 0.02358 258.29)",
-          "oklch(84% 0.01665 258.29)",
-          "oklch(95% 0.00555 258.29)"
-        ]
+      "error": {
+        "role": "semantic",
+        "displayName": "Error",
+        "canonical": "#ffa9a1"
       }
     },
     "typographyMeta": {
-      "score": {
-        "displayName": "score",
-        "purpose": "Tamaño en unidades de la composición nativa."
+      "stage": {
+        "displayName": "stage",
+        "purpose": "Instrument Sans, servida localmente."
       },
-      "headline": {
-        "displayName": "headline",
-        "purpose": "Tamaño en unidades de la composición nativa."
+      "heading": {
+        "displayName": "heading",
+        "purpose": "Instrument Sans, servida localmente."
       },
-      "empty": {
-        "displayName": "empty",
-        "purpose": "Tamaño en unidades de la composición nativa."
-      },
-      "results": {
-        "displayName": "results",
-        "purpose": "Tamaño en unidades de la composición nativa."
-      },
-      "library": {
-        "displayName": "library",
-        "purpose": "Tamaño en unidades de la composición nativa."
-      },
-      "panel": {
-        "displayName": "panel",
-        "purpose": "Tamaño en unidades de la composición nativa."
-      },
-      "artist": {
-        "displayName": "artist",
-        "purpose": "Tamaño en unidades de la composición nativa."
-      },
-      "section": {
-        "displayName": "section",
-        "purpose": "Tamaño en unidades de la composición nativa."
+      "song": {
+        "displayName": "song",
+        "purpose": "Instrument Sans, servida localmente."
       },
       "body": {
         "displayName": "body",
-        "purpose": "Tamaño en unidades de la composición nativa."
-      },
-      "action": {
-        "displayName": "action",
-        "purpose": "Tamaño en unidades de la composición nativa."
-      },
-      "label": {
-        "displayName": "label",
-        "purpose": "Tamaño en unidades de la composición nativa."
+        "purpose": "Instrument Sans, servida localmente."
       },
       "caption": {
         "displayName": "caption",
-        "purpose": "Tamaño en unidades de la composición nativa."
+        "purpose": "Instrument Sans, servida localmente."
       }
     },
     "shadows": [],
@@ -406,82 +93,30 @@
   },
   "components": [
     {
-      "name": "Acción lateral",
+      "name": "Acción principal",
       "kind": "button",
-      "refersTo": "button",
-      "description": "Acción lateral. Traducción estática de las medidas lógicas del motor.",
-      "html": "<button class=\"control\">Importar canciones</button>",
-      "css": ".control{border-radius:6px;width:368px;height:40px;padding:0 12px;border:0;background:#2e3038;color:#f7f5f7;text-align:left;font:400 18px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
-    },
-    {
-      "name": "Acción del escenario",
-      "kind": "button",
-      "refersTo": "button-stage",
-      "description": "Acción del escenario. Traducción estática de las medidas lógicas del motor.",
-      "html": "<button class=\"control\">Añadir a la cola</button>",
-      "css": ".control{border-radius:6px;width:178px;height:44px;padding:0 12px;border:0;background:#ab174f;color:#f7f5f7;text-align:left;font:400 17px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
-    },
-    {
-      "name": "Pestaña activa",
-      "kind": "button",
-      "refersTo": "navigation-selected",
-      "description": "Pestaña activa. Traducción estática de las medidas lógicas del motor.",
-      "html": "<button class=\"control\">Biblioteca</button>",
-      "css": ".control{border-radius:6px;width:92px;height:36px;padding:0 12px;border:0;background:#423442;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
-    },
-    {
-      "name": "Restaurar panel",
-      "kind": "button",
-      "refersTo": "panel-restore",
-      "description": "Restaurar panel. Traducción estática de las medidas lógicas del motor.",
-      "html": "<button class=\"control\">Mostrar panel</button>",
-      "css": ".control{border-radius:6px;width:148px;height:40px;padding:0 12px;border:0;background:#2e3038;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
-    },
-    {
-      "name": "Control de canto",
-      "kind": "button",
-      "refersTo": "transport",
-      "description": "Control de canto. Traducción estática de las medidas lógicas del motor.",
-      "html": "<button class=\"control\">Pausar</button>",
-      "css": ".control{border-radius:6px;width:180px;height:36px;padding:0 12px;border:0;background:#302e33;color:#f7f5f7;text-align:left;font:400 16px \"Noto Sans\",sans-serif}.control:focus-visible{outline:1px solid #fca8c7}"
-    },
-    {
-      "name": "Fila de canción",
-      "kind": "custom",
-      "refersTo": "song-row",
-      "description": "Fila de canción. Traducción estática de las medidas lógicas del motor.",
-      "html": "<div class=\"row\"><button class=\"detail\"><span class=\"art\">AD</span><span>Canción de prueba<small>Artista de demostración</small></span></button><button aria-label=\"Añadir a la cola\" class=\"add\">+</button></div>",
-      "css": ".row,.detail{display:flex;align-items:center;gap:12px}.row{width:368px;height:60px;border-bottom:1px solid #38383d;background:#1b1d24}.detail,.add{border:0;background:none;color:#f7f5f7;font:18px \"Noto Sans\",sans-serif;text-align:left}.detail{flex:1;padding:6px}.art{background:#5c2e47;display:grid;place-items:center;width:46px;height:46px}small{display:block;font-size:14px;color:#babfc9}.add{border-radius:20px;width:43px;height:43px;background:#382e38;text-align:center}button:focus-visible{outline:1px solid #fca8c7}"
-    },
-    {
-      "name": "Campo de búsqueda",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Campo de búsqueda. Traducción estática de las medidas lógicas del motor.",
-      "html": "<input aria-label=\"Buscar canciones\" placeholder=\"Artista, canción o enlace de YouTube\">",
-      "css": "input{box-sizing:border-box;width:368px;height:44px;padding:0 14px;border:0;border-radius:6px;background:#2e3038;font:18px \"Noto Sans\",sans-serif;color:#f7f5f7}input:focus{outline:1px solid #fca8c7}"
+      "description": "Inicio del turno o confirmación principal del diálogo.",
+      "html": "<button>Empezar a cantar</button>",
+      "css": "button{min-height:44px;border:0;border-radius:8px;padding:8px 16px;background:#ffb18a;color:#332019;font:600 16px \"Instrument Sans\",sans-serif}button:focus-visible{outline:2px solid #ffe6a1;outline-offset:2px}"
     }
   ],
   "narrative": {
-    "northStar": "El disco tiene el escenario",
-    "overview": "La portada identifica la grabación antes de leer su título. En el escenario de grafito, la carátula y el nombre ocupan el centro de atención. A su derecha está la acción de añadir un turno. La tira inferior permite recorrer las canciones y el lateral reúne búsqueda, biblioteca, cola y ajustes.",
+    "northStar": "Leer la letra a distancia y preparar los próximos turnos desde cualquier asiento.",
+    "overview": "Escenario verde tinta, letra cálida y una cola compartida desde el ordenador y los móviles.",
     "keyCharacteristics": [
-      "Portada cuadrada con espacio propio y título contiguo.",
-      "Fondo grafito continuo, texto claro y acción principal frambuesa.",
-      "La misma imagen acompaña a la canción desde la búsqueda hasta la cola.",
-      "El panel se pliega por completo para dar más espacio al canto."
+      "Una ventana plegable.",
+      "Una lista de canciones en Buscar.",
+      "Carátulas o iniciales."
     ],
-    "rules": [],
+    "rules": [
+      "Mantener el foco tras actualizar una fila.",
+      "Servir fuentes locales."
+    ],
     "dos": [
-      "Conservar el foco y la selección al resolver imágenes o recibir más resultados.",
-      "Mostrar la misma identidad visual para una canción en todas las superficies.",
-      "Comprobar el panel con acentos, títulos largos y cambios de escala.",
-      "Verificar que el puntero y los controles de canto siguen accesibles después de plegar."
+      "Confirmar cada pulsación dentro de la fila."
     ],
     "donts": [
-      "Evitar que una carátula tardía desplace la fila o cambie el turno activo.",
-      "Evitar presentar el monograma como portada del disco.",
-      "Evitar deformar el escenario de canto al aprovechar el ancho del panel."
+      "Evitar movimientos de layout al añadir."
     ]
   }
 }

@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 const captions = {search: "Busca una canción", queue: "Próximos turnos"};
-const statuses = {ready: "Lista", waiting: "En espera", working: "Preparando", error: "Necesita atención", host: "Pendiente en el ordenador", starting: "Empezando", singing: "Cantando"};
+const statuses = {ready: "Lista", waiting: "En espera", missing: "Copia incompleta", working: "Preparando", error: "Necesita atención", host: "Pendiente en el ordenador", starting: "Empezando", singing: "Cantando"};
 const browse = {
   search: {q: "", page: 0},
 
@@ -115,10 +115,14 @@ async function api(route, payload, method = "POST") {
   } finally { clearTimeout(timer); }
 }
 
-function message(text) {
+function message(text, undoId = "") {
   clearTimeout(feedbackTimer);
   $("feedback").textContent = text;
-  feedbackTimer = setTimeout(() => { $("feedback").textContent = ""; }, 3500);
+  if (undoId) {
+    const undo = button("Deshacer", () => command("remove", undoId, {}, "Turno retirado"));
+    $("feedback").append(undo);
+  }
+  feedbackTimer = setTimeout(() => { $("feedback").textContent = ""; }, undoId ? 8000 : 3500);
 }
 function announce(text) {
   if ($("sheet").open) {
@@ -217,7 +221,9 @@ async function refresh() {
   try {
     const data = await api("state", {});
     if (seq !== stateRequest || !session) return;
+    const libraryChanged = state && JSON.stringify(data.library_revision) !== JSON.stringify(state.library_revision);
     state = data;
+    if (libraryChanged && tab === "search") void loadResults();
     connected = true;
     connectionNotice();
     renderPlayer();
@@ -265,7 +271,7 @@ function command(op, id, extra = {}, msg = "") {
 }
 function add(item, names = [session.name]) {
   if (confirmedItem?.id === item.id && confirmedItem.until > Date.now()) return;
-  void sendAction({op: "add", id: item.id, names}, (_, origin) => {
+  void sendAction({op: "add", id: item.id, names}, (result, origin) => {
     closeOrigin(origin);
     confirmedItem = {id: item.id, until: Date.now() + 1400};
     if (tab !== "queue") renderSongRows(renderedResults);
@@ -275,7 +281,7 @@ function add(item, names = [session.name]) {
         if (tab !== "queue") renderSongRows(renderedResults);
       }
     }, 1500);
-    message(item.assisted ? "Petición enviada al ordenador" : "Turno añadido a la cola");
+    message(item.assisted ? "Petición enviada al ordenador" : "Turno añadido a la cola", result.id);
   });
 }
 function renderPlayer() {
@@ -316,6 +322,7 @@ function activateTab(section) {
   });
   const isQueue = tab === "queue";
   $("query-form").hidden = isQueue;
+  $("preparations").hidden = !isQueue;
   $("list-heading").hidden = $("pagination").hidden = true;
   if (isQueue) { if (state) renderQueue(); }
   else {
@@ -388,9 +395,21 @@ async function loadResults() {
   }
 }
 function renderQueue() {
-  const key = JSON.stringify(state.queue);
+  const jobs = state.preparations || [];
+  const key = JSON.stringify([state.queue, jobs]);
   if (key === renderedList) return;
   renderedList = key;
+  $("preparations").hidden = !jobs.length;
+  const downloads = jobs.map(job => {
+    const entry = element("div", "song");
+    const retry = ["error", "cancelled"].includes(job.state);
+    entry.append(detail(job.title, statuses[job.state] || "Cancelada"));
+    const verb = retry ? "Reintentar" : "Cancelar";
+    const op = retry ? "retry-preparation" : "cancel-preparation";
+    entry.append(button(verb, () => retry ? command(op, job.id) : confirmAction("¿Cancelar la descarga?", job.title, verb, () => command(op, job.id))));
+    return entry;
+  });
+  $("preparation-list").replaceChildren(...downloads);
   $("list-status").textContent = state.queue.length ? "" : "La cola está vacía.";
   const rows = state.queue.map((item, index) => {
     const li = element("li", "song");
@@ -495,7 +514,7 @@ function openSong(item) {
     saveControl = button("Solo descargar", () => command("save", selected.id, {}, "Preparando la canción"), "full");
     content.append(addControl, saveControl);
     updateActions();
-  } else content.append(element("p", "small muted", "Esta ficha no tiene descarga integrada."));
+  } else content.append(element("p", "small muted", item.availability === "missing" ? "Falta el audio o el mapa. Vuelve a importar el paquete en el ordenador." : "Esta ficha no tiene descarga integrada."));
   if (libraryId) {
     const actions = element("div", "sheet-actions");
     const previewing = Boolean(state?.previewing);

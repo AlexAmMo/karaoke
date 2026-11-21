@@ -151,7 +151,7 @@ async def late_add(page, observer, title, new_name, *, lose_first_response):
         await dialog.get_by_label("Cantante", exact=True).fill(new_name)
     finally:
         release.set()
-    await expect(page.locator("#feedback")).to_have_text("Turno añadido a la cola")
+    await expect(page.locator("#feedback")).to_contain_text("Turno añadido a la cola")
     await expect(dialog).to_be_visible()
     await expect(dialog.get_by_label("Cantante", exact=True)).to_have_value(new_name)
     await accepted_action(page, button(dialog, "Guardar cantantes"), "rename")
@@ -162,7 +162,7 @@ async def late_add(page, observer, title, new_name, *, lose_first_response):
     print(f"PASS: {'retry' if lose_first_response else 'add'} preserved the open menu and edits", flush=True)
 
 
-async def test_phones(session, browser_type, channel):
+async def test_phones(session, browser_type, channel, capture=None):
     view = session.ipc / "view.json"
 
     def open_room():
@@ -192,6 +192,17 @@ async def test_phones(session, browser_type, channel):
             phones = {"Ana": ana, "Luis": luis, "Mar": mar}
             host_snapshot(session, "after browser joins")
             await mar.locator("[data-tab=queue]").click()
+            if capture:
+                capture.mkdir(exist_ok=True, parents=True)
+                await ana.get_by_role("checkbox", name="Solo descargadas").check()
+                await expect(row(ana, "Probe A")).to_be_visible()
+                await ana.evaluate("document.fonts.ready")
+                assert await ana.evaluate("""document.fonts.check('16px "Instrument Sans"')""")
+                for width, height in ((390,844),(320,568)):
+                    await ana.set_viewport_size({'width':width, 'height':height})
+                    assert await ana.evaluate("document.documentElement.scrollWidth <= innerWidth")
+                    await ana.screenshot(path=capture / f"{browser_type}-{width}.png")
+                await ana.set_viewport_size({'width':390,'height':844})
             await late_add(ana, mar, "Probe A", "Ana y Mar", lose_first_response=False)
             await late_add(luis, mar, "Probe B", "Luis y Mar", lose_first_response=True)
 
@@ -247,6 +258,7 @@ def run():
     parser.add_argument("--launcher", type=Path)
     parser.add_argument("--browser", choices=("chromium", "webkit"), default="chromium")
     parser.add_argument("--channel", help="Installed Chromium browser channel, e.g. chrome")
+    parser.add_argument("--capture", type=Path, help="Save responsive screenshots of the real remote")
     args = parser.parse_args()
     if not (ROOT / "technical-spike/fixtures/initial/A/tone.wav").is_file():
         subprocess.run([sys.executable, str(ROOT / "technical-spike/scripts/generate_fixtures.py")], check=True)
@@ -260,7 +272,7 @@ def run():
                 if not session.rows("SELECT id FROM songs WHERE title=?", (title,)):
                     session.import_chart(ROOT / f"technical-spike/fixtures/{relative}/song.txt")
                     session.wait(lambda _: bool(session.rows("SELECT id FROM songs WHERE title=?", (title,))))
-            asyncio.run(test_phones(session, args.browser, args.channel))
+            asyncio.run(test_phones(session, args.browser, args.channel, args.capture))
         except Exception:
             host_snapshot(session, "on failure", logs=True)
             raise

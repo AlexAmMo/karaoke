@@ -1,195 +1,79 @@
 ---
 name: Karaoke
-description: Biblioteca grafito con portadas, selección frambuesa y panel musical
-  plegable.
+description: Escenario verde tinta, letra cálida y una cola compartida desde el ordenador y los móviles.
 colors:
-  raspberry: '#ab174f'
-  focus-pink: '#fca8c7'
-  row-focus: '#fca8c7'
-  add-focus: '#fca8c7'
-  stage-focus: '#fca8c7'
-  sleeve-selection: '#fa4d85'
-  stage-graphite: '#13141a'
-  panel-graphite: '#1b1d24'
-  control-dark: '#2e3038'
-  control-hover: '#30333b'
-  tab-selected: '#423442'
-  transport-dark: '#3b303d'
-  status-dark: '#1b1d24'
-  add-background: '#382e38'
-  divider: '#383b42'
-  slider-track: '#454752'
-  text-selection: '#990e38'
-  text-light: '#f7f5f7'
-  text-muted: '#babfc9'
-  initial-1: '#5c2e47'
-  initial-2: '#304d5c'
-  initial-3: '#38523d'
-  initial-4: '#593d2e'
-  initial-5: '#42385e'
-  initial-6: '#5c3038'
-  lyric-active: '#005c9e'
-  lyric-ready: '#212e3b'
-  lyric-next: '#525e6b'
-  note-sung: '#26b5f4'
-  note-guide: '#2396e0'
-  lyrics-upper: '#f8f9fbf8'
-  lyrics-lower: '#e4e9eef8'
-  score-backing: '#0a121eac'
+  stage: '#102321'
+  panel: '#172c29'
+  raised: '#243b37'
+  line: '#425953'
+  text: '#f7f4e9'
+  muted: '#b7c8bf'
+  accent: '#ffb18a'
+  onAccent: '#332019'
+  signal: '#acf1cd'
+  guide: '#81968c'
+  focus: '#ffe6a1'
+  error: '#ffa9a1'
 typography:
-  score:
-    fontFamily: Noto Sans
-    fontSize: 40px
-    fontWeight: 700
-  headline:
-    fontFamily: Noto Sans
-    fontSize: 45px
-    fontWeight: 700
-  empty:
-    fontFamily: Noto Sans
+  stage:
+    fontFamily: Instrument Sans
     fontSize: 36px
     fontWeight: 700
-  results:
-    fontFamily: Noto Sans
-    fontSize: 34px
-    fontWeight: 400
-  library:
-    fontFamily: Noto Sans
-    fontSize: 18px
-    fontWeight: 400
-  panel:
-    fontFamily: Noto Sans
-    fontSize: 22px
-    fontWeight: 400
-  artist:
-    fontFamily: Noto Sans
-    fontSize: 20px
-    fontWeight: 400
-  section:
-    fontFamily: Noto Sans
-    fontSize: 20px
-    fontWeight: 400
-  body:
-    fontFamily: Noto Sans
-    fontSize: 18px
-    fontWeight: 400
-  action:
-    fontFamily: Noto Sans
+  heading:
+    fontFamily: Instrument Sans
+    fontSize: 24px
+    fontWeight: 700
+  song:
+    fontFamily: Instrument Sans
     fontSize: 17px
-    fontWeight: 400
-  label:
-    fontFamily: Noto Sans
+    fontWeight: 600
+  body:
+    fontFamily: Instrument Sans
     fontSize: 16px
     fontWeight: 400
   caption:
-    fontFamily: Noto Sans
+    fontFamily: Instrument Sans
     fontSize: 14px
     fontWeight: 400
 rounded:
-  square: 0px
-  control: 6px
-  tab: 7px
-  add: 20px
+  cover: 6px
+  control: 8px
+  sheet: 16px
 spacing:
-  stage-inset: 40px
-  art-to-copy: 28px
-  sleeve-gap: 12px
-  row-inset: 16px
-  thumb-to-copy: 12px
-components:
-  button:
-    backgroundColor: '{colors.control-dark}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.body}'
-    rounded: '{rounded.control}'
-    width: 368px
-    height: 40px
-  button-stage:
-    backgroundColor: '{colors.raspberry}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.action}'
-    rounded: '{rounded.tab}'
-    width: 178px
-    height: 44px
-  input:
-    backgroundColor: '{colors.control-dark}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.body}'
-    rounded: '{rounded.control}'
-    width: 368px
-    height: 44px
-  navigation-selected:
-    backgroundColor: '{colors.tab-selected}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.label}'
-    rounded: '{rounded.tab}'
-    width: 92px
-    height: 36px
-  panel-restore:
-    backgroundColor: '{colors.control-dark}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.label}'
-    rounded: '{rounded.control}'
-    width: 148px
-    height: 40px
-  song-row:
-    backgroundColor: '{colors.panel-graphite}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.body}'
-    rounded: '{rounded.control}'
-    width: 368px
-    height: 56px
-  song-add:
-    backgroundColor: '{colors.add-background}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.action}'
-    rounded: '{rounded.add}'
-    width: 43px
-    height: 43px
-  thumbnail:
-    backgroundColor: '{colors.initial-1}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.body}'
-    rounded: '{rounded.square}'
-    width: 46px
-    height: 46px
-  transport:
-    backgroundColor: '{colors.transport-dark}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.label}'
-    rounded: '{rounded.control}'
-    width: 178px
-    height: 36px
-  status:
-    backgroundColor: '{colors.status-dark}'
-    textColor: '{colors.text-light}'
-    typography: '{typography.label}'
-    rounded: '{rounded.square}'
-    width: 399px
+  step-4: 4px
+  step-8: 8px
+  step-12: 12px
+  step-16: 16px
+  step-24: 24px
+  step-32: 32px
+  step-48: 48px
 ---
 
 # Diseño de Karaoke
 
-Esta referencia corresponde a la aplicación 0.2. El [sistema visual de la próxima iteración](docs/diseno/SISTEMA-DE-SESION.md) incluye la maqueta de Buscar y Cola.
+El escenario concentra la atención en el próximo turno y en la letra durante el canto. La búsqueda y la cola comparten un lateral plegable. Los móviles gestionan la misma sala con una hoja para los detalles de cada canción o turno.
 
-## Escenario
+## Color y tipografía
 
-La portada y el título identifican la grabación seleccionada. «Añadir a la cola» incorpora un turno. La tira inferior reúne hasta cinco carátulas y mantiene una línea frambuesa bajo la elegida. Al comenzar con el repertorio vacío, una pequeña secuencia de notas acompaña la instrucción de añadir la primera canción. La búsqueda ya abierta recibe el foco de escritura.
+La paleta vive en [session-palette.json](assets/theme/session-palette.json). `python3 scripts/create_theme_assets.py` genera los colores nativos, las variables CSS y las imágenes de notas, pausa y letra. El verde tinta sitúa el escenario detrás de la letra. El melocotón marca la acción principal y el presente musical. El contorno amarillo indica el foco. Cada estado cuenta también con texto o con una forma distinguible.
 
-El título del tema utiliza Noto Sans en negrita y admite dos líneas. Artistas, recuentos y mensajes tienen menor contraste. Cuando falta la portada, las iniciales sobre un color estable identifican al artista. La misma imagen acompaña al tema en la lista, el escenario y la cola.
+La aplicación distribuye Instrument Sans localmente. El PC carga regular y negrita. El mando usa el archivo variable WOFF2. Las carátulas se conservan en la misma posición aunque lleguen después de la búsqueda. Cuando faltan, la celda muestra iniciales sobre un color estable.
 
-## Panel
+## Componentes
 
-La ventana reparte el espacio entre escenario y panel. El panel mide entre 340 y 440 puntos y dibuja en una proyección de 400 unidades. Una sola banda superior reúne Biblioteca, Buscar, Cola, Ajustes y el control de plegado. El recuento de turnos aparece junto a Cola cuando hay alguno. El contenido se desplaza dentro del área entre navegación y mensajes. La altura del pie depende del mensaje activo.
+| Superficie | Presentación e interacción |
+|---|---|
+| Escenario vacío | Guía de notas ilustrada y acceso a Buscar. |
+| Próximo turno | Portada o iniciales, título, intérprete, cantantes y acción de inicio. Las preparaciones pendientes llevan a su detalle. |
+| Buscar | Campo por artista, título o vídeo y filtro «Solo descargadas». La fila muestra portada, título, artista y disponibilidad. Pulsar `+` crea un turno. Pulsar la fila abre sus ediciones y «Solo descargar». |
+| Cola | Orden, participantes y preparación por turno. Los cambios llegan a los mandos. La preparación individual se consulta aquí aunque todavía no tenga turno. |
+| Sesión | Volumen, afinación, cantantes y entradas. Los permisos del sistema y la selección de archivos se resuelven en el ordenador. |
+| Mando | Dos destinos en la navegación inferior. Hoja inferior en anchos de hasta 420 px y diálogo centrado a partir de ahí. Los controles frecuentes tienen 44 px de superficie mínima. |
 
-La búsqueda acepta artista, título o enlace de YouTube. Tras 350 ms de pausa al escribir, el campo envía el texto. Los resultados muestran título, artista, una portada de 46 unidades y un control de añadir de 43 unidades. Al escoger una canción, la aplicación resuelve las ediciones compatibles en segundo plano. La importación, las fuentes y la cuenta se consultan desde sus secciones.
+## Foco, movimiento y estados
 
-## Controles y teclado
+Los controles confirman la adición con una marca en el mismo espacio. El mando aplica 120 ms de transición de color y respeta movimiento reducido. «Deshacer» se dirige al turno recién creado. Una búsqueda o una portada tardía conservan el foco de teclado por identidad de canción. Se puede plegar el panel con Cmd/Ctrl+B y recuperarlo desde «Mostrar panel».
 
-El foco de teclado tiene un borde de una unidad. Las pestañas y acciones principales usan superficies redondeadas y la lista comparte el fondo del panel. Tab y Mayús+Tab recorren las acciones. En una fila musical, Derecha enfoca el signo de suma. Intro o Espacio confirma la adición. En un campo, Cmd/Ctrl+A selecciona el texto y Cmd/Ctrl+V pega. El buscador mantiene el foco después de recibir nuevos resultados.
+Los resultados distinguen «Descargada», «Para descargar», «Preparando…», «Requiere al anfitrión», «Sin edición compatible» y «Copia incompleta». «Solo descargadas» se consulta en disco. La ficha detalla los pasos cuando la edición requiere intervención. El escenario inicia el canto al recibir una orden explícita.
 
-Cmd/Ctrl+1–4 abre cada sección. Cmd/Ctrl+B pliega el panel. El escenario recupera el ancho disponible y «Mostrar panel» permite volver con ratón o teclado.
-
-## Canto y puntuación
-
-Deluxe conserva la proporción 4:3 para la letra y las notas durante el canto. El panel ofrece «Pausar» o «Reanudar» según el estado de la interpretación. Al acabar, el escenario presenta el tema, el artista, el nombre y los puntos de cada cantante, junto al próximo turno cuando existe. [Tema de canto](assets/theme/manifest.json)
+Las medidas, criterios de contraste y pruebas de la dirección visual aparecen en el [sistema de sesión](docs/diseno/SISTEMA-DE-SESION.md).

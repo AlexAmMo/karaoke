@@ -15,6 +15,8 @@ def main():
         folder = QFileDialog.getExistingDirectory(
             None, "Importar canciones UltraStar", str(Path.home())
         )
+    elif mode == "lyrics":
+        folder, _ = QFileDialog.getOpenFileName(None, "Elegir letra de la canción", str(Path.home()), "Texto UTF-8 (*.txt)")
     else:
         title, pattern = (
             ("Elegir grabación", "Audio (*.mp3 *.ogg *.opus *.m4a *.flac *.wav *.aac);;Todos (*)")

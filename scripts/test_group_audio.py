@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise simultaneous native inputs and the host PCM bridge with a disposable session."""
 import argparse
+import functools
 import math
 import os
 from pathlib import Path
@@ -14,6 +15,13 @@ import time
 
 from test_live_pitch import make_chart
 from test_session import Session
+
+
+@functools.cache
+def tone_frames(frequency):
+    # Seamless periodic PCM: exact integral cycles over one second, in 20 ms frames.
+    samples = [round(8000 * math.sin(2 * math.pi * frequency * n / 48000)) for n in range(48000)]
+    return [struct.pack('<960h', *samples[n:n+960]) for n in range(0, 48000, 960)]
 
 
 def exercise_group(session, chart, count):
@@ -34,14 +42,14 @@ def exercise_group(session, chart, count):
     missed = phones[-1] if count > 2 else -1
     silence = threading.Event()
     endpoint = ('127.0.0.1', state['mobile_port'])
+    waveforms = [tone_frames(523 if i == missed else 440) for i in phones]
     def stream():
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             seq = 0
             deadline = time.monotonic()
             while not stop.is_set():
-                for i in phones:
-                    f = 523.25 if i == missed else 440
-                    pcm = struct.pack('<960h', *(round(8000 * math.sin(2*math.pi*f*(seq*960+j)/48000)) for j in range(960)))
+                for i, waveform in zip(phones, waveforms):
+                    pcm = waveform[seq % len(waveform)]
                     packet = struct.pack('<32sBI', secret.encode(), i, seq) + pcm
                     if i == 0 and silence.is_set():
                         # Replays and packets from a closed room must not resurrect the note.
@@ -62,13 +70,13 @@ def exercise_group(session, chart, count):
             assert live['scores'][missed] < min(v for i,v in enumerate(live['scores']) if i!=missed), live['scores']
         if count == 10:
             silence.set()
-            expired = session.wait(lambda s: s['position'] >= 3.8)
-            paused = session.wait(lambda s: s['position'] >= 4.8)
+            expired = session.wait(lambda s: s['tones'][0] == -1 and s['position'] >= live['position'] + 0.5)
+            paused = session.wait(lambda s: s['position'] >= expired['position'] + 0.5)
             assert paused['scores'][0] == expired['scores'][0], (expired,paused)
             assert paused['scores'][1] > expired['scores'][1]
             assert paused['tones'][0] == -1
             silence.clear()
-            resumed = session.wait(lambda s: s['position'] >= 5.8)
+            resumed = session.wait(lambda s: s['position'] > paused['position'] and s['scores'][0] > paused['scores'][0])
             assert resumed['scores'][0] > paused['scores'][0], (paused, resumed)
     finally:
         stop.set(); worker.join(2)

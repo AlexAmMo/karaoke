@@ -218,7 +218,7 @@ class Participants:
                 key = next((k for k in available if inputs[k].get("assigned") == slot + 1), None)
                 if not key and (explicit or len(voices) > 2):
                     key = next(iter(available), None)
-                if not key and (synthetic or (not explicit and len(voices) <= 2)):
+                if not key and not explicit and (synthetic or len(voices) <= 2):
                     key = f"auto:{slot}"
                 if not key:
                     raise SongError(

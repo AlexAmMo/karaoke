@@ -14,7 +14,7 @@ import time
 
 from . import catalog
 from .remote_server import RemoteError, RemoteServer, lan_addresses
-from .service import has_song_files, CatalogueSearch, work_key, normalize, source_name, spanish_search_terms
+from .service import CatalogueSearch, has_song_files, youtube_id, work_key, normalize, source_name, spanish_search_terms
 from .songs import SongError
 
 
@@ -230,7 +230,12 @@ class RemoteSession:
                           "message": {"error": "Preparación fallida. Puedes reintentar.",
                                       "missing": "Vuelve a importar el mapa y el audio en el ordenador.",
                                       "host": "Elige la edición en el ordenador."}.get(status, "")})
-        return {"revision": self.revision(rows), "queue": turns, "name": name, **self.host.party_state(),
+        preparations = []
+        for job in self.host.independent_preparations():
+            song = json.loads(job['payload']).get('song') or {}
+            preparations.append({'id': job['id'], 'title': song.get('title') or 'Paquete local', 'state': job['state']})
+        library = self.host.store.rows('SELECT count(*) AS count,max(created) AS updated FROM songs')[0]
+        return {"revision": self.revision(rows), "queue": turns, "preparations": preparations, "library_revision": library, "name": name, **self.host.party_state(),
                 "active": self.host.active, "paused": bool(self.host.engine.get("paused")),
                 "music": self.host.store.setting("music", 65),
                 "pitch_precision": self.host.pitch_precision,
@@ -259,9 +264,14 @@ class RemoteSession:
 
     def library(self, payload):
         page, query = self.page(payload)
-        words = catalog.tokens(query)
-        songs = [s for s in self.host.store.rows("SELECT * FROM songs ORDER BY artist,title,variant,id")
-                 if all(w in normalize(s["artist"] + " " + s["title"]) for w in words)
+        video = youtube_id(query)
+        if video:
+            rows = self.host.store.rows("""SELECT DISTINCT s.* FROM drafts d JOIN songs s ON s.id=d.song_id
+                                          WHERE d.video=? AND d.state='approved' ORDER BY s.artist,s.title,s.id""", (video,))
+        else:
+            rows = self.host.store.rows("SELECT * FROM songs ORDER BY artist,title,variant,id")
+        words = [] if video else catalog.tokens(query)
+        songs = [s for s in rows if all(w in normalize(s["artist"] + " " + s["title"]) for w in words)
                  and has_song_files(s)]
         start = page * 12
         return {"items": [self.library_row(s, family=True) for s in songs[start:start+12]],
@@ -420,6 +430,13 @@ class RemoteSession:
         op, item = payload.get("op"), payload.get("id", "")
         if not isinstance(item, str) or len(item) > 200:
             raise RemoteError("Selección no válida.")
+        if op in ("cancel-preparation", "retry-preparation"):
+            job = next((j for j in self.host.independent_preparations() if j['id'] == item), None)
+            allowed = ('error', 'cancelled') if op == 'retry-preparation' else ('waiting', 'working')
+            if not job or job['state'] not in allowed:
+                raise RemoteError('La preparación ha cambiado. Revisa su estado.', 409)
+            self.host.handle({'action': ('retry:' if op == 'retry-preparation' else 'cancel-job:') + item})
+            return {'ok': True}
         if op == "save":
             self.add(guest, item, None, None, queue=False)
             return {"ok": True}

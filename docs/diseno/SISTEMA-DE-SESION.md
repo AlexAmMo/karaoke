@@ -1,6 +1,6 @@
 # Sistema visual de la próxima versión de Karaoke
 
-Propuesta del 21 de noviembre de 2026 para el escenario nativo, el panel del ordenador y el mando móvil. La [maqueta navegable](sesion.html) permite probar búsqueda, descarga simulada, peticiones al anfitrión, cola y plegado. La letra del escenario es un ejemplo original. Los datos son ilustrativos. La versión instalada sigue descrita en [el diseño de 0.2](../../DESIGN.md).
+Propuesta del 21 de noviembre de 2026 para el escenario nativo, el panel del ordenador y el mando móvil. La [maqueta navegable](sesion.html) permite probar búsqueda, descarga simulada, peticiones al anfitrión, cola y plegado. La letra del escenario es un ejemplo original. Los datos son ilustrativos. La implementación de la rama de desarrollo está descrita en [Diseño de Karaoke](../../DESIGN.md).
 
 ## La sala y la distancia de lectura
 

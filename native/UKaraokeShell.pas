@@ -17,7 +17,7 @@ procedure ShellCaptureStop;
 implementation
 uses UKaraokePalette, SysUtils, Classes, Math, fpjson, jsonparser, UGraphic, UDisplay, URenderer,
   UText, UIni, USongs, USong, UPath, UMusic, URecord, UNote, UScreenMain, UScreenSong,
-  UKaraokeMobileAudio, UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
+  UKaraokeCalibration, UKaraokeMobileAudio, UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
 procedure SDL_free(mem: pointer); cdecl; external SDL_LibName name 'SDL_free';
 var
   Started: boolean = false;
@@ -38,6 +38,9 @@ var
   SavedChannels: array of array of integer;
   CaptureCount: integer;
   ActiveMobileSecret: RawByteString;
+  CalibrationState, CalibrationMessage: UTF8String;
+  CalibrationStarted: cardinal;
+  CalibrationResult: TCalibrationResult;
   CaptureTestFrame: boolean;
   Gains: array[0..KaraokeMaxSingers-1] of single;
   Hover: integer = -1;
@@ -88,6 +91,7 @@ begin
   case Focus of
     -12: Result:='stage';
     -11: Result:='panel';
+    -10: if Assigned(View) and (View.Get('undo','')<>'') then Result:='undo:'+View.Get('undo','');
     -9: Result:='page:Buscar';
     -8: Result:='page:Cola';
     -7: Result:='page:Ajustes';
@@ -302,7 +306,7 @@ type TRoute = record Device, Channel: integer; Mobile: boolean; Gain: single; De
 var R: array[0..KaraokeMaxSingers-1] of TRoute;
     Routes: TJSONArray; Entry: TJSONObject; I,K,D,C,Config: integer; HasMobile: boolean;
 begin
-  Result:=false; HasMobile:=false;
+  Result:=false; HasMobile:=false; KaraokeHasRouteDelay:=false;
   if not Assigned(J.Find('routes')) then
   begin
     // Historical turns can use the persistent Deluxe bindings.
@@ -350,6 +354,7 @@ begin
   for I:=0 to N-1 do
   begin
     MobileSlot[I]:=R[I].Mobile;
+    if R[I].DelayMs<>0 then KaraokeHasRouteDelay:=true;
     AudioInputProcessor.Sound[I].MonitorGain:=R[I].Gain;
     AudioInputProcessor.Sound[I].RouteDelayMs:=R[I].DelayMs;
     if not R[I].Mobile and not ShellSynthetic then
@@ -393,7 +398,7 @@ begin
       AudioInputProcessor.Sound[I].MonitorGain:=Gains[I];
     end;
   end;
-  CaptureActive:=false; MobileClose; ActiveMobileSecret:=''; RestoreRoutes;
+  CaptureActive:=false; KaraokeHasRouteDelay:=false; MobileClose; ActiveMobileSecret:=''; RestoreRoutes;
 end;
 
 function AllDevicesOpened(N: integer): boolean;
@@ -420,6 +425,36 @@ begin
     if (Slot>=0) and (Slot<CaptureCount) and MobileSlot[Slot] and not ScreenSing.Paused then
       AudioInputProcessor.Sound[Slot].TestFeed(@Frame[0], SizeOf(Frame));
   end;
+end;
+procedure BeginCalibration(J: TJSONObject);
+var Routes: TJSONObject; Entries: TJSONArray; Entry: TJSONObject;
+begin
+  if Singing or Assigned(Display.NextScreen) then begin ErrorText:='Mide el retorno entre canciones.'; Exit; end;
+  if TestingInput then begin ShellCaptureStop; TestingInput:=false; end;
+  CalibrationState:='failed';
+  CalibrationMessage:='No se pudo abrir la entrada seleccionada.';
+  CalibrationResult:=Default(TCalibrationResult);
+  if KaraokeOutputHz<=0 then begin CalibrationMessage:='No hay salida de audio disponible.'; Exit; end;
+  Routes:=TJSONObject.Create;
+  try
+    Entries:=TJSONArray.Create; Routes.Add('routes',Entries);
+    Entry:=TJSONObject.Create; Entries.Add(Entry);
+    Entry.Add('device',J.Get('device',-1)); Entry.Add('name',J.Get('name',''));
+    Entry.Add('channel',J.Get('channel',-1)); Entry.Add('gain',0.0);
+    if not InstallRoutes(Routes,1) then Exit;
+  finally Routes.Free; end;
+  PlayersPlay:=1; ShellCaptureStart;
+  if not AllDevicesOpened(1) then begin ShellCaptureStop; Exit; end;
+  CalibrationStart(SDL_GetPerformanceCounter*1000.0/SDL_GetPerformanceFrequency,KaraokeOutputHz);
+  CalibrationStarted:=SDL_GetTicks; CalibrationState:='running'; CalibrationMessage:='Escuchando siete pulsos…';
+end;
+
+procedure FinishCalibration;
+begin
+  CalibrationResult:=CalibrationFinish;
+  ShellCaptureStop;
+  if CalibrationResult.Success then begin CalibrationState:='done'; CalibrationMessage:='Recorrido del altavoz al micrófono.'; end
+  else begin CalibrationState:='failed'; CalibrationMessage:='No se distinguieron suficientes pulsos. Acerca el micrófono al altavoz y repite la medida.'; end;
 end;
 procedure BeginSong(J: TJSONObject);
 var I,K,N: integer; Names: TJSONArray; Found: boolean; FileName: string;
@@ -468,7 +503,10 @@ var Op: string; I,K,D,C,P: integer; SilentFrame: SmallInt; Probe: TJSONObject;
 begin
   Op:=J.Get('op','');
   ErrorText:='';
-  if Op='start' then BeginSong(J)
+  if CalibrationActive and ((Op='start') or (Op='testinput') or (Op='scan') or (Op='device') or (Op='calibrate')) then
+  begin ErrorText:='La medición termina en unos segundos.'; Exit; end;
+  if Op='calibrate' then BeginCalibration(J)
+  else if Op='start' then BeginSong(J)
   else if (Op='test-tone') and ShellSynthetic then
   begin
     I := J.Get('player',0);
@@ -609,6 +647,7 @@ begin
       end;
       PendingForget.Delete(0);
     end;
+  if CalibrationActive and (NowTick-CalibrationStarted>=CalibrationDurationMs) then FinishCalibration;
   if Singing then PollMobileAudio;
   if ShellSynthetic and (Singing or TestingInput) and not Assigned(Display.NextScreen) then
   begin
@@ -707,14 +746,23 @@ begin
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorPeak); J.Add('monitor_peaks',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].CaptureAgeMs); J.Add('input_age_ms',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].BlockFrames); J.Add('input_frames',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorQueueMs); J.Add('monitor_queue_ms',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorDroppedFrames); J.Add('monitor_dropped_frames',A);
       J.Add('max_singers',KaraokeMaxSingers); J.Add('mobile_port',MobilePort);
       J.Add('output_frames',KaraokeOutputFrames); J.Add('output_hz',KaraokeOutputHz);
+      O:=TJSONObject.Create; J.Add('calibration',O);
+      O.Add('status',CalibrationState); O.Add('message',CalibrationMessage);
+      O.Add('roundtrip_ms',CalibrationResult.RoundtripMs); O.Add('spread_ms',CalibrationResult.SpreadMs);
+      O.Add('samples',CalibrationResult.Samples);
       J.Add('audio_driver',KaraokeOutputDevice); J.Add('capture_backend',AudioInput.GetName);
       Devices:=TJSONArray.Create;
       for I:=0 to High(AudioInputProcessor.DeviceList) do
       begin
         O:=TJSONObject.Create;
         O.Add('index',I); O.Add('name',AudioInputProcessor.DeviceList[I].Name);
+        with AudioInputProcessor.DeviceList[I] do
+          if HasAdcTime and Capturing then O.Add('adc_to_callback_ms',AdcToCallbackMs);
+        O.Add('input_overflows',AudioInputProcessor.DeviceList[I].Overflows);
         O.Add('channels',AudioInputProcessor.DeviceList[I].AudioFormat.Channels);
         O.Add('hz',AudioInputProcessor.DeviceList[I].AudioFormat.SampleRate);
         A:=TJSONArray.Create;
@@ -1016,6 +1064,8 @@ function TabBox(I:integer):TBox;
 const Left:array[1..3] of integer=(16,98,255);
       Widths:array[1..3] of integer=(70,80,78);
 begin Result:=Box(Left[I],10,Widths[I],44); end;
+function UndoBox:TBox;
+begin Result:=Box(174,10,80,44); end;
 function FoldBox:TBox;
 begin Result:=Box(346,13,42,38); end;
 function RestoreBox:TBox;
@@ -1243,6 +1293,11 @@ begin
     LabelX:=B.X+Max(4.0,(B.W-TextWidth(Value))/2);
     LabelAt(LabelX,B.Y+13,16,Value,B.W-6,I<>CurrentTab);
   end;
+  if Assigned(View) and (View.Get('undo','')<>'') then
+  begin
+    B:=UndoBox; if Focus=-10 then FocusInset(B); Surface(B,7,InkRaised);
+    LabelAt(B.X+6,B.Y+13,14,'Deshacer',B.W-10);
+  end;
   B:=FoldBox; if Focus=-11 then FocusInset(B);
   if PanelHover or (Focus=-11) then Surface(B,7,InkRaised);
   // Sidebar glyph: a pane divider and a closing chevron.
@@ -1388,6 +1443,7 @@ begin
   begin SetLength(Targets,5); Targets[0]:=-12; Targets[1]:=-11; for I:=1 to 3 do Targets[I+1]:=I-10; end;
   if Assigned(View) then
   begin
+    if View.Get('undo','')<>'' then begin P:=Length(Targets); SetLength(Targets,P+1); Targets[P]:=-10; end;
     A:=View.Arrays['rows'];
     for I:=0 to A.Count-1 do
       if (TJSONObject(A[I]).Get('action','')<>'') or (TJSONObject(A[I]).Get('add_action','')<>'') then
@@ -1495,7 +1551,8 @@ begin
     if X>=ScreenW-SideWidth then
     begin
       Result:=true; X:=Round((X-ScreenW+SideWidth)*400/SideWidth);
-      if Inside(FoldBox,X,Y) then SetPanelCollapsed(true)
+      if Assigned(View) and (View.Get('undo','')<>'') and Inside(UndoBox,X,Y) then Emit('undo:'+View.Get('undo',''))
+      else if Inside(FoldBox,X,Y) then SetPanelCollapsed(true)
       else if (Y>=TabBox(1).Y) and (Y<TabBox(1).Y+TabBox(1).H) then
       begin
         for I:=1 to 3 do if Inside(TabBox(I),X,Y) then

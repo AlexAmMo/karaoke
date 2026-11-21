@@ -120,13 +120,20 @@ class CatalogueSearch:
 
     def local_results(self, query):
         items = {catalog.source_key(s): s for s in catalog.starter_songs(query) + catalog.assisted_songs(query)}
-        if not youtube_id(query):
-            for saved in self.store.rows("SELECT * FROM songs ORDER BY artist,title,id"):
-                if catalog.matches(query, saved):
-                    source = saved.get("source") or ""
-                    if not source.startswith(("usdb:", "deluxe:", "allkaraoke:")):
-                        source = "local:" + saved["id"]
-                    items[source] = {**saved, "source": source, "library_id": saved["id"]}
+        video = youtube_id(query)
+        if video:
+            local = self.store.rows("""SELECT s.* FROM drafts d JOIN songs s ON s.id=d.song_id
+                                      WHERE d.video=? AND d.state='approved' ORDER BY d.created DESC""", (video,))
+        else:
+            local = self.store.rows("SELECT * FROM songs ORDER BY artist,title,id")
+        for saved in local:
+            if video or catalog.matches(query, saved):
+                source = saved.get("source") or ""
+                if not source.startswith(("usdb:", "deluxe:", "allkaraoke:")):
+                    source = "local:" + saved["id"]
+                items[source] = {**saved, "source": source, "library_id": saved["id"]}
+                if video:
+                    items[source]["video_id"] = video
         return sorted(items.values(), key=lambda s: catalog.rank(query, s))
 
     def grouped_results(self):
@@ -144,6 +151,11 @@ class CatalogueSearch:
             self.grouped_source = self.results
             self.grouped_query = self.query
             groups = group_results(self.results)
+            video = youtube_id(self.query)
+            if video and any(song.get("library_id") and song.get("video_id") == video for song in self.results):
+                exact = [song for song in self.results if song.get("video_id") == video]
+                others = [song for song in self.results if song.get("video_id") != video]
+                groups = [exact, *group_results(others)]
             # Keep relevance order among obtainable songs. A catalogue reference
             # without a download appears after them, including across pages.
             self.grouped_cache = sorted(groups, key=lambda group: (
@@ -874,6 +886,11 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             self.store.request(source, {"kind": "import", "chart": str(chart)}, None)
         self.message = f"{len(charts)} paquetes pendientes de validación e importación."
         self.page = "Cola"
+
+    def independent_preparations(self):
+        return self.store.rows("""SELECT j.* FROM jobs j WHERE j.state IN ('waiting','working','error','cancelled')
+                AND NOT EXISTS (SELECT 1 FROM turns t WHERE t.source=j.source
+                                AND t.state IN ('queued','starting','singing')) ORDER BY j.created""")
 
     def clean_catalogue_reviews(self):
         # Keep the input of persistent jobs across retries and application restarts.
@@ -1807,13 +1824,11 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 button("Turnos anteriores", "queue:previous")
             if start + 12 < len(turns):
                 button("Más turnos", "queue:next")
-            pending = self.store.rows("""SELECT 1 FROM jobs j WHERE j.state!='ready' AND NOT EXISTS
-                (SELECT 1 FROM turns t WHERE t.source=j.source AND t.state IN ('queued','starting','singing')) LIMIT 1""")
-            if pending:
+            if self.independent_preparations():
                 button("Ver preparaciones", "page:Preparaciones", style="link")
             button("Conectar móviles", "remote:start", style="link")
         elif self.page == "Preparaciones":
-            jobs = self.store.rows("SELECT * FROM jobs WHERE state!='ready' ORDER BY created")
+            jobs = self.independent_preparations()
             if not jobs:
                 text("Preparaciones terminadas")
             for job in jobs:

@@ -10,7 +10,7 @@ procedure MobileClose;
 function MobilePort: integer;
 function MobileRead(out Slot: integer; out Frame: TMobileFrame): boolean;
 implementation
-uses Sockets, SysUtils, {$IFDEF MSWINDOWS} WinSock2 {$ELSE} BaseUnix {$ENDIF};
+uses SysUtils, {$IFDEF MSWINDOWS} WinSock2 {$ELSE} BaseUnix {$ENDIF}, Sockets;
 type TPacket = packed record
   Secret: array[0..31] of AnsiChar;
   Slot: byte;

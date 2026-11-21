@@ -129,16 +129,17 @@ def test_versions_page_reaches_later_maps_and_can_queue_saved_edition(tmp_path, 
 
     service = Service(tmp_path / "app")
     try:
-        service.results = [{"artist": "Fixture", "title": "Tema", "song_id": k} for k in range(1, 16)]
+        service.results = [{"artist": "Fixture", "title": "Canción de prueba", "song_id": k} for k in range(1, 16)]
         saved = import_package(package, service.library)
         service.store.save_song(saved, "usdb:15")
         service.handle({"action": "result:editions:0:usdb:1"})
-        rows = service.view()["rows"]
-        assert len([r for r in rows if r["kind"] == "song"]) == 12
+        first_page = [r for r in service.view()["rows"] if r["kind"] == "song"]
+        assert len(first_page) == 12
         service.handle({"action": "editions:next"})
-        rows = [r for r in service.view()["rows"] if r["kind"] == "song"]
-        assert len(rows) == 3 and rows[-1]["action"] == "song:" + saved["id"]
-        service.handle({"action": rows[-1]["add_action"]})
+        second_page = [r for r in service.view()["rows"] if r["kind"] == "song"]
+        assert len(second_page) == 3
+        saved_row = next(r for r in first_page + second_page if r["action"] == "song:" + saved["id"])
+        service.handle({"action": saved_row["add_action"]})
         assert service.store.queue()[0]["song_id"] == saved["id"]
     finally:
         service.close()
