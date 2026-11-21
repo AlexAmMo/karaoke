@@ -24,6 +24,8 @@ La prueba sintética enumera todos los caminos de cuatro fotogramas y cuatro cla
 
 La tanda completa procesó **40/40 canciones y congeló 160 decisiones/textos el 21-11-2026 a las 19:06:28 UTC**, antes de evaluar. Tardó 68,79 s, con máximo residente de 48.300.032 bytes (46,1 MiB), un proceso CPU y cero swaps. No hubo candidatos inválidos ni ausencias. La canción del piloto reprodujo exactamente sus cuatro probabilidades y textos en la tanda. Los registros son `pilot-v1.log` y `full-v1.log`, bajo `build/generation-next/lyrics-acoustic/`.
 
+Una auditoría independiente verificó las **40 identidades**, recalculó **80 WER** mediante otra implementación de Levenshtein y comprobó las **160 elecciones y 240 filas del CSV**, sin discrepancias. La enumeración exhaustiva de **243 casos sintéticos CTC** coincidió con la recurrencia con error máximo de 1,78 × 10⁻¹⁵; doce probabilidades de canciones completas también se reprodujeron exactamente desde los cachés. Los conteos dentro de los umbrales no cambiaron al usar WER sin redondear. El resumen con hashes y conteos, sin letras, queda en `build/generation-next/lyrics-acoustic/independent-audit.json`; reutiliza estos resultados, sin regenerar la evaluación congelada ni cargar modelos o GPU.
+
 ## Resultados completos
 
 Las cifras de WER son medianas por canción. «Mejora/peor/igual» compara cada canción con su misma base; no suma variantes distintas ni elige una por referencia.

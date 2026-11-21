@@ -26,7 +26,13 @@ Las diez pruebas de regresión comprueban el rechazo de MPS y de la ventana de v
 
 La suite completa, que incluye estas [pruebas de límites](../../tests/test_lead_vocals_limits.py), pasa **240 pruebas en 19,42 segundos** en el Mac después del reinicio. Se conserva el informe original de macOS y un resumen de campos relevantes; no se publica su volcado de procesos ni se modifica el sistema para reproducirlo.
 
-La estimación previa es de 1,29 GiB para cuatro segundos y 17,09 GiB para veinte; el umbral es 2 GiB. Es una estimación preventiva, **no un límite garantizado de memoria del proceso**. La configuración CPU nueva todavía no tiene resultados de inferencia ni de calidad musical. El Mac queda silenciado y no se modifica la instalación pública 0.3.1.
+El mismo código del commit `04f2945` pasa las 240 pruebas en los runners de macOS, Ubuntu y Windows Server 2022 de la [ejecución 44939711109](https://github.com/AlexAmMo/karaoke/actions/runs/44939711109). Esa ejecución valida las guardias y la suite Python; no ejecuta el separador, construye instaladores nuevos ni acredita estabilidad de hardware Windows.
+
+La estimación previa es de 1,29 GiB para cuatro segundos y 17,09 GiB para veinte; el umbral es 2 GiB. Es una estimación preventiva, **no un límite garantizado de memoria del proceso**.
+
+Después de comprobar la recuperación de memoria se ejecutó un único control sintético de **cuatro segundos en CPU**, con plazo máximo de 60 segundos, en otro directorio (`pilot-cpu-v2-probe-60s`). Terminó con salida cero, 2,91 segundos de inferencia y 5,04 segundos totales. La salida conserva las 176.400 muestras de los dos canales y todos sus valores son finitos. El pico RSS observado por `time -l` fue 1.057.406.976 bytes (1.008,42 MiB). Su campo de huella física corresponde al supervisor externo, no al trabajador que cargó el modelo: no se compara con la huella de 14,45 GiB del ensayo MPS como si fueran mediciones equivalentes. La memoria inmovilizada del sistema se mantuvo en unos 1,51 GiB y el trabajador terminó y fue recogido.
+
+Este control comprueba una inferencia corta con la ventana nueva; **no valida todavía una canción completa, el solapamiento de ventanas o la calidad musical**. No se continuó automáticamente con el piloto musical. El Mac queda silenciado y no se modifica la instalación pública 0.3.1.
 
 El selector de letras prosigue de forma independiente sobre probabilidades ya guardadas: no carga modelos ni utiliza GPU. Su cálculo CTC usa dos filas reutilizables en lugar de almacenar la retícula completa; el ensayo de cuarenta canciones terminó con unos 46 MiB de memoria residente. Esto permite continuar la investigación mientras se verifica la prevención del incidente.
 

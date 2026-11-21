@@ -13,6 +13,8 @@ Esta rama de desarrollo conserva la publicación 0.3.1. Las alternativas de gene
 
 Las 230 pruebas Python pasan localmente en el M4 y en los tres runners de GitHub Actions (macOS, Ubuntu y Windows Server 2022) sobre `ab309b4`. La [ejecución 44937079628](https://github.com/AlexAmMo/karaoke/actions/runs/44937079628) repite la validación después de corregir UTF-8 en los fixtures y el adaptador experimental de letras; la ejecución anterior detectó ese fallo sólo en Windows. Esta ejecución usa `target=tests`: no construye ni instala paquetes nuevos y no valida audio físico. El motor de desarrollo recompilado sí pasa la sesión local de 21 controles y el ensayo de reloj, con entrada sintética.
 
+Después del reinicio se añaden diez pruebas de límites del separador experimental: **240 pruebas pasan** en el M4 (19,42 s) y sobre `04f2945` en la [ejecución 44939711109](https://github.com/AlexAmMo/karaoke/actions/runs/44939711109): Ubuntu 30,48 s, macOS 64,28 s y Windows Server 2022 55,23 s. También usa `target=tests`; comprueba código y sintaxis de instaladores, sin generar paquetes ni probar hardware de audio de Windows. El control sintético del modelo en CPU se ejecutó únicamente en el M4, con el alcance limitado documentado en el informe del incidente.
+
 ## Generación verificada y reloj del micrófono
 
 - [Comparación sobre las mismas 40 grabaciones y controles de admisión](validation/generacion-youtube-y-retorno.md)

@@ -73,7 +73,7 @@ Este cálculo usa una recurrencia CTC con filas reutilizables, comprobada contra
 
 El ensayo de BS Roformer de voz principal coincidió con un reinicio del Mac por watchdog. La presión de memoria de la atención temporal en ventanas de veinte segundos es el desencadenante probable, sin demostrar una causa exclusiva del fallo del núcleo. No se completó ninguna separación musical ni se incorporó el modelo al producto.
 
-Se retiró MPS del adaptador, se limitaron las ventanas de continuación a CPU con estimación previa y se supervisaron tiempos y cierre de trabajadores. Diez pruebas comprueban estas guardias sin inferencia; no equivalen a validar la estabilidad o la calidad de una nueva inferencia. El [informe del incidente](reinicio-experimento-2026-11-21.md) documenta los registros, la finalización del proceso y las medidas preventivas. La instalación pública 0.3.1 conserva su código original.
+Se retiró MPS del adaptador, se limitaron las ventanas de continuación a CPU con estimación previa y se supervisaron tiempos y cierre de trabajadores. Diez pruebas comprueban estas guardias sin inferencia. Tras recuperar la memoria se completó un único control sintético de cuatro segundos en CPU: salida finita, 2,91 segundos de inferencia y unos 1.008 MiB de pico RSS observado. Esto no valida todavía una canción completa ni su calidad musical. El [informe del incidente](reinicio-experimento-2026-11-21.md) documenta los registros, las limitaciones de medición y las medidas preventivas. La instalación pública 0.3.1 conserva su código original.
 
 ## Investigación reutilizable
 
