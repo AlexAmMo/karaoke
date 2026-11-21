@@ -21,7 +21,10 @@ Esta rama de desarrollo conserva la publicación 0.3.1. Las alternativas de gene
 - [Recursos de Turbo: carga, conversión y presupuesto previo](validation/research-recursos-turbo-2026-11-21.md)
 - [Silencio digital: regresión corregida sin descartar voces bajas](validation/generacion-silencio-digital-2026-11-21.md)
 - [Siguientes límites de nota: STARS condicionado y alternativas descartadas](validation/research-proximos-limites-nota-2026-11-21.md)
-- [HeartTranscriptor: ruta CPU y presupuesto previo, aún sin evaluación musical](validation/research-heart-cpu-2026-11-21.md)
+- [HeartTranscriptor: conversión CPU medida, corrección del validador y archivos congelados](validation/research-heart-cpu-2026-11-21.md)
+- [Heart ASR: comparación fija de cuatro voces y protocolo de evaluación](validation/research-heart-asr-2026-11-21.md)
+
+Los adaptadores Heart del commit `b52f17d` pasan la [ejecución 44949524476](https://github.com/AlexAmMo/karaoke/actions/runs/44949524476): **309 pruebas y una omisión en macOS** (76,60 s), **308 y dos omisiones en Ubuntu** (33,66 s), **306 y cuatro omisiones en Windows** (54,58 s). Se añade una omisión común por SciPy, disponible sólo en el entorno opcional de investigación; ese control de audio sí pasó allí sin reconocedores. Las otras omisiones siguen siendo de plataforma. CI valida código y sintaxis de instaladores; no carga Heart ni ejecuta inferencia en esos runners. El log se conserva en `build/ci-heart-44949524476/run.log`.
 
 La [ejecución 44946407956](https://github.com/AlexAmMo/karaoke/actions/runs/44946407956), sobre `551247c`, valida la guardia de silencio y la comprobación de todos los artefactos ASR antes de consultar referencias: **261 pruebas en macOS** (68,51 s), **260 más una omisión en Ubuntu** (31,88 s) y **258 más tres omisiones en Windows** (51,50 s). Las omisiones siguen siendo las de plataforma descritas abajo. La suite integrada local pasa 261 pruebas en 18,72 s. Es una ejecución `target=tests`, sin paquetes nuevos ni inferencia de modelos en los runners; su log está en `build/ci-silence-44946407956/run.log`.
 
