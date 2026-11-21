@@ -6,7 +6,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "92b093a17f15538eeff3cc4abd7da224db4011ff88389882b121770ae32948b5",
     "chart_sha": "89d0d771278aa618676773f76d0840ead725e74e714131e2c24c666db5ed81c9",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "b74fb75b228c172c84dfa04d41d563b98c6307f04980883062beb3641ea3c33e"
   },
   {
     "tag": "dead-smiling-pirates-i-18",
@@ -15,7 +16,8 @@
     "artist": "Dead Smiling Pirates",
     "audio_sha": "6770d2cbf64c9500b222001f02a5c745a252615e9009ec0b35035bb2e54cc178",
     "chart_sha": "b7598ef7356a90bf3b7f497e72cff0ee9f5cae00f5a64173b234c953fbeed63a",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "bdbc0b50a16d4168f2bfdb38dc641f0c011faad22f024c7e2e55b9e1f3661a6a"
   },
   {
     "tag": "shearer-consequence-of-dawn",
@@ -24,7 +26,8 @@
     "artist": "Shearer",
     "audio_sha": "c581890163ccf318c34608a13e3f97cda5be25ae9a0db6dd5e5fd1b9dfc0bc45",
     "chart_sha": "e97a5fffd98ad38472074c3d971b45bff76b3b5599b1059d2ab89173b49e83f2",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "5052060a22130ff31865168b23ce58fdeb301ea87c8bfda131cd18ead1bfb8b8"
   },
   {
     "tag": "fairy-bot-orchestra-heaven-can-t-wait",
@@ -33,7 +36,8 @@
     "artist": "Fairy Bot Orchestra",
     "audio_sha": "ef5a50da1b0caafc6d93072814ba07b6eeacde7559ce64feab28375f82d92ac2",
     "chart_sha": "bb141f02d084bf9cab6199962d0b68a446d567e4480ddaf3d11b4ad322b534c6",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "341fd2527c3f251365cef9513bee432b70c5912101976ef6ea2721ce0a1af7c6"
   },
   {
     "tag": "silver-note-chasing-marks",
@@ -42,7 +46,8 @@
     "artist": "Silver Note",
     "audio_sha": "a092fe52ce64c5e1dc0abf18b22e9fda2a184a685a4a363c56573c90270a7ead",
     "chart_sha": "5140342e69d89f8f8da5e146ded4eaa78f5584ace35271b9b09b79e6e483b000",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "71d872f2a7fdd409bab5efa43bb4ab5df294f560682abb1940f5bccf8e7ffe60"
   },
   {
     "tag": "on-the-run",
@@ -51,7 +56,8 @@
     "artist": "Joshua Morin",
     "audio_sha": "5ba89ddf982ee0144b6977c813b86e0f69d773e6593bf0e444ed2349f517a2a8",
     "chart_sha": "4d05f5070b8755e2bbae267db1eda9cc94bddc429f0a7ee4ab479e3d55a316fb",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "d7eb27fdadd8c6a018955541ac0f577240d81f85e68e99447151a9843cf8ba86"
   },
   {
     "tag": "pornophonique-space-invaders",
@@ -60,7 +66,8 @@
     "artist": "Pornophonique",
     "audio_sha": "de567daa4f3d114ec1e098721c44cdcf11cfbf572998cff45293336433ab39a9",
     "chart_sha": "cd9333183fed2ea581ca881fb722795d7a069b8747c5b1a4472736b40df8b638",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "e13d71e0c95dad9780d7b8d9b0cb27fe05b6cd6585645b0d5dcf2cafff7fe096"
   },
   {
     "tag": "wasteland-wailers-dare-master",
@@ -69,7 +76,8 @@
     "artist": "Wasteland Wailers",
     "audio_sha": "7a332c60f7b726c5cab010ef8580902ccb8fe77c75b0d36ab9722a518e8b3a18",
     "chart_sha": "78dd01a49efdec1d4adbceeb9e3ef082718d7b6bf5f9755038db93bd1d481be2",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "56e6333090f4c711cf3a892782f2d24a74f048b206adb4bc6dd62c72e2fa0812"
   },
   {
     "tag": "northern-star",
@@ -78,7 +86,8 @@
     "artist": "Steven Dunston",
     "audio_sha": "6b0556b54099ee33a7977aeef2b7a90cea116f1780668fedfab6bc78149a0afe",
     "chart_sha": "a875a0e8d895f15201271c88e351a1eee6118907589d071362dd90dbb9588d4f",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "16259d48797712c2cdd32f6d7644849c47fa3469a5ffed5e987a480dc6527e8e"
   },
   {
     "tag": "jonathan-coulton-monkey-shines",
@@ -87,7 +96,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "f485cff6768dc4bf95f713bf20e672016477bbca57cb3e40873cd76cdb877771",
     "chart_sha": "d3bbc96916f15daa6e122ca71fe66f98831f7932ae14429931d2dbb045c36598",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "8283ee83de3b1b713c00bf36410fa5d2c03935d260a2c7538ed81dcc8a2c0314"
   },
   {
     "tag": "jonathan-coulton-i-feel-fantastic",
@@ -96,7 +106,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "0dcabdde9907ae45e91ee3f03652c1f2d49902706104c5da019f0042b9a3370c",
     "chart_sha": "b0e705e3a59628069e9cc75d4d930dce20a62c4faf1d0899e1565f381810ca7a",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "7973cf6e1d4671385a9e62167a0420c5cb0920258c16d303186a7d66e7683b68"
   },
   {
     "tag": "jonathan-coulton-not-about-you",
@@ -105,7 +116,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "4e3154ed1f4ccc9a7d33142c6da21652912817c010176164e56311cfbb7c12be",
     "chart_sha": "bebd3d7471ef4ce5ed95d828185d5c09a661563d498ba059c8e60ad336008fae",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "3bfbbc815eb59385d69a5b9de0e5f8204813b4a29a6c7351ab1129c54949f0f6"
   },
   {
     "tag": "jonathan-coulton-first-of-may",
@@ -114,7 +126,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "c582405b3705d6c517ee79b420251ec25b67d9394b6aba8d7c759f015f16674b",
     "chart_sha": "a64bc6b019b764d5074f48f23e67c1751c96ad66a09961e5434168c3b1bd50af",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "31c35d410fad5afb52019c99ad0ad7d73eb66af77ce25ee7d08055e1239b7cbc"
   },
   {
     "tag": "jonathan-coulton-when-you-go",
@@ -123,7 +136,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "02eb9f853dffbfe067e33b99300cb8226bb60a5259a965c7a54b50494c35df20",
     "chart_sha": "dd7f847a1f5e74ea08194e2d119e2b6ceb55e399be502e9214fd797b8f352ed2",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "e8911ba5c39689dcfc3227d73dd207f9f1ba9de47c6a0e50552d54647a1b0d04"
   },
   {
     "tag": "jonathan-coulton-code-monkey",
@@ -132,7 +146,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "621732e2478f612ba4d15024d275e5cab7e127e347b41054d995cc66f0a1b36e",
     "chart_sha": "87a3bfb1d3a77eee3f1ec0de3e309b373f8286d783139e782121ea161210371a",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "5a9d26a932ad1a0d0fd04bfae8474e859433ea8739fa027836a1e830333fdad9"
   },
   {
     "tag": "jonathan-coulton-flickr",
@@ -141,7 +156,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "32f1484bf4161060213480eb44f04151f17290368fbebfb991a2f340e879bf74",
     "chart_sha": "6a907996cca64db610de4c2e62504a91efacb08e9c950210e148a4c5ae7fd577",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "d672c2b6ccd43ac80fb38f33fbc4406ea4bca9a67541c8f704efdfdd623ff0ed"
   },
   {
     "tag": "shearer-stay-with-me",
@@ -150,7 +166,8 @@
     "artist": "Shearer",
     "audio_sha": "f65c439e9efaf6e4d9450904a8d4f2613d90948973ef01297be282a9ba9846f0",
     "chart_sha": "6e5cfef4b6f4f3098776e50e194630c9e4faad6a85ab64fc7c4174a35750ce6c",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "5f3a47ce3b76b0d7736cba1f8e80e73816aa886fe58be76a1167dc6b4d9b465f"
   },
   {
     "tag": "jonathan-coulton-chiron-beta-prime",
@@ -159,7 +176,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "a2bfd1c1e8fafa0c75f6da6b7e34265a328600b55910bd20472e6194fadf2d51",
     "chart_sha": "29bf09852801f2b94b5052eb57c230fa0032dfc26cf41be840bc30652d4ed236",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "f16ab634e706d7cfc671d2e1b99561f1d2aeb585a7540ed5a335757a529cb878"
   },
   {
     "tag": "jonathan-coulton-re-your-brains",
@@ -168,7 +186,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "4dfb47499fe76ba682fe894c462a9facbde025ed6dd0848b4ff15e1bebc51ce7",
     "chart_sha": "6264d309a1428346d8cc3ce8555e4d72b119dfcfb6e87086b92ad0285e28e17f",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "78dadd74ddc5ef2cbfeb3dcafc752da2f49359719704b83d6e6c4729efc7f110"
   },
   {
     "tag": "jonathan-coulton-creepy-doll",
@@ -177,7 +196,8 @@
     "artist": "Jonathan Coulton",
     "audio_sha": "86d632959d827108726d54633770cc922af5e1f254e07575a9dbb1079562d480",
     "chart_sha": "2d381eb6fa31ec7480cf48bd2da9bc97914bcec42bebb8934d3cf876eaea5277",
-    "source": "deluxe"
+    "source": "deluxe",
+    "pcm_sha256": "61759866321c8146e6886f7d85849f627ae749bfbf606ebe26632c88d2a1afe2"
   },
   {
     "tag": "abba-estoy-sonando",
@@ -188,7 +208,8 @@
     "chart_sha": "4e0cc6dbb6b502c57c8e24450fa7ddc1e1486e8fa16e434718225d9fd13b7b33",
     "source": "allkaraoke",
     "video_id": "jlC3otqX8bc",
-    "reference_duration": 281
+    "reference_duration": 281,
+    "pcm_sha256": "bd816bf5af53dab315074fb63349b4d341968ea2a3a8660bd75a08ea50dd4b2f"
   },
   {
     "tag": "amaia-y-alfred-tu-cancion",
@@ -199,7 +220,8 @@
     "chart_sha": "95302a689e32b425226f613e2fe2eb90185f97acc67bad976aca3359268b2aa3",
     "source": "allkaraoke",
     "video_id": "RDm-GGHYfU4",
-    "reference_duration": 197
+    "reference_duration": 197,
+    "pcm_sha256": "323c816aef7217f203c7f7607711421120071ac31243e62efbbb610646f10150"
   },
   {
     "tag": "enanitos-verdes-lamento-boliviano",
@@ -210,7 +232,8 @@
     "chart_sha": "4a05ce46c0204175a377d824298a0060d9bee63fceec9bd702bff490d65774dd",
     "source": "allkaraoke",
     "video_id": "9eW5zIOCjOw",
-    "reference_duration": 228
+    "reference_duration": 228,
+    "pcm_sha256": "e8fdafdd7443156d4b1e2a7df565a479c7a75f0e586b80b0f670d49bbeb90a52"
   },
   {
     "tag": "cristian-castro-azul",
@@ -221,7 +244,8 @@
     "chart_sha": "bce3e392d9ac3f6eb7b43e750d23f349d730fa41f30f91546d0a219d624e7ddf",
     "source": "allkaraoke",
     "video_id": "29NM6ySmwfQ",
-    "reference_duration": 264
+    "reference_duration": 264,
+    "pcm_sha256": "77693c6d8b236f319729bedd3a55d8fd0dd919a6edb4ec567c34d0711ce8a769"
   },
   {
     "tag": "karina-corazon-mentiroso",
@@ -232,7 +256,8 @@
     "chart_sha": "85c2b6164c73a4df35e15bdd763632ba363b67498af9cd1b46fe78d9f75232c1",
     "source": "allkaraoke",
     "video_id": "kWjYDyCwZI0",
-    "reference_duration": 180
+    "reference_duration": 180,
+    "pcm_sha256": "8c89b80d788e73f2ffaca1fac176ed9515ce66682a374d71303d942ae02c3d52"
   },
   {
     "tag": "fito-paez-11-y-6",
@@ -243,7 +268,8 @@
     "chart_sha": "9f3f9aa2ca7fa61850cfe801ba0147097a87f7b17b99709889784854523044c3",
     "source": "allkaraoke",
     "video_id": "ZweylZ8uiuw",
-    "reference_duration": 266
+    "reference_duration": 266,
+    "pcm_sha256": "7a717b3556f4dc31caa1d13fabf1d8cee639dcfdaf8c86eb8638bb30d1608956"
   },
   {
     "tag": "despistaos-fisica-o-quimica",
@@ -254,7 +280,8 @@
     "chart_sha": "23e923c431df1b231a67195bf3d9251641f6b9e4bc2cca52204dd9b283813104",
     "source": "allkaraoke",
     "video_id": "6ikznQPMSv0",
-    "reference_duration": 196
+    "reference_duration": 196,
+    "pcm_sha256": "934671ce2216f61cea2cb782be903c2a88922da38f9fb665f77f14041db09b3d"
   },
   {
     "tag": "31-minutos-la-senora-interesante",
@@ -265,7 +292,8 @@
     "chart_sha": "bd86aeca5a219bd7a12e1e85ac1f7ce4f045de3955e9fe961ba32b82111aa660",
     "source": "allkaraoke",
     "video_id": "S5nAZXrYJnE",
-    "reference_duration": 150
+    "reference_duration": 150,
+    "pcm_sha256": "8e6d07cdb541a72aa147a5f7d2e194ff2b39c47934459d17655a7074e576f091"
   },
   {
     "tag": "alejandro-sanz-mi-soledad-y-yo",
@@ -276,7 +304,8 @@
     "chart_sha": "f11b2946964ceb0d99baabd02d57e687e528afdc835b3dec0aa6ea41815820c2",
     "source": "allkaraoke",
     "video_id": "6bnj1EvgjSE",
-    "reference_duration": 299
+    "reference_duration": 299,
+    "pcm_sha256": "45af3638859622e12711f0edb9e0a392a4520d4f5c3542453b646c8e1528bdc3"
   },
   {
     "tag": "fito-y-fitipaldis-por-la-boca-vive-el-pez",
@@ -287,7 +316,8 @@
     "chart_sha": "5f072e63f27d44e5b1139424a936136d9c930d1b6a801a9588bdf5097790145d",
     "source": "allkaraoke",
     "video_id": "iUXs4Nt3Y7Y",
-    "reference_duration": 271
+    "reference_duration": 271,
+    "pcm_sha256": "fc13dd1934c7bfd8a6f72330a2bbd50851080ed1500d4340772c5c588b33d990"
   },
   {
     "tag": "el-sueno-de-morfeo-contigo-hasta-el-final",
@@ -298,7 +328,8 @@
     "chart_sha": "65fe4fb12f638cb2036f5edfde6a6aae7bfda477e21b916ca27bff0ed0e27c05",
     "source": "allkaraoke",
     "video_id": "WQCvukXs35Y",
-    "reference_duration": 189
+    "reference_duration": 189,
+    "pcm_sha256": "01bbe67bd57e28fa9c9d51e5cf62fe0a14c67bd1aebd3f0a8c0ec06db0617468"
   },
   {
     "tag": "bad-bunny-amorfoda",
@@ -309,7 +340,8 @@
     "chart_sha": "714a46c9e3d38447a296101c933273597bafa4233d6684aba305502adb169c6b",
     "source": "allkaraoke",
     "video_id": "kLpH1nSLJSs",
-    "reference_duration": 177
+    "reference_duration": 177,
+    "pcm_sha256": "3f46fc377c34a9515eb5abd3539976e2f97ce0517630aff5d1dd730cfaf27301"
   },
   {
     "tag": "shakira-loba",
@@ -320,7 +352,8 @@
     "chart_sha": "caab0ba8c8f069740979146e9dd58a10b5468738c9dc631883238bc6e1a0fcce",
     "source": "allkaraoke",
     "video_id": "C7ssrLSheg4",
-    "reference_duration": 230
+    "reference_duration": 230,
+    "pcm_sha256": "3be88223e64cdb040c5d2eef9dd4c973322df59810b7924a6c6036df8b70ac8c"
   },
   {
     "tag": "kudai-escapar",
@@ -331,7 +364,8 @@
     "chart_sha": "c449ff1cb32fe68bb2990f3949c43791979f7754d37427ff6714d6d9a4cf4c28",
     "source": "allkaraoke",
     "video_id": "yAkoQxjDfp8",
-    "reference_duration": 281
+    "reference_duration": 281,
+    "pcm_sha256": "b7fe3ff29567be9a1dad30f904b8ae39a9a4cef3ea08d8ca4bdc7fcf30287409"
   },
   {
     "tag": "selena-como-la-flor",
@@ -342,7 +376,8 @@
     "chart_sha": "a88927a9469de0a2f9ce739e0d8d74f48e2ab4141012b2d2d912953a5b99f643",
     "source": "allkaraoke",
     "video_id": "JsUt2jsLM1k",
-    "reference_duration": 183
+    "reference_duration": 183,
+    "pcm_sha256": "97c6e86c7fd227d049f0f770952ef907c894d713d2e3b9aa06232c06304bb468"
   },
   {
     "tag": "la-noche-quiero-ser-libre",
@@ -353,7 +388,8 @@
     "chart_sha": "2e7c9f7b654c16c70f60427859e71488be280de0c63a3d6e69e240d92686d9af",
     "source": "allkaraoke",
     "video_id": "Y2m4VEjbM4o",
-    "reference_duration": 221
+    "reference_duration": 221,
+    "pcm_sha256": "fb43e5d63b222ac4107c0b7cd78bc049ffdae3f4ed389f2cabe7e2fb01859cbf"
   },
   {
     "tag": "shakira-y-ozuna-monotonia",
@@ -364,7 +400,8 @@
     "chart_sha": "380927a5a85178d12133059f533cf779f4be99943150d02303f4cedd9628b91c",
     "source": "allkaraoke",
     "video_id": "j5y6xLpRwx4",
-    "reference_duration": 185
+    "reference_duration": 185,
+    "pcm_sha256": "b8896a7bbafe28158ab58b7cb643f75764a6ffbd14e33f758b6d3e8293f71316"
   },
   {
     "tag": "nicky-jam-y-enrique-iglesias-el-perdon",
@@ -375,7 +412,8 @@
     "chart_sha": "68cf68cfca49fe5653768daa222d7ec055f25ec12f0d79ba053b97b9b26e0ed5",
     "source": "allkaraoke",
     "video_id": "1m7TF2nVV1c",
-    "reference_duration": 228
+    "reference_duration": 228,
+    "pcm_sha256": "c0cf662d3c48da1b16eb58142ed720becb95ce491923de5710fa136fda0b85fb"
   },
   {
     "tag": "la-vela-puerca-el-gavilan",
@@ -386,7 +424,8 @@
     "chart_sha": "ee240ae795f0c275a38eef79a3c644d238aa102e3f92a988e748e8f9b1a82267",
     "source": "allkaraoke",
     "video_id": "qhIfmNk8gEQ",
-    "reference_duration": 120
+    "reference_duration": 120,
+    "pcm_sha256": "c6444f59803b8bd300b9c653510aed13853b88b6912d7be4ab656f4e5a51f46f"
   },
   {
     "tag": "eslabon-armado-x-peso-pluma-ella-baila-sola",
@@ -397,6 +436,7 @@
     "chart_sha": "9fea40ff44235a6896b2c420aee5ab9180c54b33ff90a03124e93c3ebfef99a3",
     "source": "allkaraoke",
     "video_id": "lSrLb_rERdI",
-    "reference_duration": 166
+    "reference_duration": 166,
+    "pcm_sha256": "6e64ed85f5048978c2f66cbccbc514dae4c9d3564aceb88c07557fe81e41d4f5"
   }
 ]

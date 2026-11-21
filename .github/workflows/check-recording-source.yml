@@ -1,0 +1,56 @@
+name: Verify Spanish reference recordings before chart evaluation
+on:
+  push:
+    branches: [codex/validar-generacion-es-20261121]
+permissions:
+  contents: read
+jobs:
+  same-recording:
+    runs-on: macos-15
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install public catalogue reader
+        run: |
+          command -v ffmpeg || brew install ffmpeg
+          python -m pip install requests numpy "yt-dlp[default,curl-cffi]==2026.10.26"
+      - name: Verify exact reference, recording and acoustic timing
+        run: |
+          python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/probe" --language es --shards 20 --shard 0
+  score:
+    needs: same-recording
+    runs-on: macos-15
+    timeout-minutes: 140
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install dependencies and acquire four public references
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          command -v ffmpeg || brew install ffmpeg
+          uv venv .charting --python 3.12
+          uv pip install --python .charting/bin/python -r src/karaoke/generation_assets/requirements.txt requests "yt-dlp[default,curl-cffi]==2026.10.26"
+          .charting/bin/python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/songs" --language es --shards 5 --shard "$SHARD"
+      - name: Evaluate full recordings and excerpts
+        run: |
+          .charting/bin/python -u scripts/benchmark_generation_corpus.py "$RUNNER_TEMP/songs/manifest.json" "$RUNNER_TEMP/full" --cache "$RUNNER_TEMP/models" --lookup-lyrics
+          .charting/bin/python -u scripts/benchmark_generation_corpus.py "$RUNNER_TEMP/songs/manifest.json" "$RUNNER_TEMP/clips" --cache "$RUNNER_TEMP/models" --clip-seconds 24
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spanish-chart-metrics-${{ matrix.shard }}
+          path: |
+            ${{ runner.temp }}/full/results.json
+            ${{ runner.temp }}/clips/results.json
+          if-no-files-found: error
+          retention-days: 7
