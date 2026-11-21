@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import socket
 import statistics
 import struct
@@ -222,6 +223,14 @@ def run(engine, seconds, destination, system_playback=False, monitor_gain=None):
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(json.dumps(result, indent=2) + "\n")
             print(json.dumps(result), flush=True)
+        except Exception:
+            # Keep the launcher and native diagnostics before the temporary profile closes.
+            failed = destination.parent / (destination.stem + "-diagnostics")
+            failed.mkdir(parents=True, exist_ok=True)
+            for log in [data / "engine.log", *data.glob("launcher-*.log")]:
+                if log.is_file():
+                    shutil.copyfile(log, failed / log.name)
+            raise
         finally:
             stop.set()
             if worker:

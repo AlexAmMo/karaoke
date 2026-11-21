@@ -1,0 +1,333 @@
+{
+  "mixer_revision": "bb2145f",
+  "macos_arm64_m4": {
+    "injected_pitch": {
+      "driver": "SDL dummy",
+      "input": "PCM sintético a 48 kHz",
+      "sample_count": 33,
+      "p50_first_ms": 19,
+      "p95_first_ms": 37.0,
+      "p95_confirm_ms": 73.0,
+      "worst_ms": 37,
+      "measurements": [
+        {
+          "hz": 65.406,
+          "first_ms": 19,
+          "confirm_ms": 55
+        },
+        {
+          "hz": 82.407,
+          "first_ms": 35,
+          "confirm_ms": 70
+        },
+        {
+          "hz": 97.999,
+          "first_ms": 37,
+          "confirm_ms": 73
+        },
+        {
+          "hz": 130.813,
+          "first_ms": 0,
+          "confirm_ms": 35
+        },
+        {
+          "hz": 174.614,
+          "first_ms": 37,
+          "confirm_ms": 73
+        },
+        {
+          "hz": 220.0,
+          "first_ms": 1,
+          "confirm_ms": 37
+        },
+        {
+          "hz": 293.665,
+          "first_ms": 18,
+          "confirm_ms": 52
+        },
+        {
+          "hz": 391.995,
+          "first_ms": 18,
+          "confirm_ms": 55
+        },
+        {
+          "hz": 493.883,
+          "first_ms": 34,
+          "confirm_ms": 69
+        },
+        {
+          "hz": 659.255,
+          "first_ms": 0,
+          "confirm_ms": 36
+        },
+        {
+          "hz": 783.991,
+          "first_ms": 37,
+          "confirm_ms": 71
+        },
+        {
+          "hz": 65.406,
+          "first_ms": 34,
+          "confirm_ms": 69
+        },
+        {
+          "hz": 82.407,
+          "first_ms": 36,
+          "confirm_ms": 71
+        },
+        {
+          "hz": 97.999,
+          "first_ms": 17,
+          "confirm_ms": 53
+        },
+        {
+          "hz": 130.813,
+          "first_ms": 0,
+          "confirm_ms": 33
+        },
+        {
+          "hz": 174.614,
+          "first_ms": 33,
+          "confirm_ms": 69
+        },
+        {
+          "hz": 220.0,
+          "first_ms": 0,
+          "confirm_ms": 35
+        },
+        {
+          "hz": 293.665,
+          "first_ms": 18,
+          "confirm_ms": 55
+        },
+        {
+          "hz": 391.995,
+          "first_ms": 17,
+          "confirm_ms": 53
+        },
+        {
+          "hz": 493.883,
+          "first_ms": 19,
+          "confirm_ms": 52
+        },
+        {
+          "hz": 659.255,
+          "first_ms": 19,
+          "confirm_ms": 54
+        },
+        {
+          "hz": 783.991,
+          "first_ms": 36,
+          "confirm_ms": 73
+        },
+        {
+          "hz": 65.406,
+          "first_ms": 37,
+          "confirm_ms": 73
+        },
+        {
+          "hz": 82.407,
+          "first_ms": 33,
+          "confirm_ms": 70
+        },
+        {
+          "hz": 97.999,
+          "first_ms": 1,
+          "confirm_ms": 36
+        },
+        {
+          "hz": 130.813,
+          "first_ms": 33,
+          "confirm_ms": 65
+        },
+        {
+          "hz": 174.614,
+          "first_ms": 1,
+          "confirm_ms": 36
+        },
+        {
+          "hz": 220.0,
+          "first_ms": 36,
+          "confirm_ms": 72
+        },
+        {
+          "hz": 293.665,
+          "first_ms": 19,
+          "confirm_ms": 56
+        },
+        {
+          "hz": 391.995,
+          "first_ms": 18,
+          "confirm_ms": 55
+        },
+        {
+          "hz": 493.883,
+          "first_ms": 18,
+          "confirm_ms": 55
+        },
+        {
+          "hz": 659.255,
+          "first_ms": 0,
+          "confirm_ms": 37
+        },
+        {
+          "hz": 783.991,
+          "first_ms": 37,
+          "confirm_ms": 72
+        }
+      ]
+    },
+    "five_udp_five_local_sdl_dummy_20min": {
+      "elapsed_s": 1200.005,
+      "song_position_s": 1093.5102083333334,
+      "cuts": 17,
+      "datagrams_sent": 300000,
+      "invalid_sent": 2614,
+      "accepted": [
+        57386,
+        0,
+        60000,
+        0,
+        60000,
+        0,
+        60000,
+        0,
+        60000,
+        0
+      ],
+      "rejected": 2614,
+      "gap_frames": [
+        2614,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "stale_discarded": 0,
+      "unaccounted": 0,
+      "scores": [
+        7511,
+        7835,
+        7835,
+        7835,
+        7835,
+        7835,
+        7835,
+        7835,
+        0,
+        7835
+      ],
+      "monitor_gain_first_two": 0.12,
+      "peak_monitor_queue_ms": [
+        40,
+        40,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "monitor_dropped_frames": [
+        4784640,
+        5017104,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "output_frames": 512,
+      "output_hz": 48000,
+      "audio_driver": "dummy",
+      "state_interval_p95_s": 0.22,
+      "max_state_interval_s": 0.324
+    },
+    "five_udp_five_local_coreaudio_90s_muted_speakers_two_monitors": {
+      "elapsed_s": 90.098,
+      "song_position_s": 87.87653645833333,
+      "cuts": 1,
+      "datagrams_sent": 22525,
+      "invalid_sent": 155,
+      "accepted": [
+        4350,
+        0,
+        4505,
+        0,
+        4505,
+        0,
+        4505,
+        0,
+        4505,
+        0
+      ],
+      "rejected": 155,
+      "gap_frames": [
+        155,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "stale_discarded": 0,
+      "unaccounted": 0,
+      "scores": [
+        5214,
+        5392,
+        5392,
+        5392,
+        5392,
+        5392,
+        5392,
+        5392,
+        0,
+        5392
+      ],
+      "monitor_gain_first_two": 0.01,
+      "peak_monitor_queue_ms": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "monitor_dropped_frames": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "output_frames": 512,
+      "output_hz": 48000,
+      "audio_driver": "coreaudio",
+      "state_interval_p95_s": 0.219,
+      "max_state_interval_s": 0.313
+    }
+  }
+}
