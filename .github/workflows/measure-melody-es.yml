@@ -1,0 +1,67 @@
+name: Verify original Spanish recordings and recover outstanding melody predictions
+on:
+  push:
+    branches: [codex/validar-melodia-es-40-20261121]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [2, 3, 8, 9, 12, 13, 17]
+    env:
+      SHARD: ${{ matrix.shard }}
+      OPENBLAS_NUM_THREADS: 1
+      OMP_NUM_THREADS: 3
+      CKPT: https://huggingface.co/audio-cpp/SoulX-Singer-GGUF/resolve/ded36295f789661e590e4bf6ad49a25470cf830d/ROSVOT-GGUF/rosvot-f32.gguf
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Retrieve the exact original video, compare audio and reference fingerprints
+        run: |
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          uv venv .melody --python 3.12
+          uv pip install --python .melody/bin/python requests numpy==2.5.5 'yt-dlp[default,curl-cffi]==2026.10.26'
+          .melody/bin/python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/songs" --language es --shard "$SHARD" --shards 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: rosvot-bin
+          run-id: 44916487502
+          github-token: ${{ github.token }}
+          path: native
+      - name: Infer both alternative models from one verified vocal stem
+        run: |
+          set -eu
+          tar -xzf native/rosvot-bin.tar.gz -C native
+          uv pip install --python .melody/bin/python torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .melody/bin/python demucs==4.1.0 safetensors==0.8.0 soundfile==0.14.0 soxr==1.1.0 huggingface-hub==2.4.0 librosa==0.11.0 einops==0.8.2 PyYAML mido
+          curl --retry 4 --fail --location --silent --show-error "$CKPT" -o "$RUNNER_TEMP/rosvot.gguf"
+          .melody/bin/python scripts/experiments/melody_runner_stem.py
+          .melody/bin/python -u scripts/experiments/melody_transcribe.py rosvot "$RUNNER_TEMP/rosvot.gguf" "$RUNNER_TEMP/stems.json" "$RUNNER_TEMP/rosvot" --binary native/audiocpp_cli --device cpu --threads 3
+          git init -q "$RUNNER_TEMP/some-src"
+          git -C "$RUNNER_TEMP/some-src" fetch -q --depth 1 https://github.com/openvpi/SOME.git e523eef70777c1370199363de03eb37d66dce76e
+          git -C "$RUNNER_TEMP/some-src" checkout -q --detach FETCH_HEAD
+          gh release download v1.0.0-baseline --repo openvpi/SOME --pattern '*.zip' --dir "$RUNNER_TEMP/some-bundle"
+          unzip -q "$RUNNER_TEMP"/some-bundle/*.zip -d "$RUNNER_TEMP/some-model"
+          .melody/bin/python -u scripts/experiments/melody_transcribe.py some "$RUNNER_TEMP"/some-model/0119_continuous256_5spk/*.ckpt "$RUNNER_TEMP/stems.json" "$RUNNER_TEMP/some" --source "$RUNNER_TEMP/some-src" --device cpu --threads 3
+          cp "$RUNNER_TEMP"/rosvot/*.json "$RUNNER_TEMP/export/rosvot.json"
+          cp "$RUNNER_TEMP"/some/*.json "$RUNNER_TEMP/export/some.json"
+          tar -cf "$RUNNER_TEMP/predictions.tar" -C "$RUNNER_TEMP/export" rosvot.json some.json provenance.json
+          openssl cms -encrypt -aes-256-gcm -binary -outform DER -in "$RUNNER_TEMP/predictions.tar" -out "$RUNNER_TEMP/predictions.cms" .github/validation/recipient.crt
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sealed-spanish-melody-${{ matrix.shard }}
+          path: ${{ runner.temp }}/predictions.cms
+          if-no-files-found: error
+          retention-days: 2
