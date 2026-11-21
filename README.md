@@ -60,6 +60,8 @@ Puedes plegar el lateral con la flecha de su encabezado o **Cmd/Ctrl+B**, y recu
 
 Pega el enlace en **Buscar** para localizar un mapa de esa grabación. Si falta, elige **Crear un borrador con este vídeo**. También puedes abrir **Sesión → Generar desde YouTube**. La primera vez Karaoke instala el entorno y los modelos en tu ordenador. Esta opción ocupa varios GB. El procesamiento se pausa mientras alguien canta.
 
+El generador admite vídeos individuales de hasta 15 minutos y descargas de hasta 200 MiB. YouTube debe permitir que ese ordenador obtenga la grabación. Como referencia, un Mac M4 con 16 GiB y modelos ya instalados preparó «Sigo Aquí» (3 min 45 s) a partir de su enlace en 8 min 38 s con otros análisis en marcha. El editor mostró 435 notas. El tiempo depende de la duración, de la densidad de la letra y del equipo. [Prueba desde el enlace hasta el canto](docs/validation/generacion-y-canto.json)
+
 Karaoke conserva la mezcla con la voz original, separa la voz para el análisis y calcula letra, sílabas, tiempos y melodía. Intenta aprovechar los subtítulos del autor que coincidan en palabras y tiempos con la interpretación. En el método de alineación cantada, Karaoke consulta LRCLIB con el título y el artista para buscar una letra que coincida con la grabación. Puedes desactivar la consulta o aportar tu propio TXT. **Alineación cantada** utiliza modelos disponibles para uso no comercial.
 
 Cuando termine, abre **Escuchar y revisar**. Puedes saltar a los pasajes donde los modelos discrepan, escuchar una guía de tono sobre la grabación y corregir la letra, la nota o su posición. **Aprobar para cantar** guarda esa edición en Buscar. Los resultados dependen de la grabación y pueden necesitar correcciones, especialmente con voces superpuestas y rap.
