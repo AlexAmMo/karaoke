@@ -19,7 +19,9 @@ from test_group_audio import tone_frames
 from test_session import Session
 
 
-def run(engine, seconds, destination, system_playback=False):
+def run(engine, seconds, destination, system_playback=False, monitor_gain=None):
+    if monitor_gain is None:
+        monitor_gain = 0.0 if system_playback else 0.12
     secret = secrets.token_hex(16)
     inputs = list(range(0, 10, 2))
     env = dict(
@@ -29,7 +31,7 @@ def run(engine, seconds, destination, system_playback=False):
         KARAOKE_ENGINE=str(engine.resolve()),
     )
     if system_playback:
-        # Exercise the real output clock with a silent backing and muted monitor.
+        # Exercise the real output clock. Monitor gain is opt-in for system playback.
         env.pop("SDL_AUDIODRIVER", None)
         env.pop("SDL_AUDIO_DRIVER", None)
     with tempfile.TemporaryDirectory(prefix="karaoke-soak-") as tmp:
@@ -65,7 +67,7 @@ def run(engine, seconds, destination, system_playback=False):
                         mobile=i % 2 == 0,
                         device=i,
                         channel=0,
-                        gain=0.12 if i < 2 and not system_playback else 0.0,
+                        gain=monitor_gain if i < 2 else 0.0,
                     )
                     for i in range(10)
                 ],
@@ -199,6 +201,7 @@ def run(engine, seconds, destination, system_playback=False):
                 - sum(settled["mobile_received"])
                 - settled["mobile_rejected"],
                 scores=state["scores"],
+                monitor_gain_first_two=monitor_gain,
                 peak_monitor_queue_ms=peak_fifo,
                 monitor_dropped_frames=caps,
                 output_frames=state["output_frames"],
@@ -236,7 +239,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Use the system output driver with silent audio",
     )
+    parser.add_argument(
+        "--monitor-gain", type=float, help="Monitor the first two test voices at this gain (0–1)"
+    )
     args = parser.parse_args()
+    if args.monitor_gain is not None and not 0 <= args.monitor_gain <= 1:
+        parser.error("monitor gain must be between 0 and 1")
     if not 60 <= args.seconds <= 10800:
         parser.error("duration must be between 60 seconds and 3 hours")
-    run(args.engine, args.seconds, args.output, args.system_playback)
+    run(args.engine, args.seconds, args.output, args.system_playback, args.monitor_gain)

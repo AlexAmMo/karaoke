@@ -150,5 +150,81 @@
     "audio_driver": "coreaudio",
     "state_interval_p95_s": 0.219,
     "max_state_interval_s": 0.324
+  },
+  "coreaudio_five_udp_five_synth_90s_two_monitors": {
+    "elapsed_s": 90.007,
+    "song_position_s": 87.88633333333333,
+    "cuts": 1,
+    "datagrams_sent": 22500,
+    "invalid_sent": 151,
+    "accepted": [
+      4349,
+      0,
+      4500,
+      0,
+      4500,
+      0,
+      4500,
+      0,
+      4500,
+      0
+    ],
+    "rejected": 151,
+    "gap_frames": [
+      151,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "stale_discarded": 0,
+    "unaccounted": 0,
+    "scores": [
+      5222,
+      5392,
+      5392,
+      5392,
+      5392,
+      5392,
+      5392,
+      5392,
+      0,
+      5392
+    ],
+    "monitor_gain_first_two": 0.01,
+    "peak_monitor_queue_ms": [
+      35,
+      40,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "monitor_dropped_frames": [
+      1280,
+      8480,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "output_frames": 512,
+    "output_hz": 48000,
+    "audio_driver": "coreaudio",
+    "state_interval_p95_s": 0.211,
+    "max_state_interval_s": 0.314
   }
 }
