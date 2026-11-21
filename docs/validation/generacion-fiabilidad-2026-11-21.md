@@ -61,6 +61,20 @@ La ampliación procesó las cuarenta mezclas originales en 17 min 13 s, con pico
 
 Los resultados con WER ≤5 % bajan de 17 a 7; los de ≤1 %, de 4 a 0. La base incluye letras corroboradas por otras fuentes, mientras Qwen recibe sólo audio: la tabla compara estas cadenas, no demuestra una superioridad general de Whisper sobre Qwen. No se adopta esta configuración como sustituto. El [CSV de cuarenta canciones](generacion-qwen-2026-11-21.csv) conserva las diferencias por grabación; revisión, hashes y protocolo están en [el informe del ensayo](research-generacion-pipelines-2026-11-21.md). Estos números evalúan sólo palabras, no sus tiempos ni la melodía, y describen esta conversión y configuración del reconocedor.
 
+## Diagnóstico de intervalos y selección acústica de letra
+
+La comprobación de intervalos explica por qué mejorar sólo el detector de alturas no basta. El generador pide puntuar 1,518 veces el tiempo anotado por las referencias. Incluso acertando todas las alturas, mantener esos intervalos limitaría la precisión mediana al 60,98 %: ninguna canción alcanzaría el 90 %. El 70,26 % de los instantes incorrectos está en huecos internos de los mapas humanos. Esos huecos no demuestran silencio acústico ni permiten atribuir automáticamente el error a coros. Un parser racional independiente y la integración continua descartan que el desfase de ticks o el muestreo de 10 ms expliquen la magnitud de la diferencia. El [diagnóstico de intervalos](generacion-diagnostico-intervalos-2026-11-21.md) conserva el desglose completo y sus límites.
+
+Se probó además elegir la letra completa entre la base y Qwen usando probabilidades acústicas de Sylla ya guardadas. Se fijaron cuatro reglas antes de consultar las referencias. La primaria mejora seis canciones y empeora cuatro; mantiene la mediana WER en 6,72 %, con 17/40 dentro del 5 % y 4/40 dentro del 1 %. Una probabilidad acústica mayor no garantiza acertar el texto: en «Amorfoda» la regla escoge una transcripción peor. Ninguna variante justifica una sustitución general. El [informe de selección acústica](research-letra-acustica-2026-11-21.md) y su [CSV de 240 filas](generacion-letra-acustica-2026-11-21.csv) incluyen base, Qwen y las cuatro reglas sin selección retrospectiva por canción.
+
+Este cálculo usa una recurrencia CTC con filas reutilizables, comprobada contra enumeración exacta de caminos sintéticos. Las cuarenta canciones tardaron 68,79 segundos y unos 46 MiB residentes, sin cargar modelos ni GPU. Evalúa palabras; no aporta una mejora demostrada de tiempos o notas.
+
+## Incidencia del separador experimental
+
+El ensayo de BS Roformer de voz principal coincidió con un reinicio del Mac por watchdog. La presión de memoria de la atención temporal en ventanas de veinte segundos es el desencadenante probable, sin demostrar una causa exclusiva del fallo del núcleo. No se completó ninguna separación musical ni se incorporó el modelo al producto.
+
+Se retiró MPS del adaptador, se limitaron las ventanas de continuación a CPU con estimación previa y se supervisaron tiempos y cierre de trabajadores. Diez pruebas comprueban estas guardias sin inferencia; no equivalen a validar la estabilidad o la calidad de una nueva inferencia. El [informe del incidente](reinicio-experimento-2026-11-21.md) documenta los registros, la finalización del proceso y las medidas preventivas. La instalación pública 0.3.1 conserva su código original.
+
 ## Investigación reutilizable
 
 Se inspeccionaron código, pesos, licencias y documentación originales de UltrastarCreatorTool, UltraSinger, UltraStarKaraokeMaker, AutoKaraoke, GAME, SwiftF0, el modelo fonético de ICASSP 2023, Qwen3-ASR, VocalParse y SingMelody. Actualizar la revisión de Creator no cambia sus algoritmos de notas o alineación. Algunos modelos recientes carecen de inferencia pública reproducible, no generan tiempos absolutos o sólo han demostrado resultados condicionados a texto correcto.

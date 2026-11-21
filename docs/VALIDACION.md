@@ -7,6 +7,9 @@ Esta rama de desarrollo conserva la publicación 0.3.1. Las alternativas de gene
 - [Comparación de generadores, criterio, resultados por canción y límites](validation/generacion-fiabilidad-2026-11-21.md)
 - [Corrección del reloj móvil al pausar y recibir audio discontinuo](validation/sincronia-movil-2026-11-21.md)
 - [Ficha móvil actualizada durante la preparación y estados de revisión visibles](validation/mando-ux-2026-11-21.md)
+- [Diagnóstico de intervalos y límite de corregir sólo alturas](validation/generacion-diagnostico-intervalos-2026-11-21.md)
+- [Selección acústica de letras sobre cuarenta grabaciones](validation/research-letra-acustica-2026-11-21.md)
+- [Reinicio del ensayo de separación y medidas preventivas](validation/reinicio-experimento-2026-11-21.md)
 
 Las 230 pruebas Python pasan localmente en el M4 y en los tres runners de GitHub Actions (macOS, Ubuntu y Windows Server 2022) sobre `ab309b4`. La [ejecución 44937079628](https://github.com/AlexAmMo/karaoke/actions/runs/44937079628) repite la validación después de corregir UTF-8 en los fixtures y el adaptador experimental de letras; la ejecución anterior detectó ese fallo sólo en Windows. Esta ejecución usa `target=tests`: no construye ni instala paquetes nuevos y no valida audio físico. El motor de desarrollo recompilado sí pasa la sesión local de 21 controles y el ensayo de reloj, con entrada sintética.
 
