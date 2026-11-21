@@ -1,0 +1,32 @@
+name: Fresh optional chart generator
+on:
+  push:
+    branches: [codex/validar-entorno-generador-20261121]
+permissions:
+  contents: read
+jobs:
+  bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - if: runner.os == 'Windows'
+        run: choco install ffmpeg --no-progress -y
+      - name: Create optional environment, import inference libraries and generate eight seconds
+        env:
+          UV_PYTHON_PREFERENCE: only-managed
+          HF_HUB_DISABLE_XET: '1'
+        run: uv run --no-project --python 3.12 --with uv==0.13.9 --with requests python -u scripts/test_generation_bootstrap.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generator-${{ matrix.os }}
+          path: generation-compatibility.json
