@@ -2,7 +2,6 @@
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import plistlib
 import re
@@ -78,8 +77,12 @@ def source_job(args):
     require(run['head_sha'] == args.commit and run['repository']['full_name'] == run['head_repository']['full_name'] == REPO and run['path'] == '.github/workflows/build.yml', 'Unexpected originating workflow/commit')
     require(run['conclusion'] == 'success' and run['status'] == 'completed', 'Source build is incomplete or failed')
     job_name = 'Windows x64 development package' if args.arch == 'windows' else f'macOS {LABELS[args.arch]} development package'
-    jobs = api(f'actions/runs/{args.run}/jobs?per_page=100')['jobs']
-    job, = [job for job in jobs if job['name'] == job_name]
+    # Failed-only reruns may omit the already successful platform builders
+    # from the latest attempt. Use their actual job, logs and immutable artifact.
+    jobs = api(f'actions/runs/{args.run}/jobs?filter=all&per_page=100')['jobs']
+    matches = [job for job in jobs if job['name'] == job_name]
+    require(matches, 'No source platform job matched ' + job_name)
+    job = max(matches, key=lambda job: (job['run_attempt'], job['id']))
     require(job['conclusion'] == 'success', 'Platform build and installation tests must pass: ' + job_name)
     require(subprocess.check_output(['git', '-C', str(args.candidate), 'rev-parse', 'HEAD'], text=True).strip() == args.commit, 'Wrong reference source checkout')
     if args.stage:
@@ -170,7 +173,7 @@ def verify_mac(args, job):
     verify_common(common, args.candidate)
     if args.stage:
         stage(assets, args.commit)
-    report = {'run_id': args.run, 'commit': args.commit, 'job': job['html_url'], 'arch': args.arch, 'stage': args.stage, 'version': VERSION, 'session_checks': len(session['checks']), 'sessions_elapsed_seconds': durations, 'launcher_sha256': session['launcher_sha256'], 'engine_sha256': session['engine_sha256'], 'dependency_source_entries_verified': deps_count, 'assets': {p.name: {'sha256': h, 'bytes': p.stat().st_size} for p, h in assets.items()}}
+    report = {'run_id': args.run, 'commit': args.commit, 'job': job['html_url'], 'arch': args.arch, 'stage': args.stage, 'version': VERSION, 'minimum_macos': info['LSMinimumSystemVersion'], 'builder_attempt': job['run_attempt'], 'session_checks': len(session['checks']), 'sessions_elapsed_seconds': durations, 'launcher_sha256': session['launcher_sha256'], 'engine_sha256': session['engine_sha256'], 'dependency_source_entries_verified': deps_count, 'assets': {p.name: {'sha256': h, 'bytes': p.stat().st_size} for p, h in assets.items()}}
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2), flush=True)
 
