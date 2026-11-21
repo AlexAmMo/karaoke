@@ -1,0 +1,279 @@
+{
+  "created_utc": "2026-11-21T19:58:58.964767+00:00",
+  "scope": "Export of four already evaluated frozen variants, no inference or reference interpretation. Missing predictions retain empty metrics. Fractions remain 0..1; seconds remain seconds. Lists are JSON cells.",
+  "csv_path": "docs/validation/generacion-voz-principal-pareada-2026-11-21.csv",
+  "csv_sha256": "3b2c453d2e3bfe13ac83fed968bd040da9629096a466549dc07c2979cbd9ed7e",
+  "row_count": 160,
+  "column_count": 36,
+  "variant_count": 4,
+  "cohort_size_per_variant": 40,
+  "recordings_present_per_variant": 1,
+  "recordings_missing_per_variant": 39,
+  "pair_freeze_sha256": "1d8be31d59d0aa46d1ceba7228c324eba071432cfb2498cba5b5b466d0b8edc6",
+  "pair_plan_sha256": "d8548a9cbddd658d845eacc4a450a5a3394d5fc3a394c6eb33ae56915bdc7782",
+  "evaluation_freeze_sha256": "ef32cc0967eec9cb04e82acaebff70be19354a5abe4e410e376fb07fdf616fa7",
+  "checks": {
+    "pair_artifact_hashes_verified": 175,
+    "candidate_manifest_hashes_verified": 4,
+    "evaluation_to_freeze_links_verified": 4,
+    "candidate_bytes_match_pair_and_evaluation": true,
+    "all_160_recordings_roundtrip_exactly_to_source_json": true,
+    "every_exported_cell_matches_source_value": true,
+    "all_summaries_recounted_from_40_recordings": true,
+    "missing_metrics_are_blank_not_zero": true
+  },
+  "variants": {
+    "original-pitch": {
+      "evaluation_path": "build/generation-next/lead-vocals/paired-window-cpu-v6/evaluation/original-pitch-evaluation.json",
+      "evaluation_sha256": "638ef80df339da2a331ffed6ca390244da8f0788583a360a72bed980d68e51f3",
+      "frozen_path": "build/generation-next/lead-vocals/paired-window-cpu-v6/evaluation/original-pitch-frozen.json",
+      "frozen_sha256": "a6cb54e0406d29fffbeae0334be3f55f8c79b0bdc574fa65324589eb499e4c1c",
+      "candidate_manifest_sha256": "d00bededd688f3646cb2532f91643956497d37078645f9aba028cb86d155f538",
+      "summary": {
+        "cohort_size": 40,
+        "evaluated_count": 1,
+        "missing_count": 39,
+        "invalid_count": 0,
+        "passes_initial_four_gates": 1,
+        "passes_five_gates": 0,
+        "five_gate_fraction_of_full_cohort": 0.0,
+        "by_language": {
+          "en": {
+            "total": 20,
+            "passes_five_gates": 0
+          },
+          "es": {
+            "total": 20,
+            "passes_five_gates": 0
+          }
+        },
+        "meets_near_perfect_research_target": 0,
+        "near_perfect_fraction_of_full_cohort": 0.0
+      },
+      "evaluated_metrics": {
+        "ref_words": 290,
+        "hyp_words": 294,
+        "edits": 4,
+        "wer": 0.0138,
+        "exact": 290,
+        "word_mae_p50_p90_s": [
+          0.023,
+          0.063
+        ],
+        "signed_word_p50_by_third_s": [
+          0.001,
+          -0.006,
+          -0.019
+        ],
+        "reference_notes": 431,
+        "generated_scored": 469,
+        "generated_freestyle": 3,
+        "covered_frames": 0.9907,
+        "correct_class_all": 0.9113,
+        "within_one_semitone_all": 0.9152,
+        "correct_when_covered": 0.9198,
+        "matching_onsets": 397,
+        "onset_pitch_f1_100ms": 0.8822,
+        "scored_frame_precision": 0.5012,
+        "matched_attack_count": 397,
+        "matched_offset_count": 56,
+        "matched_offset_p50_p90_seconds": [
+          0.0942,
+          0.1479
+        ],
+        "matched_duration_bias_p50_seconds": 0.0989,
+        "onset_pitch_offset_f1": 0.1244,
+        "offset_tolerance": "max(50 ms, 20% of reference note duration)"
+      }
+    },
+    "original-events": {
+      "evaluation_path": "build/generation-next/lead-vocals/paired-window-cpu-v6/evaluation/original-events-evaluation.json",
+      "evaluation_sha256": "2bf5da615170da98c4f2c9f7a509bf278733fa207fb36384c8e2fad895327f63",
+      "frozen_path": "build/generation-next/lead-vocals/paired-window-cpu-v6/evaluation/original-events-frozen.json",
+      "frozen_sha256": "902f8fa6c9181030e79a52d8c1f33cbd6d1020fc79b521f95802205e52ac0b68",
+      "candidate_manifest_sha256": "29a91278ff538da1cf150ee688ae6d61df057ec29f022032539ca8377c2f9079",
+      "summary": {
+        "cohort_size": 40,
+        "evaluated_count": 1,
+        "missing_count": 39,
+        "invalid_count": 0,
+        "passes_initial_four_gates": 1,
+        "passes_five_gates": 0,
+        "five_gate_fraction_of_full_cohort": 0.0,
+        "by_language": {
+          "en": {
+            "total": 20,
+            "passes_five_gates": 0
+          },
+          "es": {
+            "total": 20,
+            "passes_five_gates": 0
+          }
+        },
+        "meets_near_perfect_research_target": 0,
+        "near_perfect_fraction_of_full_cohort": 0.0
+      },
+      "evaluated_metrics": {
+        "ref_words": 290,
+        "hyp_words": 294,
+        "edits": 4,
+        "wer": 0.0138,
+        "exact": 290,
+        "word_mae_p50_p90_s": [
+          0.023,
+          0.063
+        ],
+        "signed_word_p50_by_third_s": [
+          0.001,
+          -0.006,
+          -0.019
+        ],
+        "reference_notes": 431,
+        "generated_scored": 464,
+        "generated_freestyle": 6,
+        "covered_frames": 0.9909,
+        "correct_class_all": 0.9127,
+        "within_one_semitone_all": 0.9174,
+        "correct_when_covered": 0.9211,
+        "matching_onsets": 397,
+        "onset_pitch_f1_100ms": 0.8872,
+        "scored_frame_precision": 0.5039,
+        "matched_attack_count": 397,
+        "matched_offset_count": 58,
+        "matched_offset_p50_p90_seconds": [
+          0.0941,
+          0.146
+        ],
+        "matched_duration_bias_p50_seconds": 0.0989,
+        "onset_pitch_offset_f1": 0.1296,
+        "offset_tolerance": "max(50 ms, 20% of reference note duration)"
+      }
+    },
+    "lead-pitch": {
+      "evaluation_path": "build/generation-next/lead-vocals/paired-window-cpu-v6/evaluation/lead-pitch-evaluation.json",
+      "evaluation_sha256": "8edd5dcd9cb6570f2aedb609033c552cb2b8f5eeb5ece4b3a10b6055b61ffd00",
+      "frozen_path": "build/generation-next/lead-vocals/paired-window-cpu-v6/evaluation/lead-pitch-frozen.json",
+      "frozen_sha256": "9b6bcab357069db5834dcf45e2dd0374e68b643654f08be766d31ca386995e60",
+      "candidate_manifest_sha256": "77d35d897b610f3699d3392f6889130f953527dbc3f5f1b9fa6ed4ddb030966f",
+      "summary": {
+        "cohort_size": 40,
+        "evaluated_count": 1,
+        "missing_count": 39,
+        "invalid_count": 0,
+        "passes_initial_four_gates": 1,
+        "passes_five_gates": 0,
+        "five_gate_fraction_of_full_cohort": 0.0,
+        "by_language": {
+          "en": {
+            "total": 20,
+            "passes_five_gates": 0
+          },
+          "es": {
+            "total": 20,
+            "passes_five_gates": 0
+          }
+        },
+        "meets_near_perfect_research_target": 0,
+        "near_perfect_fraction_of_full_cohort": 0.0
+      },
+      "evaluated_metrics": {
+        "ref_words": 290,
+        "hyp_words": 294,
+        "edits": 4,
+        "wer": 0.0138,
+        "exact": 290,
+        "word_mae_p50_p90_s": [
+          0.023,
+          0.063
+        ],
+        "signed_word_p50_by_third_s": [
+          0.001,
+          -0.006,
+          -0.019
+        ],
+        "reference_notes": 431,
+        "generated_scored": 469,
+        "generated_freestyle": 3,
+        "covered_frames": 0.9907,
+        "correct_class_all": 0.9094,
+        "within_one_semitone_all": 0.9113,
+        "correct_when_covered": 0.9179,
+        "matching_onsets": 397,
+        "onset_pitch_f1_100ms": 0.8822,
+        "scored_frame_precision": 0.5001,
+        "matched_attack_count": 397,
+        "matched_offset_count": 57,
+        "matched_offset_p50_p90_seconds": [
+          0.0941,
+          0.1479
+        ],
+        "matched_duration_bias_p50_seconds": 0.0989,
+        "onset_pitch_offset_f1": 0.1267,
+        "offset_tolerance": "max(50 ms, 20% of reference note duration)"
+      }
+    },
+    "lead-events": {
+      "evaluation_path": "build/generation-next/lead-vocals/paired-window-cpu-v6/evaluation/lead-events-evaluation.json",
+      "evaluation_sha256": "fdce0bb8fe9fdce01e36e93555856652695e1b303a84be646bbfd39d9973e9a4",
+      "frozen_path": "build/generation-next/lead-vocals/paired-window-cpu-v6/evaluation/lead-events-frozen.json",
+      "frozen_sha256": "812649db9d426707f5323e531f207efb16a691d10783438091dcbe4f321a30e1",
+      "candidate_manifest_sha256": "87018eb93c0a65e40f57f768fcc6e27b491aadd0ca164710abfa3966958ac127",
+      "summary": {
+        "cohort_size": 40,
+        "evaluated_count": 1,
+        "missing_count": 39,
+        "invalid_count": 0,
+        "passes_initial_four_gates": 1,
+        "passes_five_gates": 0,
+        "five_gate_fraction_of_full_cohort": 0.0,
+        "by_language": {
+          "en": {
+            "total": 20,
+            "passes_five_gates": 0
+          },
+          "es": {
+            "total": 20,
+            "passes_five_gates": 0
+          }
+        },
+        "meets_near_perfect_research_target": 0,
+        "near_perfect_fraction_of_full_cohort": 0.0
+      },
+      "evaluated_metrics": {
+        "ref_words": 290,
+        "hyp_words": 294,
+        "edits": 4,
+        "wer": 0.0138,
+        "exact": 290,
+        "word_mae_p50_p90_s": [
+          0.023,
+          0.063
+        ],
+        "signed_word_p50_by_third_s": [
+          0.001,
+          -0.007,
+          -0.019
+        ],
+        "reference_notes": 431,
+        "generated_scored": 462,
+        "generated_freestyle": 6,
+        "covered_frames": 0.9916,
+        "correct_class_all": 0.9122,
+        "within_one_semitone_all": 0.915,
+        "correct_when_covered": 0.9199,
+        "matching_onsets": 397,
+        "onset_pitch_f1_100ms": 0.8891,
+        "scored_frame_precision": 0.5066,
+        "matched_attack_count": 397,
+        "matched_offset_count": 58,
+        "matched_offset_p50_p90_seconds": [
+          0.0939,
+          0.1502
+        ],
+        "matched_duration_bias_p50_seconds": 0.0989,
+        "onset_pitch_offset_f1": 0.1299,
+        "offset_tolerance": "max(50 ms, 20% of reference note duration)"
+      }
+    }
+  }
+}

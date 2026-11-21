@@ -1,6 +1,6 @@
 # Separación de voz principal: interrupción MPS y piloto CPU
 
-Se preparó una alternativa al UVR Karaoke 2 ya medido: el checkpoint [BS Roformer Karaoke de Frazer y Becruily](https://huggingface.co/becruily/bs-roformer-karaoke/tree/0d66103c6b79c0dd0e9efd38ca70db7042f6f695). El intento MPS se interrumpió sin canciones completadas. Posteriormente, **Amorfoda completó una separación CPU de toda la grabación**, con memoria del trabajador monitorizada y salida finita de duración exacta. Aún falta la comparación musical de mapas; este modelo no se incorpora al producto.
+Se preparó una alternativa al UVR Karaoke 2 ya medido: el checkpoint [BS Roformer Karaoke de Frazer y Becruily](https://huggingface.co/becruily/bs-roformer-karaoke/tree/0d66103c6b79c0dd0e9efd38ca70db7042f6f695). El intento MPS se interrumpió sin canciones completadas. Posteriormente, **Amorfoda completó una separación CPU de toda la grabación**, con memoria del trabajador monitorizada y salida finita de duración exacta. La comparación pareada posterior muestra cambios pequeños y mixtos en las notas, sin resolver sus finales: ninguna de las cuatro variantes supera los cinco controles. Este modelo no se incorpora al producto y el piloto originalmente declarado de cuatro canciones queda incompleto.
 
 El archivo de 204.436.907 bytes tiene SHA-256 `eb90ee24c1154d83fbcfd27e96182f19e061557cc6e4746953125e08c29389f9`. La carga estricta con la [implementación pública fijada](https://github.com/ZFTurbo/Music-Source-Separation-Training/tree/1523206d12a521bdb20673726562524cf0f9635b) admite 699 tensores y unos 51,05 millones de parámetros. El código declara MIT; la ficha del checkpoint no declara una licencia de pesos. La inspección y descarga permanecen como material local de investigación.
 
@@ -88,7 +88,7 @@ La [documentación de ONNX Runtime](https://onnxruntime.ai/docs/get-started/with
 
 Se añadió a `conditioned_notes.py` la opción explícita `--onnx-memory-policy no-arena`, que desactiva únicamente esas dos opciones en las cinco sesiones. La opción predeterminada conserva la política anterior. Se mantienen reutilización de buffers, optimización de gráficas, proveedor CPU, hilos, seed, modelos y ventanas; la procedencia de los resultados registra la nueva política. El adaptador previo `b3423205ac037b317bd902ef7faaf299f615a0cb6706002dd3fe317bd317a8fd` permanece en el snapshot v4; la versión preparada tiene SHA-256 `a2db868f2cf3f2442af71aa770da3868187086b8ca3ccf0118310a4cba8872a7`.
 
-Un control con `SessionOptions` real de ONNX Runtime 1.32.0, bloqueando creación de modelos y cambios de seed, comprobó que sólo difieren esas dos opciones. Los AST de las funciones de inferencia, anclajes y duraciones coinciden con v4. La evidencia está en `onnx-memory-controls/session-options.json`; Ruff y la comprobación del diff pasan. No se ejecutó ningún modelo para este control. La regresión sobre el audio original y sus resultados congelados debe comprobar equivalencia numérica y memoria real antes de aceptar la nueva política; requiere un plan pareado nuevo y mantiene el corte preventivo del supervisor.
+Un control con `SessionOptions` real de ONNX Runtime 1.32.0, bloqueando creación de modelos y cambios de seed, comprobó que sólo difieren esas dos opciones. Los AST de las funciones de inferencia, anclajes y duraciones coinciden con v4. La evidencia está en `onnx-memory-controls/session-options.json`; Ruff y la comprobación del diff pasan. No se ejecutó ningún modelo para este control. En ese punto quedaba pendiente comprobar equivalencia numérica y memoria real mediante una regresión sobre el audio original y sus resultados congelados, con un plan nuevo y el mismo corte preventivo. El corte de v5 descrito a continuación impidió acreditar esa equivalencia.
 
 ### Prueba pareada v5: detenida en la primera entrada
 
@@ -98,7 +98,7 @@ La entrada original volvió a superar el corte: PID 8478, estado `memory-limit`,
 
 No se iniciaron la entrada separada ni otras canciones, y no hay mapas o trazas finales congeladas de v5. Por ello tampoco se compararon TXT con la predicción histórica ni se consultaron referencias humanas. `paired-cpu-v5/assessment-stopped.json` conserva los hashes y el estado final; `execution/original-bad-bunny-amorfoda.resources.jsonl` conserva las muestras. El Mac siguió silenciado y se liberó el turno de modelos.
 
-**Desactivar arena y patrones no fue suficiente para completar GAME bajo el límite fijado.** Estos ensayos truncados no permiten comparar sus picos completos, acreditar equivalencia numérica ni evaluar una mejora musical. La separación completa de Amorfoda sigue siendo un resultado técnico válido; su comparación de notas permanece pendiente.
+**Desactivar arena y patrones no fue suficiente para completar GAME bajo el límite fijado.** Estos ensayos truncados no permiten comparar sus picos completos, acreditar equivalencia numérica ni evaluar una mejora musical. La separación completa de Amorfoda seguía siendo un resultado técnico válido; en ese momento su comparación de notas permanecía pendiente.
 
 ### Diagnóstico de fases, sin cambiar la configuración musical
 
@@ -114,7 +114,7 @@ Un launcher externo en `game-phase-diagnostic` envolvió las llamadas existentes
 
 El corte ocurrió **dentro de la cuarta llamada a `backend.extract`**, que había comenzado con 1.435,91 MB de RSS. El PID 8696 terminó con salida −9 y fue recogido; transcurrieron 16,848 s. El máximo muestreado fue 1.616.527.360 bytes de RSS y 1.580.173.256 bytes de huella física. Los imports y la carga inicial de las cinco sesiones no alcanzan por sí solos el presupuesto; el crecimiento observado ocurre entre ventanas. Esta traza todavía no distingue qué operador interno, referencias vivas o caché del asignador lo retiene. `game-phase-diagnostic/assessment.json` conserva hashes, fases y estado final.
 
-Después de cerrar esa ejecución se hizo explícita la codificación UTF-8 en los seis accesos de texto de `conditioned_notes.py`. Una comprobación de ruta y contenido Unicode pasó; los AST de inferencia y opciones no cambiaron. El SHA posterior es `a2a6290ec7015dbf2f256b25f544b81a86ef897bb352dc5fe4c07b80eb3ed720`. Las fuentes ejecutadas anteriores permanecen en sus snapshots; la versión UTF-8 todavía no se ha usado para otro modelo.
+Después de cerrar esa ejecución se hizo explícita la codificación UTF-8 en los seis accesos de texto de `conditioned_notes.py`. Una comprobación de ruta y contenido Unicode pasó; los AST de inferencia y opciones no cambiaron. El SHA posterior es `a2a6290ec7015dbf2f256b25f544b81a86ef897bb352dc5fe4c07b80eb3ed720`. Las fuentes ejecutadas anteriores permanecen en sus snapshots; esta versión UTF-8 se fijó posteriormente como dependencia del par v6.
 
 ### Control pequeño del asignador, sin modelos
 
@@ -122,9 +122,9 @@ El SDK local y la [cabecera pública de Apple](https://github.com/apple-oss-dist
 
 Se hicieron mediciones separadas de liberación de referencias, `gc.collect()` y la API de Apple, usando sólo 32 MiB de arrays NumPy y ningún modelo. Tras eliminar las referencias, RSS permaneció en 68.845.568 bytes y huella en 55.886.328 bytes. `gc.collect()` encontró cero objetos y no redujo esas medidas; `malloc_zone_pressure_relief(NULL, 0)` devolvió cero y tampoco las redujo. El [recolector de Python](https://docs.python.org/3.12/library/gc.html) y el alivio del asignador actúan en capas distintas; se registraron por separado para no atribuir al uno el efecto del otro.
 
-La evidencia está en `onnx-memory-controls/malloc-pressure-relief-control.json`. Este control pequeño **no demuestra una solución para GAME ni identifica la memoria retenida allí**. No se añadió alivio de memoria a `extract`, no se aislaron ventanas en procesos separados y no se ejecutó otra inferencia para probar esas alternativas.
+La evidencia está en `onnx-memory-controls/malloc-pressure-relief-control.json`. Este control pequeño **no demuestra una solución para GAME ni identifica la memoria retenida allí**. En ese control no se añadió alivio de memoria a `extract` ni se ejecutó otra inferencia. El aislamiento de ventanas se preparó después como una configuración nueva, descrita a continuación.
 
-### Configuración nueva preparada: un proceso por ventana
+### Configuración nueva: un proceso por ventana
 
 Se preparó el adaptador separado [windowed_game.py](../../scripts/experiments/windowed_game.py), SHA-256 `23ab26acc914e5782f479d7b578ba3cf4d38bd9353d318b5cefa19813194bf7e`, sin ejecutar modelos. El padre llama a `conditioned_notes.infer` y `transform` existentes mediante un backend que guarda exactamente el array mono float32 recibido en NPY y abre un hijo para una sola llamada a `backend.extract`. Se conservan selección de ventanas, contexto, filtrado de pertenencia, ensamblado y proyección de notas. El padre no crea sesiones ONNX ni carga modelos.
 
@@ -134,12 +134,49 @@ Cada hijo conserva el supervisor `5cc80cef…`, corte de 1,5 GiB y timeout de 30
 
 Los pedidos NPY/JSON, resultados locales, estados, muestras de recursos y hashes quedan separados por ventana. Se verificaron seis controles sin modelos: transporte exacto y reutilización, rechazo de reintento tras fallo, reinicio de seed antes del segmenter, igualdad del ensamblado existente con un backend simulado, interrupción global con recogida de un hijo ordinario y preservación de un plan incompatible. Junto con los quince controles del supervisor pasan 21 tests en 0,64 s; Ruff y revisión estática independiente también pasan.
 
-`paired-window-cpu-v6/pair-plan.json`, SHA-256 `d8548a9cbddd658d845eacc4a450a5a3394d5fc3a394c6eb33ae56915bdc7782`, conserva la cohorte original de cuatro canciones, selecciona sólo Amorfoda y mantiene 40 como denominador general. Los planes de ambos brazos y los comandos están preparados, **sin inferencia ejecutada**. Original se ejecutará primero; la voz separada sólo después de que termine correctamente. La carga de sesiones medida previamente añade unos 0,6 segundos por ventana frente a unos 4,1 segundos de extracción; estimar 70–90 segundos por brazo es orientativo, todavía sin medición de este adaptador. Una ventana distinta puede superar el límite, y el reinicio de la secuencia aleatoria puede cambiar las notas.
+`paired-window-cpu-v6/pair-plan.json`, SHA-256 `d8548a9cbddd658d845eacc4a450a5a3394d5fc3a394c6eb33ae56915bdc7782`, conserva la cohorte original de cuatro canciones, selecciona sólo Amorfoda y mantiene 40 como denominador general. Ambos planes y comandos se prepararon antes de ejecutar inferencia. La estimación inicial de 70–90 segundos por brazo se basaba en unos 0,6 segundos de carga de sesiones y 4,1 segundos de extracción por ventana; los tiempos medidos de la tanda aparecen abajo. Una ventana distinta puede superar el límite, y el reinicio de la secuencia aleatoria puede cambiar las notas.
 
-## Trabajo pendiente antes de comparar calidad
+### Par v6 completado y congelado antes de evaluar
 
-1. Cuando quede libre el turno de modelos, probar la configuración nueva de procesos por ventana, primero original y después separada sólo si el primer brazo completa. Congelar ambos resultados antes de evaluar; no elevar el límite preventivo ni afirmar equivalencia numérica con el histórico.
-2. Revisar calidad y coste de esta primera canción antes de decidir sobre las otras tres del plan; ninguna ejecución debe competir con otro modelo. La cohorte originalmente declarada sigue siendo de cuatro canciones y sólo una tiene separación completa.
-3. Decidir a partir de notas, duraciones, cobertura y letra si existe mejora reproducible. Cualquier adopción o distribución de pesos exige además resolver la licencia de éstos.
+Tras terminar YourMT3 y quedar libre el turno de modelos, se ejecutó primero la voz HTDemucs original. Sus diez ventanas y el padre terminaron con salida 0; se comprobaron los hashes de mapas, eventos, pedidos, arrays NPY y recursos, además de la ausencia de todos sus PID. Sólo entonces se ejecutó la voz separada. También completó diez ventanas con salida 0. Los contextos temporales de las diez ventanas son idénticos entre brazos y ambos usan seed 113 reiniciada por ventana.
 
-El ensayo queda sin evidencia de mejora de letra, notas o duración. El control corto, la compatibilidad de pesos y la disponibilidad del modelo no sustituyen esa validación.
+| Medida | Voz HTDemucs original | Voz principal separada |
+| --- | ---: | ---: |
+| Tiempo del padre por brazo | 51,527 s | 51,721 s |
+| Ventanas completas | 10 | 10 |
+| Mayor tiempo observado de un hijo | 5,176 s | 5,282 s |
+| Mayor RSS muestreado de un hijo | 1.025,72 MiB | 1.020,34 MiB |
+| Mayor huella física muestreada de un hijo | 997,13 MiB | 991,74 MiB |
+| RSS máximo del padre según `rusage` | 80,42 MiB | 72,53 MiB |
+| Muestras de recursos de los hijos | 967 | 975 |
+| Eventos locales conservados antes de ensamblar | 590 | 585 |
+| Eventos tras el ensamblado existente | 446 | 443 |
+
+No hubo corte por memoria, timeout ni reintento. Los padres 10358/10522 y los veinte hijos quedaron recogidos; el último hijo fue el PID 10692 y ya no figuraba en `ps`. El Mac siguió silenciado y se liberó el turno de modelos al cerrar la tanda.
+
+`paired-window-cpu-v6/pair-frozen.json`, SHA-256 `1d8be31d59d0aa46d1ceba7228c324eba071432cfb2498cba5b5b466d0b8edc6`, conserva los hashes de ambos brazos y toda la evidencia de ventanas. Los cuatro manifiestos `original-pitch.json`, `original-events.json`, `lead-pitch.json` y `lead-events.json` apuntan a las predicciones congeladas para el evaluador común. **No se habían abierto referencias humanas al crear este cierre conjunto.** Este cierre técnico acredita que el par de Amorfoda terminó dentro de los límites observados. La calidad se evaluó después, como se detalla a continuación; no se afirma equivalencia con el RNG continuo histórico.
+
+## Resultado pareado: cambios pequeños, finales de notas sin resolver
+
+Después de congelar ambos brazos y los cuatro manifiestos, se ejecutó el evaluador común sobre las líneas temporales completas, sin ajustar desplazamiento, transposición ni recortes a la referencia. Los resultados permanecen en `paired-window-cpu-v6/evaluation/*-evaluation.json`. Cada variante conserva las mismas 40 grabaciones de desarrollo: **una evaluada, 39 ausentes, ninguna inválida y cero que superen los cinco controles (0/40)**. Las ausencias no equivalen a canciones generadas incorrectamente; indican que estas variantes sólo se ejecutaron para Amorfoda y no se eliminan del denominador.
+
+| Variante en Amorfoda | Clase correcta, todos los frames | Precisión de frames puntuables | F1 ataque y altura, 100 ms | F1 ataque, altura y final | Finales correctos / ataques emparejados |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| HTDemucs original, `pitch` | 91,13 % | 50,12 % | 0,8822 | 0,1244 | 56 / 397 |
+| Voz principal separada, `pitch` | 90,94 % | 50,01 % | 0,8822 | 0,1267 | 57 / 397 |
+| HTDemucs original, `events` | 91,27 % | 50,39 % | 0,8872 | 0,1296 | 58 / 397 |
+| Voz principal separada, `events` | 91,22 % | 50,66 % | 0,8891 | 0,1299 | 58 / 397 |
+
+En `events`, la separación cambia la clase correcta en −0,05 puntos porcentuales y la precisión puntuable en +0,27 puntos; el F1 de ataques sube 0,0019 y el que también exige un final correcto sube 0,0003. El número de finales correctos permanece en 58. En `pitch`, la clase y la precisión bajan ligeramente mientras el F1 con finales sube 0,0023. Son cambios mixtos de una sola ejecución pareada por brazo; no acreditan una mejora consistente. El sesgo mediano de duración es +0,0989 s en las cuatro variantes. Todas superan los primeros cuatro controles y fallan el quinto, que comprueba la duración de las notas.
+
+La letra predicha se comparte entre brazos: las cuatro variantes tienen WER de 1,38 %, 290 palabras de referencia, 294 predichas y error temporal de palabra p90 de 0,063 s. No se ejecutó una transcripción nueva sobre la voz separada, por lo que este ensayo no prueba una mejora de letra. Ninguna variante alcanza el objetivo de investigación casi perfecto: entre sus criterios figuran clase correcta y precisión puntuable de al menos 98 %, F1 de ataques de al menos 0,95 y WER de como máximo 1 %.
+
+La exportación [CSV de 160 filas](generacion-voz-principal-pareada-2026-11-21.csv), SHA-256 `3b2c453d2e3bfe13ac83fed968bd040da9629096a466549dc07c2979cbd9ed7e`, conserva cuatro variantes por 40 grabaciones y todas las métricas originales. Las proporciones están entre 0 y 1, los tiempos en segundos y las listas se conservan como celdas JSON; las métricas ausentes quedan vacías. La [auditoría de hashes y valores](generacion-voz-principal-pareada-2026-11-21-audit.json), SHA-256 `fecccf57898c20dfe22602807ab92496709d28b74c12e4cd833376551ca63727`, verifica los 175 archivos del cierre pareado, los cuatro manifiestos, la relación entre cada evaluación y su congelación, los bytes de los cuatro mapas y la reconstrucción exacta de las 160 entradas originales desde el CSV. También se conserva en `evaluation/export-audit.json`.
+
+Una revisión independiente reconcilió las 160 filas con los cuatro JSON, incluidos todos los campos de métricas, listas, cadenas, booleanos y hashes: coinciden 40 IDs únicos por variante, cuatro entradas evaluadas y 156 ausentes con métricas vacías. No se repitió el evaluador ni se ejecutó inferencia para exportar o revisar los resultados.
+
+## Decisión y alcance
+
+La separación añadió 532,968 s de cálculo a una grabación de 176,855 s, antes de los aproximadamente 52 s de GAME por brazo. Con ese coste y los cambios observados, **no se extiende esta tanda a 11 y 6, Mr. Fancy Pants y Northern Star**. El piloto predeclarado sigue siendo de cuatro canciones y sólo una está completada; no se redefine como un piloto de una canción después de ver los resultados.
+
+Este resultado no demuestra utilidad general del separador, pero tampoco demuestra que sea inútil en grabaciones con coros o solapamiento de voces: esa comparación no se ha completado. Las 40 grabaciones ya han informado el desarrollo y no constituyen un conjunto independiente para demostrar fiabilidad ante cualquier canción de YouTube. La configuración CPU de cuatro segundos, el reinicio de RNG por ventana y la licencia de pesos pendiente limitan cualquier extrapolación o adopción. La vía queda documentada como investigación, sin incorporarla al flujo público de descarga.
