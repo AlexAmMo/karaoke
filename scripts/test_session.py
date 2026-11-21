@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import platform
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -189,6 +190,7 @@ def main():
         "--engine", type=Path, help="Override the native engine executable for a source run"
     )
     parser.add_argument("--output", type=Path, default=ROOT / "docs/evidence/session-macos.json")
+    parser.add_argument("--failure-logs", type=Path, help="Keep native and launcher logs if the session fails")
     parser.add_argument(
         "--check-panel",
         action="store_true",
@@ -464,7 +466,8 @@ def main():
             and session.queue()[0]["state"] == "queued"
             and state["title"] == "Probe C",
         )
-        check("Final close succeeds", session.close() == 0)
+        exit_code = session.close()
+        check("Final close succeeds", exit_code == 0, {"exit_code": exit_code})
         result["passed"] = True
     except Exception as exc:
         checks.append({"name": "integration run completed", "passed": False, "error": str(exc)})
@@ -486,6 +489,13 @@ def main():
             result["launcher_sha256"] = hashlib.sha256(args.launcher.read_bytes()).hexdigest()
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+        if not result.get("passed") and args.failure_logs:
+            args.failure_logs.mkdir(parents=True, exist_ok=True)
+            for log in sorted(data.glob("*.log")):
+                shutil.copyfile(log, args.failure_logs / log.name)
+                with log.open("rb") as stream:
+                    stream.seek(max(0, log.stat().st_size - 4000))
+                    print(log.name, stream.read().decode("utf-8", "replace"), flush=True)
         print("EVIDENCE " + str(args.output.resolve()), flush=True)
         print("DATA " + str(data), flush=True)
     raise SystemExit(0 if result.get("passed") else 1)
