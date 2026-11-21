@@ -50,3 +50,7 @@ POSSIBILITY OF SUCH DAMAGE.
 ```
 
 Instrument Sans se distribuye bajo SIL Open Font License 1.1. Las fuentes TTF del escritorio y WOFF2 del mando proceden del commit `7fa22308a3d0c94ee2b3cd537a1196b65db34a3e` del [proyecto Instrument Sans](https://github.com/Instrument/instrument-sans). [Licencia de la fuente](assets/fonts/OFL.txt)
+
+## Transporte de micrófonos móviles
+
+aiortc negocia WebRTC. Sus dependencias PyAV y pylibsrtp incluyen copias propias de FFmpeg, códecs y SRTP/OpenSSL. El paquete de fuentes incluye los archivos correspondientes a esas ruedas de Python, sus sumas SHA-256 y las recetas exactas de compilación, además de las bibliotecas utilizadas por Deluxe. La lista se valida contra las versiones instaladas durante el empaquetado. [Inventario y procedencia](third_party/wheel-media-sources.json) · [Compilación PyAV](https://github.com/PyAV-Org/PyAV/blob/v19.0.2/scripts/ffmpeg-latest.json) · [Compilación pylibsrtp](https://github.com/aiortc/pylibsrtp/tree/1.0.0/scripts)

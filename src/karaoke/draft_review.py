@@ -25,6 +25,9 @@ class DraftEditor:
             raise SongError("Elige un borrador que esté listo para revisar.")
         self.lab, self.uid = lab, uid
         self.chart = lab.root / uid / "draft" / "song.txt"
+        manifest = self.chart.with_name("generation.json")
+        metadata = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else {}
+        self.review_regions = metadata.get("diagnostics", {}).get("review_regions", [])
         self.key = secrets.token_urlsafe(24)
         self.lock = threading.RLock()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), ReviewHandler)
@@ -47,6 +50,7 @@ class DraftEditor:
             "title": meta["TITLE"],
             "artist": meta["ARTIST"],
             "state": self.lab.row(self.uid)["state"],
+            "regions": self.review_regions,
         }
 
     def change(self, data):
@@ -55,14 +59,22 @@ class DraftEditor:
             if old["state"] != "review" or old["revision"] != data.get("revision"):
                 raise SongError("El borrador cambió. Recarga la página antes de guardarlo.")
             body = data.get("body")
-            if not isinstance(body, str) or any(
-                not re.fullmatch(
-                    r"(?:(?:[:*FRG]\s+-?\d+\s+\d+\s+-?\d+\s+[^\x00-\x08]*)|(?:-\s+-?\d+(?:\s+-?\d+)?)|E|\s*)",
-                    line,
-                )
-                for line in body.splitlines()
-            ):
-                raise SongError("Revisa las filas de notas y saltos de frase del mapa.")
+            if not isinstance(body, str):
+                raise SongError("Falta el contenido del mapa.")
+            rows = [line for line in body.splitlines() if line.strip()]
+            if not rows or rows[-1].strip() != "E":
+                raise SongError("El mapa debe terminar con E.")
+            last_end = None
+            for line in rows[:-1]:
+                if re.fullmatch(r"-\s+-?\d+(?:\s+-?\d+)?", line):
+                    continue
+                note = re.fullmatch(r"[:*FRG]\s+(-?\d+)\s+(\d+)\s+-?\d+\s+([^\x00-\x08]+)", line)
+                if not note:
+                    raise SongError("Revisa las filas de notas y saltos de frase del mapa.")
+                start, length = int(note[1]), int(note[2])
+                if last_end is not None and start < last_end:
+                    raise SongError("Dos notas se solapan. Revisa su inicio y duración.")
+                last_end = start + length
             text, _ = read_chart(self.chart)
             headers = "\n".join(line for line in text.splitlines() if line.startswith("#"))
             with tempfile.NamedTemporaryFile(

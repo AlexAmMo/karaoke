@@ -490,7 +490,7 @@ function openSong(item) {
       const editionTitle = index === 0 && !item.id.startsWith("lib:") ? "Elegir automáticamente" : describeEdition(row);
       const option = element("option", "", editionTitle + (row.assisted ? " · Elegir en el ordenador" : ""));
       option.value = String(index);
-      option.disabled = !(row.available || row.assisted || row.saved);
+      option.disabled = !(row.available || row.assisted || row.saved || row.availability === "failed");
       options.append(option);
     });
     const preferred = variants.findIndex(row => row.id === item.id && (row.available || row.assisted || row.saved));
@@ -503,9 +503,13 @@ function openSong(item) {
   let addControl, saveControl;
   function updateActions() {
     if (addControl) addControl.lastChild.textContent = addLabel();
-    if (saveControl) saveControl.hidden = !["direct"].includes(selected.availability);
+    if (saveControl) {
+      saveControl.hidden = !["direct", "failed"].includes(selected.availability);
+      saveControl.textContent = selected.availability === "failed" ? "Reintentar descarga" : "Solo descargar";
+    }
   }
-  if (item.available || item.assisted || item.saved || variants.some(s => s.available || s.assisted)) {
+  if (item.availability === "failed") content.append(element("p", "small muted", "La preparación de esta edición falló. Puedes reintentarla."));
+  if (item.available || item.assisted || item.saved || variants.some(s => s.available || s.assisted || s.availability === "failed")) {
     const names = singerFields(content, [session.name]);
     addControl = button(addLabel(), () => {
       const values = names();
@@ -630,7 +634,12 @@ $("settings-button").addEventListener("click", () => {
 $("sheet-close").addEventListener("click", closeSheet);
 $("sheet").addEventListener("close", () => { if (!$("sheet").open) { clearTimeout(candidateTimer); currentSheet = null; } });
 document.querySelectorAll("[data-tab]").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
-$("saved-only").addEventListener("change", () => { browse.search.page = 0; renderedList = ""; void loadResults(); });
+$("saved-only").addEventListener("change", () => {
+  browse.search.page = 0;
+  renderedList = "";
+  if ($("saved-only").checked) renderSongRows(renderedResults.filter(item => item.saved));
+  void loadResults();
+});
 $("query").maxLength = 240;
 $("query").addEventListener("input", () => {
   browse[tab] = {q:$("query").value, page:0};

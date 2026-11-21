@@ -51,6 +51,7 @@ class PhoneSearch(CatalogueSearch):
 
 @dataclass
 class Guest:
+    singer: str | None = None
     query: str | None = None
     account: int = -1
     selections: dict = field(default_factory=dict)
@@ -145,10 +146,11 @@ class RemoteSession:
         button("Volver a la cola", "page:Cola", style="back")
 
     def dispatch(self, client, name, operation, payload):
-        if operation in ('mic-offer','mic-stop'):
+        if operation in ("mic-offer", "mic-stop"):
+            epoch = self.mics.epoch
             if not self.server.has_guest(client):
-                raise RemoteError('La sala se ha cerrado.',410)
-            return self.mics.submit(client,name,operation,payload)
+                raise RemoteError("La sala se ha cerrado.", 410)
+            return self.mics.submit(client, name, operation, payload, epoch=epoch)
         reply = Future()
         try:
             self.inbox.put_nowait((self.epoch, reply, client, name, operation, payload))
@@ -404,7 +406,8 @@ class RemoteSession:
 
     def operate(self, client, name, operation, payload):
         if operation == "state":
-            return self.state(name)
+            guest = self.guests.get(client)
+            return {**self.state(name), "my_singer": guest.singer if guest else None}
         if operation == "cover":
             return self.covers.get(payload["id"])
         if operation == "library":
@@ -440,20 +443,28 @@ class RemoteSession:
         if op == "save":
             self.add(guest, item, None, None, queue=False)
             return {"ok": True}
-        if op in ('singer-create','singer-input','singer-me'):
-            if op == 'singer-create':
-                self.host.people.create(payload.get('name'))
-            elif op == 'singer-me':
-                uid = self.host.people.create(name,client)
-                if 'mobile:'+client not in self.mics.inputs():
-                    raise RemoteError('Activa primero el micrófono de este móvil.',409)
-                self.host.people.configure(uid,input_key='mobile:'+client)
+        if op == "singer-select":
+            uid = payload.get("id") or None
+            if uid is not None and not any(p["id"] == uid for p in self.host.people.list()):
+                raise RemoteError("Actualiza la lista de cantantes.")
+            guest.singer = uid
+            return {"ok": True}
+        if op in ("singer-create", "singer-input", "singer-me"):
+            if op == "singer-create":
+                self.host.people.create(payload.get("name"))
+            elif op == "singer-me":
+                key = "mobile:" + client
+                if key not in self.mics.inputs():
+                    raise RemoteError("Activa primero el micrófono de este móvil.", 409)
+                uid = guest.singer or self.host.people.create(name, client)
+                self.host.people.configure(uid, input_key=key)
+                guest.singer = uid
             else:
-                key = payload.get('input') or None
-                if key is not None and (not isinstance(key,str) or key not in self.host.input_options()):
-                    raise RemoteError('Elige una entrada conectada.')
-                self.host.people.configure(item,input_key=key)
-            return {'ok':True}
+                key = payload.get("input") or None
+                if key is not None and (not isinstance(key, str) or key not in self.host.input_options()):
+                    raise RemoteError("Elige una entrada conectada.")
+                self.host.people.configure(item, input_key=key)
+            return {"ok": True}
         if op == "add":
             if not request:
                 raise RemoteError("Falta el identificador de petición.")
@@ -461,8 +472,9 @@ class RemoteSession:
             if 'voices' in payload:
                 names = self.host.voice_names(payload['voices'])
             elif names == [name]:
-                uid = self.host.people.create(name,client)
-                names = self.host.voice_names([{'singer':uid}])
+                uid = guest.singer or self.host.people.create(name, client)
+                names = self.host.voice_names([{"singer": uid}])
+                guest.singer = uid
             turn = self.add(guest,item,names,client+':'+request)
             return {"ok": True, "id": turn}
         if op == "music":

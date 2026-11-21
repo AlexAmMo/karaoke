@@ -2,7 +2,7 @@
 
 Karaoke doméstico instalado en el ordenador: UltraStar Deluxe muestra letras, notas y puntuación; un lateral permite preparar biblioteca y próximos turnos sin abrir otra ventana.
 
-La rama de desarrollo incluye búsqueda por artista y título, paquetes opcionales con voz y notas, importación de TXT/ZIP y portadas en búsqueda, escenario y cola. Las pruebas y sus condiciones están en [Validación](docs/VALIDACION.md).
+La rama de desarrollo reúne el catálogo y las descargas en Buscar. Admite hasta diez cantantes, entradas por cable y móviles, y generación local de borradores desde YouTube. Las pruebas y sus condiciones están en [Validación](docs/VALIDACION.md).
 
 ## Instalación
 
@@ -38,15 +38,15 @@ Karaoke agrupa las fuentes de una misma canción en una fila. Pulsar el título 
 
 Los 39 paquetes de UltraStar Deluxe Songs incluyen mapa, audio y licencia. Los mapas de AllKaraoke y USDB usan el audio identificado por la edición. La aplicación comprueba su correspondencia en segundo plano. Si falta el audio o la comparación resulta dudosa, la cola indica el motivo y permite continuar con otra canción. Para UltraStar España se abre el selector del proveedor dentro de Karaoke. Accede con tu cuenta de UltraStar España y pulsa **Descargar torrent** en la edición. Karaoke recibe el mapa y el audio del mismo paquete, comprueba su sincronía y deja el turno en la cola. Durante la transferencia comparte fragmentos con otros pares. La descarga depende de que haya fuentes disponibles. Puedes pegar el enlace de búsqueda de UltraStar España en **Buscar**. Las fichas sin una vía de descarga integrada se indican por separado. La primera consulta de los índices públicos requiere conexión. En **Ajustes → Cuenta USDB** puedes conectar tu cuenta para ampliar los resultados.
 
-En **Ajustes** puedes cambiar los nombres, el volumen de la música y cuánto se oye tu micrófono en los altavoces. Deja vacío el segundo nombre para cantar solo. **Micrófonos** reúne la selección de entradas y el ajuste de latencia.
+En **Sesión → Cantantes y entradas** puedes crear hasta diez perfiles y asignar una entrada a cada uno. Varias personas pueden compartir un micro en turnos distintos. En la cola puedes cambiar quién canta y con qué entrada. En la ficha del cantante se ajustan el retorno y la compensación temporal por dispositivo. Si percibes eco, baja el retorno o usa la monitorización directa de tu interfaz de audio.
 
-En **Ajustes → Precisión de afinación** puedes elegir **Flexible** (hasta dos semitonos por encima o por debajo), **Normal** (un semitono de margen, valor inicial) o **Estricta** (el motor debe detectar la nota indicada). El mando móvil ofrece el mismo selector en **Ajustes de la sesión**. El nivel queda guardado y se aplica a ambos cantantes desde el siguiente turno.
+En **Ajustes → Precisión de afinación** puedes elegir **Flexible** (hasta dos semitonos por encima o por debajo), **Normal** (un semitono de margen, valor inicial) o **Estricta** (el motor debe detectar la nota indicada). El mando móvil ofrece el mismo selector en **Ajustes de la sesión**. El nivel queda guardado y se aplica a los cantantes desde el siguiente turno.
 
 ## Mando desde varios móviles
 
 En **Cola** o **Ajustes**, pulsa **Conectar móviles**. Conecta los teléfonos al mismo wifi que el ordenador (el ordenador también puede estar conectado al router por cable). Cada persona escanea el QR con la cámara, abre la página y escribe su nombre. Para entrar a mano, abre la dirección que aparece bajo el QR e introduce el código. Usa una red de confianza: todos los invitados conectados pueden gestionar los turnos y la reproducción.
 
-Cada móvil tiene su buscador. La biblioteca, las descargas, la música y la cola pertenecen al ordenador. Puedes buscar mientras otra persona canta, añadir tu turno, moverlo, cambiar los cantantes, pausar, reanudar y terminar la canción desde el navegador. El micrófono sigue conectado al ordenador. Las solicitudes de UltraStar España que requieran identificación se completan en Karaoke desde la cola del ordenador.
+Cada móvil tiene su buscador. La biblioteca, las descargas, la música y la cola pertenecen al ordenador. Puedes buscar mientras otra persona canta, añadir tu turno, moverlo, cambiar los cantantes, pausar, reanudar y terminar la canción desde el navegador. Puedes cantar con un micro del ordenador o pulsar **Usar este móvil como micrófono** en los ajustes del mando. Mantén abierta la página de captura mientras cantas. Las solicitudes de UltraStar España que requieran identificación se completan en Karaoke desde la cola del ordenador.
 
 Si no se abre la página, comprueba que el teléfono esté en el wifi de casa y que el sistema permita a Karaoke recibir conexiones en la red privada. Una red de invitados puede aislar los dispositivos entre sí. Si aparecen varias direcciones, elige la de la red que compartes con los móviles. Cerrar el mando desde el PC invalida la invitación y permite continuar con la cola local.
 
@@ -56,9 +56,23 @@ El escenario muestra el próximo turno sobre verde tinta, con la acción princip
 
 Puedes plegar el lateral con la flecha de su encabezado o **Cmd/Ctrl+B**, y recuperarlo con **Mostrar panel**. La canción, la cola y los ajustes siguen activos. **Cmd/Ctrl+1** o **2** abre Buscar, **3** abre Cola y **4** abre Sesión. **Tab/Mayús+Tab** recorre los controles. En una fila, selecciona `+` y pulsa **Intro** para añadir un turno. El canto conserva su proporción 4:3 al ampliar el escenario.
 
+## Generar una canción desde YouTube
+
+Pega el enlace en **Buscar** para localizar un mapa de esa grabación. Si falta, elige **Crear un borrador con este vídeo**. También puedes abrir **Sesión → Generar desde YouTube**. La primera vez Karaoke instala el entorno y los modelos en tu ordenador. Esta opción ocupa varios GB. El procesamiento se pausa mientras alguien canta.
+
+Karaoke conserva la mezcla con la voz original, separa la voz para el análisis y calcula letra, sílabas, tiempos y melodía. Intenta aprovechar los subtítulos del autor que coincidan en palabras y tiempos con la interpretación. También puedes aportar un TXT de letra o activar la consulta opcional a LRCLIB. **Alineación cantada** utiliza modelos disponibles para uso no comercial.
+
+Cuando termine, abre **Escuchar y revisar**. Puedes saltar a los pasajes donde los modelos discrepan, escuchar una guía de tono sobre la grabación y corregir la letra, la nota o su posición. **Aprobar para cantar** guarda esa edición en Buscar. Los resultados dependen de la grabación y pueden necesitar correcciones, especialmente con voces superpuestas y rap.
+
+## Micrófonos de los móviles
+
+Conecta los teléfonos a la misma red, abre **Sesión → Conectar móviles** y escanea el QR. El mando funciona en la red local. Para activar un micro desde una sala HTTP, el mando abre una página HTTPS estática que solicita permiso al navegador. La página necesita internet para cargarse. El audio y la negociación de la conexión permanecen entre teléfono y ordenador. El retorno inicial del micro móvil está apagado.
+
+En una red con HTTPS propio, el anfitrión puede definir `KARAOKE_TLS_CERT`, `KARAOKE_TLS_KEY` y `KARAOKE_TLS_HOST`. El nombre debe apuntar al ordenador y el teléfono debe confiar en el certificado. En ese caso el propio mando solicita el permiso y puede funcionar sin acceso a internet.
+
 ## Desarrollo y ejecución local
 
-Requiere Python 3.12–3.14, [uv](https://docs.astral.sh/uv/), FFmpeg con `ffprobe` y `ffplay`, y las dependencias de compilación de Deluxe. Para macOS con Homebrew:
+Requiere Python 3.12 o 3.13, [uv](https://docs.astral.sh/uv/), FFmpeg con `ffprobe` y `ffplay`, y las dependencias de compilación de Deluxe. Para macOS con Homebrew:
 
 ```sh
 brew install fpc automake autoconf pkg-config sdl2 sdl2_image portaudio ffmpeg freetype lua@5.4 sqlite
@@ -86,7 +100,7 @@ uv run karaoke --demo --data-dir .runtime/demo
 
 La biblioteca, cola y ajustes viven fuera de la aplicación: `~/Library/Application Support/Karaoke` en macOS y `%LOCALAPPDATA%\Karaoke` en Windows. Actualizar o reinstalar la app conserva estos datos. Puedes elegir otra carpeta para futuras canciones. Importar copia los recursos necesarios; borrar desde Karaoke no borra la carpeta de origen.
 
-El motor procesa la señal de micrófono localmente; la aplicación no la graba ni la envía. El catálogo y las descargas sí requieren conexión a sus fuentes. La contraseña de USDB se guarda en Keychain/Credential Manager, nunca en SQLite ni argumentos de procesos. El intercambio entre interfaz y gestor usa archivos temporales en una carpeta privada local. No hay servidor de pago, cuenta de Karaoke ni telemetría propia.
+El ordenador procesa la voz en memoria. Al activar un micrófono móvil, el teléfono envía audio cifrado directamente al ordenador por la red local. El catálogo y las descargas sí requieren conexión a sus fuentes. La contraseña de USDB se guarda en Keychain/Credential Manager, nunca en SQLite ni argumentos de procesos. El intercambio entre interfaz y gestor usa archivos temporales en una carpeta privada local. No hay servidor de pago, cuenta de Karaoke ni telemetría propia.
 
 ## Arquitectura y licencias
 

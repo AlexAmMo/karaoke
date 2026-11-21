@@ -11,16 +11,41 @@ class PartyMixin:
         return {**physical_inputs(self.engine), **self.remote.mics.inputs()}
 
     def route_profile(self):
-        return "|".join(
-            str(self.engine.get(k, ""))
-            for k in (
-                "capture_backend",
-                "audio_driver",
-                "output_device",
-                "output_hz",
-                "output_frames",
+        # SDL backends without an identifiable output cannot share a calibration across launches.
+        if not self.engine.get("output_device") and not hasattr(self, "_session_route"):
+            from uuid import uuid4
+
+            self._session_route = uuid4().hex
+        return (
+            str(self.engine.get("output_device") or self._session_route)
+            + "|"
+            + "|".join(
+                str(self.engine.get(k, ""))
+                for k in (
+                    "capture_backend",
+                    "audio_driver",
+                    "output_device",
+                    "output_hz",
+                    "output_frames",
+                )
             )
         )
+
+    def remember_measurement(self):
+        measurement = self.engine.get("calibration") or {}
+        if measurement.get("status") != "done" or not self.engine.get("output_device"):
+            return
+        if measurement == getattr(self, "_last_measurement", None):
+            return
+        self._last_measurement = measurement
+        if measurement.get("output_device") != self.engine["output_device"] or measurement.get(
+            "output_hz"
+        ) != self.engine.get("output_hz"):
+            return
+        for key, source in physical_inputs(self.engine).items():
+            if all(source.get(k) == measurement.get(k) for k in ("device", "channel", "name")):
+                self.store.configure("measurement:" + self.route_profile() + ":" + key, measurement)
+                return
 
     def party_state(self):
         return {
@@ -32,13 +57,16 @@ class PartyMixin:
         people = {p["id"]: p for p in self.people.list()}
         if not isinstance(choices, list) or not 1 <= len(choices) <= 10:
             raise SongError("Elige de uno a diez cantantes.")
+        inputs = self.input_options()
         for c in choices:
             if not isinstance(c, dict) or not (
-                c.get("singer") in people
+                (isinstance(c.get("singer"), str) and c["singer"] in people)
                 or (c.get("singer") is None and isinstance(c.get("name"), str))
             ):
                 raise SongError("Actualiza los cantantes de este turno.")
-            if c.get("input") and c["input"] not in self.input_options():
+            if c.get("input") is not None and (
+                not isinstance(c["input"], str) or c["input"] not in inputs
+            ):
                 raise SongError("La entrada ha cambiado. Elige otra.")
         return VoiceNames(choices, people)
 
@@ -150,8 +178,8 @@ class PartyMixin:
         person = next((p for p in people if p["id"] == getattr(self, "person_detail", None)), {})
         key = person.get("preferred")
         if self.page == "Cantantes":
-            field("Nombre de un nuevo cantante", "new_singer")
             if len(people) < 10:
+                field("Nombre de un nuevo cantante", "new_singer")
                 button("Añadir cantante", "party:create")
             for p in people:
                 button(
@@ -162,6 +190,9 @@ class PartyMixin:
                         "Entrada automática" if not p["preferred"] else "Entrada desconectada",
                     ),
                 )
+            if not people:
+                field("Primer cantante", "player1", "Cantante 1")
+                field("Segundo cantante (opcional)", "player2")
             button("Volver a sesión", "page:Ajustes", style="back")
         elif self.page == "Cantante" and person:
             text(
@@ -206,6 +237,15 @@ class PartyMixin:
                     "Se oirán pulsos. Acerca el micro al altavoz.",
                 )
                 measurement = self.engine.get("calibration") or {}
+                if not (
+                    measurement.get("name") == inputs[key].get("name")
+                    and measurement.get("channel") == inputs[key].get("channel")
+                    and measurement.get("output_device") == self.engine.get("output_device")
+                    and measurement.get("output_hz") == self.engine.get("output_hz")
+                ):
+                    measurement = self.store.setting(
+                        "measurement:" + self.route_profile() + ":" + key, {}
+                    )
                 if measurement.get("status") == "done":
                     text(
                         f"Recorrido completo · {measurement.get('roundtrip_ms')} ms",

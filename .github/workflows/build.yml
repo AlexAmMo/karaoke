@@ -104,6 +104,7 @@ jobs:
           export KARAOKE_ASSET_BASE_URL="file://$PWD/dist" KARAOKE_INSTALL_DIR="$RUNNER_TEMP/karaoke-install/Applications"
           bash scripts/install.sh
           uv run --locked python scripts/test_session.py --launcher "$KARAOKE_INSTALL_DIR/Karaoke.app/Contents/MacOS/karaoke" --check-panel --output "build/macos-install-session.json"
+          uv run --locked python scripts/test_remote_session.py --launcher "$KARAOKE_INSTALL_DIR/Karaoke.app/Contents/MacOS/karaoke" --phone-mic
       - name: Package source and provenance
         run: |
           uv run python scripts/package_sources.py
@@ -254,7 +255,7 @@ jobs:
       - name: Verify two mobile controllers against packaged Karaoke
         if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
         timeout-minutes: 3
-        run: uv run python scripts/test_remote_session.py --launcher "$env:KARAOKE_CI_LAUNCHER"
+        run: uv run python scripts/test_remote_session.py --launcher "$env:KARAOKE_CI_LAUNCHER" --phone-mic
       - name: Verify all pitch precision levels with two singers
         if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
         timeout-minutes: 5

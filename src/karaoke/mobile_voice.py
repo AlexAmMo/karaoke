@@ -50,7 +50,7 @@ class MobileVoices:
             ):
                 self.port = int(engine.get("mobile_port") or 0)
 
-    def submit(self, client, name, operation, payload):
+    def submit(self, client, name, operation, payload, epoch=None):
         if operation == "mic-stop":
             with self.lock:
                 if self.loop:
@@ -67,6 +67,8 @@ class MobileVoices:
         ):
             raise RemoteError("Oferta de micrófono no válida.")
         with self.lock:
+            if epoch is not None and epoch != self.epoch:
+                raise RemoteError("La sala se ha cerrado.", 410)
             if not self.loop:
                 self.loop = asyncio.new_event_loop()
                 self.thread = threading.Thread(
@@ -100,9 +102,13 @@ class MobileVoices:
 
         if client not in self.peers and len(self.peers) >= 10:
             raise RemoteError("Los diez micrófonos móviles están ocupados.", 409)
-        await self._close(client)
+        old = self.peers.get(client)
         peer = RTCPeerConnection(RTCConfiguration(iceServers=[]))
         self.peers[client] = peer
+        with self.lock:
+            self.clients.pop(client, None)
+        if old:
+            await old.close()
 
         @peer.on("connectionstatechange")
         async def connection_changed():
@@ -135,6 +141,8 @@ class MobileVoices:
                 while epoch == self.epoch and self.peers.get(client) is peer:
                     frame = await asyncio.wait_for(track.recv(), timeout=8)
                     with self.lock:
+                        if epoch != self.epoch or self.peers.get(client) is not peer:
+                            break
                         self.clients[client] = name
                     for mono in resampler.resample(frame):
                         with self.lock:

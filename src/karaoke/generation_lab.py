@@ -28,6 +28,7 @@ class GenerationLab:
         self.host = host
         self.root = host.root / "generation"
         self.root.mkdir(exist_ok=True, mode=0o700)
+        self.models = Path(os.environ.get("KARAOKE_GENERATION_CACHE", self.root / "models"))
         self.db = host.store
         self.db.execute("""CREATE TABLE IF NOT EXISTS drafts(id TEXT PRIMARY KEY,video TEXT NOT NULL,profile TEXT NOT NULL,
           title TEXT NOT NULL,artist TEXT NOT NULL,language TEXT NOT NULL,lookup INTEGER NOT NULL,lyrics TEXT,
@@ -42,6 +43,8 @@ class GenerationLab:
         self.lock = threading.RLock()
         self.cancelled = threading.Event()
         self.closing = False
+        self.analyzing = self.paused = False
+        self.stage = ""
 
     @property
     def python(self):
@@ -118,8 +121,8 @@ class GenerationLab:
             {
                 "OMP_NUM_THREADS": "4",
                 "VECLIB_MAXIMUM_THREADS": "4",
-                "HF_HOME": str(self.root / "models" / "huggingface"),
-                "TORCH_HOME": str(self.root / "models" / "torch"),
+                "HF_HOME": os.environ.get("HF_HOME", str(self.models / "huggingface")),
+                "TORCH_HOME": os.environ.get("TORCH_HOME", str(self.models / "torch")),
                 "UV_NO_PROGRESS": "1",
                 "PYTHONNOUSERSITE": "1",
             }
@@ -128,7 +131,7 @@ class GenerationLab:
         env.pop("PYTHONPATH", None)
         if "LD_LIBRARY_PATH_ORIG" in env:
             env["LD_LIBRARY_PATH"] = env["LD_LIBRARY_PATH_ORIG"]
-        with self.lock, log.open("ab") as dest:
+        with self.lock:
             if self.cancelled.is_set():
                 raise SongError("Generación cancelada.")
             flags = (
@@ -139,24 +142,46 @@ class GenerationLab:
             process = subprocess.Popen(
                 [str(x) for x in command],
                 stdin=subprocess.DEVNULL,
-                stdout=dest,
-                stderr=dest,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 env=env,
                 creationflags=flags,
                 start_new_session=os.name != "nt",
             )
             self.process = process
+            self.analyzing = WORKER in command
+            self.stage = "Generando el borrador"
             if os.name != "nt":
                 with contextlib.suppress(OSError):
                     os.setpriority(os.PRIO_PROCESS, process.pid, 10)
         try:
+            last_error = ""
+            with log.open("ab") as dest, process.stdout as pipe:
+                while chunk := pipe.readline(8192):
+                    dest.write(chunk)
+                    if chunk.startswith(b"{"):
+                        try:
+                            item = json.loads(chunk)
+                        except (ValueError, UnicodeDecodeError):
+                            continue
+                        stage = item.get("stage") if isinstance(item, dict) else None
+                        if isinstance(stage, str):
+                            with self.lock:
+                                self.stage = stage[:180]
+                                if not self.paused:
+                                    self.report(job["id"], self.stage)
+                        if isinstance(item, dict) and isinstance(item.get("error"), str):
+                            last_error = item["error"][:260]
             code = process.wait()
         finally:
             with self.lock:
                 self.process = None
+                self.paused = self.analyzing = False
         if self.cancelled.is_set():
             raise SongError("Generación cancelada.")
         if code:
+            if last_error:
+                raise SongError(last_error)
             raise SongError(
                 f"Falló la preparación local. Puedes reintentar. Detalles en {log.name}."
             )
@@ -188,6 +213,11 @@ class GenerationLab:
         home.mkdir(exist_ok=True, mode=0o700)
         target = home / "draft"
         log = home / "generation.log"
+        # A forced quit may leave a private, uncommitted staging directory for this job.
+        for attempt in home.glob("attempt-*"):
+            if attempt.is_dir() and not attempt.is_symlink():
+                shutil.rmtree(attempt)
+        self.check_resources(home)
         if (target / "generation.json").is_file() and (target / "song.txt").is_file():
             validate(target / "song.txt")
             return
@@ -224,6 +254,16 @@ class GenerationLab:
                 if not info or info.get("id") != job["video"]:
                     raise SongError("YouTube no ha entregado esta grabación.")
                 audio = Path(dl.prepare_filename(info))
+                tracks = []
+                if job["profile"] == "quality" and not job["lyrics"]:
+                    from .generation_assets.captions import manual_tracks
+                    from yt_dlp.networking.exceptions import RequestError
+
+                    # Authored subtitles are optional. Unavailable subtitles should fall back to ASR.
+                    with contextlib.suppress(
+                        OSError, ValueError, TypeError, KeyError, RequestError
+                    ):
+                        tracks = manual_tracks(info, job["language"], dl.urlopen)
             if not audio.is_file():
                 raise SongError("No se pudo obtener el audio de esta edición.")
             title = job["title"] or info.get("track") or info.get("title") or job["video"]
@@ -246,8 +286,12 @@ class GenerationLab:
                 "--language",
                 job["language"],
                 "--cache",
-                self.root / "models",
+                self.models,
             ]
+            if tracks:
+                captions = stage / "captions.json"
+                captions.write_text(json.dumps(tracks, ensure_ascii=False), encoding="utf-8")
+                command.extend(["--captions", captions])
             if job["lookup"]:
                 command.append("--lookup-lyrics")
             if job["lyrics"]:
@@ -275,7 +319,33 @@ class GenerationLab:
         if shutil.disk_usage(path).free < 512 * 1024**2:
             raise SongError("Falta espacio para generar el borrador.")
 
+    def pause_analysis(self, pause):
+        with self.lock:
+            if not self.analyzing or self.paused == pause or self.process.poll() is not None:
+                return
+            if os.name == "nt":
+                import psutil
+
+                try:
+                    process = psutil.Process(self.process.pid)
+                    if pause:
+                        process.suspend()
+                    else:
+                        process.resume()
+                except psutil.Error:
+                    return
+            else:
+                import signal
+
+                try:
+                    os.killpg(self.process.pid, signal.SIGSTOP if pause else signal.SIGCONT)
+                except ProcessLookupError:
+                    return
+            self.paused = pause
+            self.report(self.current, "En pausa mientras se canta" if pause else self.stage)
+
     def tick(self):
+        self.pause_analysis(bool(self.host.active))
         if self.future and self.future.done():
             try:
                 self.future.result()
@@ -304,6 +374,7 @@ class GenerationLab:
     def cancel(self, uid):
         if uid == self.current:
             self.cancelled.set()
+            self.pause_analysis(False)
             with self.lock:
                 process = self.process
                 if process and process.poll() is None:
@@ -330,6 +401,25 @@ class GenerationLab:
         if row["state"] != "review":
             raise SongError("La generación aún no está lista para revisar.")
         info = import_package(self.root / uid / "draft" / "song.txt", self.host.library)
+        manifest = self.root / uid / "draft" / "generation.json"
+        if manifest.exists():
+            provenance = json.loads(manifest.read_text(encoding="utf-8"))
+            source_hash = hashlib.sha256((manifest.parent / "song.txt").read_bytes()).hexdigest()
+            provenance["review"] = {
+                "chart_sha256": source_hash,
+                "library_chart_sha256": hashlib.sha256(
+                    Path(info["chart"]).read_bytes()
+                ).hexdigest(),
+                "edited": source_hash != provenance.get("chart_sha256"),
+                "approved_at": time.time(),
+            }
+            provenance["state"] = "reviewed"
+            dest = Path(info["chart"]).with_name("generation.json")
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", dir=dest.parent, delete=False
+            ) as f:
+                json.dump(provenance, f, ensure_ascii=False, indent=2)
+            os.replace(f.name, dest)
         with self.db.lock, self.db.db:
             self.db._save_song(info, "reviewed:" + uid, "original", None, True)
             self.db.db.execute(

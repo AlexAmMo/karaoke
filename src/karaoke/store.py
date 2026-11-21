@@ -7,7 +7,7 @@ import threading
 import time
 import uuid
 
-from .participants import MAX_SINGERS, Participants, clean_name, migrate
+from .participants import MAX_SINGERS, Participants, backup_legacy, clean_name, migrate
 from pathlib import Path
 
 
@@ -21,6 +21,7 @@ class Store:
         if original_version > 3:
             self.db.close()
             raise ValueError('Actualiza Karaoke para abrir esta biblioteca.')
+        backup_legacy(self.db, path, original_version)
         self.db.executescript("""
         PRAGMA journal_mode=WAL;
         PRAGMA foreign_keys=ON;
@@ -44,7 +45,7 @@ class Store:
           turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE);
 
         """)
-        migrate(self.db, path, original_version)
+        migrate(self.db, original_version)
         # A crash never starts playback on the next launch.
         with self.db:
             self.db.execute("UPDATE turns SET state='queued' WHERE state IN ('starting','singing')")

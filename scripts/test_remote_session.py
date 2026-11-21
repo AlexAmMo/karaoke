@@ -2,6 +2,7 @@
 """Run two authenticated LAN controllers against a disposable packaged karaoke session."""
 
 import argparse
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import os
 from pathlib import Path
@@ -46,7 +47,35 @@ class Phone:
         return self.post("action", op=action, request_id=uuid.uuid4().hex, **data)
 
 
-def check(launcher, data):
+async def check_mobile_audio(phone):
+    """Receive decoded Opus in the installed host, including its bundled PyAV and SRTP."""
+    from aiortc import AudioStreamTrack, RTCConfiguration, RTCPeerConnection, RTCRtpSender, RTCSessionDescription
+
+    peer = RTCPeerConnection(RTCConfiguration(iceServers=[]))
+    track = AudioStreamTrack()
+    try:
+        sender = peer.addTransceiver(track, direction="sendonly")
+        opus = [c for c in RTCRtpSender.getCapabilities("audio").codecs if c.mimeType.lower() == "audio/opus"]
+        assert opus, "The simulated phone needs the Opus codec"
+        sender.setCodecPreferences(opus)
+        await peer.setLocalDescription(await peer.createOffer())
+        reply = await asyncio.to_thread(phone.post, "mic-offer", sdp=peer.localDescription.sdp)
+        await peer.setRemoteDescription(RTCSessionDescription(**reply))
+        for _ in range(100):
+            state = await asyncio.to_thread(phone.post, "state")
+            if any(entry["label"] == "Móvil de Ana" for entry in state["inputs"]):
+                print("PASS: the installed host decoded the phone's Opus stream", flush=True)
+                break
+            await asyncio.sleep(0.1)
+        else:
+            raise AssertionError("The host did not receive a decoded audio frame")
+    finally:
+        track.stop()
+        await peer.close()
+        await asyncio.to_thread(phone.post, "mic-stop")
+
+
+def check(launcher, data, phone_mic=False):
     environment = dict(os.environ, SDL_AUDIODRIVER="dummy", SDL_AUDIO_DRIVER="dummy")
     # A chance outage in an external catalogue must not disable party controls.
     environment.update(HTTPS_PROXY="http://127.0.0.1:1", HTTP_PROXY="http://127.0.0.1:1")
@@ -74,6 +103,8 @@ def check(launcher, data):
         for phone, name in ((ana, "Ana"), (luis, "Luis")):
             assert phone.http.get(url + "/", timeout=4).ok
             phone.post("join", name=name, code=code)
+        if phone_mic:
+            asyncio.run(check_mobile_audio(ana))
         session.event("page:Biblioteca")
         wait(view, lambda v: v.get("page") == "Buscar" and any(r.get("style") == "checked" for r in v["rows"]))
         with ThreadPoolExecutor(2) as pool:
@@ -123,11 +154,12 @@ def check(launcher, data):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--launcher", type=Path)
+    parser.add_argument("--phone-mic", action="store_true", help="Negotiate real WebRTC and decode a synthetic Opus stream")
     args = parser.parse_args()
     if not (ROOT / "technical-spike/fixtures/initial/A/tone.wav").is_file():
         subprocess.run(
             [sys.executable, str(ROOT / "technical-spike/scripts/generate_fixtures.py")], check=True
         )
     with tempfile.TemporaryDirectory(prefix="karaoke-remotes-") as scratch:
-        check(args.launcher, Path(scratch))
+        check(args.launcher, Path(scratch), args.phone_mic)
     print("PASS: two controllers, separate searches, queue, playback, retries and closed room")

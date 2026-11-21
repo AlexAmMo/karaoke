@@ -5,7 +5,7 @@ interface
 const CalibrationDurationMs = 4450;
 type TCalibrationResult = record
   Success: boolean;
-  RoundtripMs, SpreadMs, Samples: integer;
+  RoundtripMs, SpreadMs, Samples, InputFrames, InputPeak, PulsesSent: integer;
 end;
 procedure CalibrationStart(NowMs: double; OutputRate: integer);
 procedure CalibrationCancel;
@@ -26,7 +26,8 @@ var
   OutputFrames: Int64;
   Wave: array of SmallInt;
   Emitted: array[0..High(Pulses)] of integer;
-  AbsSum: array[0..CalibrationDurationMs] of Int64;
+  InPhase, Quadrature: array[0..CalibrationDurationMs] of double;
+  InputSamples, MaxInput: integer;
   Count: array[0..CalibrationDurationMs] of integer;
 function CalibrationActive: boolean;
 begin Result:=InterlockedCompareExchange(Active,0,0)=1; end;
@@ -37,7 +38,8 @@ begin
   EnterCriticalSection(Guard);
   try
     Origin:=NowMs; OutputFrames:=0;
-    FillChar(AbsSum,SizeOf(AbsSum),0); FillChar(Count,SizeOf(Count),0);
+    FillChar(InPhase,SizeOf(InPhase),0); FillChar(Quadrature,SizeOf(Quadrature),0);
+    FillChar(Count,SizeOf(Count),0); InputSamples:=0; MaxInput:=0;
     for I:=0 to High(Emitted) do Emitted[I]:=-1;
     SetLength(Wave,Max(1,Round(OutputRate*PulseMs/1000)));
     for I:=0 to High(Wave) do
@@ -78,7 +80,7 @@ begin
   finally LeaveCriticalSection(Guard); end;
 end;
 procedure CalibrationInput(Data: PSmallInt; Frames: integer; Rate, NowMs: double);
-var I,Bin: integer; Start,Step: double;
+var I,Bin,Value: integer; Start,Step,S,C,DS,DC,Next: double;
 begin
   if not CalibrationActive then Exit;
   Step:=1000/Rate;
@@ -86,24 +88,37 @@ begin
   EnterCriticalSection(Guard);
   try
     if not CalibrationActive then Exit;
+    { Coherent demodulation rejects broad-band room noise. Keep only short
+      summaries at the emitted frequency; no microphone recording is retained. }
+    SinCos(2*Pi*1700*InputSamples/Rate,S,C); SinCos(2*Pi*1700/Rate,DS,DC);
     for I:=0 to Frames-1 do
     begin
+      Value:=Data[I]; MaxInput:=Max(MaxInput,Abs(Value));
       Bin:=Floor(Start+I*Step);
-      if (Bin<0) or (Bin>High(AbsSum)) then Continue;
-      Inc(AbsSum[Bin],Abs(integer(Data[I]))); Inc(Count[Bin]);
+      if (Bin>=0) and (Bin<=High(InPhase)) then
+      begin InPhase[Bin]:=InPhase[Bin]+C*Value; Quadrature[Bin]:=Quadrature[Bin]+S*Value; Inc(Count[Bin]); end;
+      Next:=C*DC-S*DS; S:=S*DC+C*DS; C:=Next;
     end;
+    Inc(InputSamples,Frames);
   finally LeaveCriticalSection(Guard); end;
 end;
 function CalibrationFinish: TCalibrationResult;
 var E: array[0..CalibrationDurationMs] of double;
     Candidate,Votes: array[0..High(Pulses)] of integer;
-    I,J,K,D,T,First,Good,Center: integer;
+    I,J,K,D,T,First,Good,Center,N: integer;
     Baseline,Peak,A,B,Cross,Score,Best,Shape,Mean,Width: double;
 begin
   CalibrationCancel;
   Result:=Default(TCalibrationResult);
+  Result.InputFrames:=InputSamples; Result.InputPeak:=MaxInput;
+  for I:=0 to High(Emitted) do if Emitted[I]>=0 then Inc(Result.PulsesSent);
   for I:=0 to High(E) do
-    if Count[I]>0 then E[I]:=AbsSum[I]/Count[I] else E[I]:=0;
+  begin
+    A:=0; B:=0; N:=0;
+    for K:=Max(0,I-3) to Min(High(E),I+3) do
+    begin A:=A+InPhase[K]; B:=B+Quadrature[K]; Inc(N,Count[K]); end;
+    if N>0 then E[I]:=2*Sqrt(Sqr(A)+Sqr(B))/N else E[I]:=0;
+  end;
   for I:=0 to High(Pulses) do
   begin
     Candidate[I]:=-1;
@@ -117,7 +132,7 @@ begin
       for K:=First-16 to First-1 do Baseline:=Baseline+E[K]/16;
       for K:=0 to PulseMs-1 do
       begin Peak:=Max(Peak,E[First+K]); Mean:=Mean+E[First+K]/PulseMs; end;
-      if (Peak<Baseline*1.8+10) or (Mean<Baseline+8) then Continue;
+      if (Peak<Baseline*1.8+5) or (Mean<Baseline+3) then Continue;
       A:=0; B:=0; Cross:=0;
       for K:=0 to PulseMs-1 do
       begin
@@ -137,6 +152,7 @@ begin
     for J:=0 to High(Candidate) do if (Candidate[J]>=0) and (Abs(Candidate[J]-Candidate[I])<=15) then Inc(T);
     if T>Good then begin Good:=T; Center:=Candidate[I]; end;
   end;
+  Result.Samples:=Good;
   if Good<5 then Exit;
   J:=0;
   for I:=0 to High(Candidate) do if (Candidate[I]>=0) and (Abs(Candidate[I]-Center)<=15) then

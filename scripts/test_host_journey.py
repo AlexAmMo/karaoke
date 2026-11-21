@@ -81,8 +81,10 @@ def run(launcher: Path, output: Path, check_remote_cover=False):
         try:
             session.launch()
             page("Ajustes")
+            click("page:Cantantes")
             click("field:player1", "Ana")
             click("field:player2", "")
+            click("page:Ajustes")
             click("music", "30")
             click("gain:0", "20")
             click("page:Micrófonos")

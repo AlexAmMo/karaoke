@@ -15,10 +15,8 @@ from .songs import SongError
 MAX_SINGERS = 10
 
 
-def migrate(db, path, original_version):
-    if original_version >= 3:
-        return
-    if original_version > 0:
+def backup_legacy(db, path, original_version):
+    if 0 < original_version < 3:
         backup = path.with_name(path.name + ".before-v3")
         if not backup.exists():
             with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as temp:
@@ -32,6 +30,11 @@ def migrate(db, path, original_version):
                 os.replace(stage, backup)
             finally:
                 stage.unlink(missing_ok=True)
+
+
+def migrate(db, original_version):
+    if original_version >= 3:
+        return
     # Legacy names are kept as immutable snapshots. Do not infer identical people from text.
     db.executescript("""BEGIN IMMEDIATE;
         CREATE TABLE singers(id TEXT PRIMARY KEY, name TEXT NOT NULL, preferred TEXT,
@@ -183,6 +186,8 @@ class Participants:
                     raise SongError("Elige un cantante actual.")
                 name, preferred = person
                 ids.add(uid)
+            if override is not None and not isinstance(override, str):
+                raise SongError("Entrada de audio no válida.")
             effective = override or preferred
             if effective and effective in used:
                 raise SongError(
@@ -216,9 +221,9 @@ class Participants:
             if not key:
                 available = [k for k in inputs if k not in occupied and not inputs[k].get("mobile")]
                 key = next((k for k in available if inputs[k].get("assigned") == slot + 1), None)
-                if not key and (explicit or len(voices) > 2):
+                if not key and not synthetic:
                     key = next(iter(available), None)
-                if not key and not explicit and (synthetic or len(voices) <= 2):
+                if not key and not explicit and (synthetic or (not inputs and len(voices) <= 2)):
                     key = f"auto:{slot}"
                 if not key:
                     raise SongError(

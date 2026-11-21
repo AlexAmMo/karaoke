@@ -167,7 +167,7 @@ class CatalogueSearch:
     def result_states(self, groups):
         """Resolve the same recording and on-disk availability for both clients."""
         keys = {catalog.source_key(song) for group in groups for song in group}
-        saved, working = {}, set()
+        saved, working, failed = {}, set(), {}
         keys = list(keys)
         for offset in range(0, len(keys), 200):
             batch = keys[offset:offset + 200]
@@ -177,12 +177,16 @@ class CatalogueSearch:
                 saved[row["source"]] = row
             candidates = batch + ["selection:" + key for key in batch]
             job_slots = ",".join("?" for _ in candidates)
-            for row in self.store.rows(f"SELECT source FROM jobs WHERE state IN ('waiting','working') AND source IN ({job_slots})", candidates):
-                working.add(row["source"].removeprefix("selection:"))
-        return saved, working
+            for row in self.store.rows(f"SELECT source,state,message FROM jobs WHERE state IN ('waiting','working','error') AND source IN ({job_slots})", candidates):
+                source = row["source"].removeprefix("selection:")
+                if row["state"] == "error":
+                    failed[source] = row["message"]
+                else:
+                    working.add(source)
+        return saved, working, failed
 
     def describe_result(self, group, states):
-        saved, working = states
+        saved, working, failed = states
         choices = self.auto_choices(group)
         assisted = self.spanish_choice(group) if not choices else None
         item = choices[0] if choices else assisted or group[0]
@@ -194,7 +198,7 @@ class CatalogueSearch:
         elif local:
             status = "saved"
         elif choices:
-            status = "working" if source in working else "direct"
+            status = "working" if source in working else "failed" if source in failed else "direct"
         elif assisted and time.monotonic() < self.prefer_direct_until and (
                 self.catalogue_status.get("AllKaraoke") == "Consultando" or self.search_busy):
             status = "checking"
@@ -202,7 +206,7 @@ class CatalogueSearch:
             status = "assisted" if assisted else "reference"
         labels = {"saved": "Descargada", "direct": "Para descargar", "working": "Preparando…",
                   "checking": "Comprobando ediciones…", "assisted": "Requiere al anfitrión",
-                  "reference": "Sin edición compatible", "missing": "Copia incompleta"}
+                  "reference": "Sin edición compatible", "missing": "Copia incompleta", "failed": "Preparación fallida"}
         return item, {"availability": status, "status_label": labels[status],
                       "available": status in ("saved", "direct", "working", "assisted"),
                       "assisted": bool(assisted), "saved": status == "saved",
@@ -997,22 +1001,29 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         if not self.engine:
             raise SongError("El motor de canto todavía se está iniciando.")
         self.stop_preview()
-        inputs = {k:{**v,'key':k} for k,v in self.input_options().items()}
-        routes = self.people.reserve(turn,inputs,self.engine.get('max_singers',2),
-                                     self.engine.get('synthetic',False),self.route_profile())
-        extra = {'routes':routes} if routes else {}
-        if any(r.get('mobile') for r in routes):
-            secret = secrets.token_hex(16)
-            extra['mobile_secret'] = secret
-            self.remote.mics.route(turn_id,secret,routes)
+        inputs = {key: {**route, "key": key} for key, route in self.input_options().items()}
+        routes = self.people.reserve(
+            turn, inputs, self.engine.get("max_singers", 2), self.engine.get("synthetic", False),
+            self.route_profile(),
+        )
+        extra = {"routes": routes} if routes else {}
+        if "output_device" in self.engine:
+            extra["output_device"] = self.engine["output_device"]
         self.active = turn_id
         self.started_at = time.monotonic()
         self.was_singing = False
         try:
-            self.command('start',chart=turn['chart'],names=json.loads(turn['names']),token=turn_id,
-                         precision=self.pitch_precision,**extra)
-        except OSError:
-            self.store.execute("UPDATE turns SET state='queued' WHERE id=?",(turn_id,))
+            if any(route.get("mobile") for route in routes):
+                secret = secrets.token_hex(16)
+                extra["mobile_secret"] = secret
+                self.remote.mics.route(turn_id, secret, routes)
+            self.command(
+                "start", chart=turn["chart"], names=json.loads(turn["names"]), token=turn_id,
+                precision=self.pitch_precision, **extra,
+            )
+        except Exception:
+            self.store.execute("UPDATE turns SET state='queued' WHERE id=?", (turn_id,))
+            self.remote.mics.route("", "", [])
             self.active = None
             raise
         self.message = "Preparando micrófonos e interpretación…"
@@ -1523,6 +1534,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         state = self.ipc / "engine.json"
         try:
             self.engine = json.loads(state.read_text(encoding="utf-8"))
+            self.remember_measurement()
         except (FileNotFoundError, json.JSONDecodeError, PermissionError):
             # Deluxe can be replacing the previous Windows snapshot.
             pass
@@ -1764,14 +1776,19 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             song = self.result_detail
             key = catalog.source_key(song)
             token = f"{self.search_generation}:{key}"
+            state = self.result_states([[song]])
+            retry = key in state[2] and key not in state[1]
+            download_label = "Reintentar descarga" if retry else "Solo descargar"
             song_row(song, song["title"], song["artist"])
+            if retry:
+                text("Preparación fallida", state[2][key] or "Puedes reintentar esta edición.")
             if key.startswith("allkaraoke:") and not song.get("library_id"):
                 text("Edición de AllKaraoke", " · ".join(filter(None, (song.get("language"), song.get("creator")))))
                 if (song.get("tracks") or 1) > 1:
                     text("Esta edición requiere varias melodías", "Elige un mapa de una sola voz.")
                 elif self.auto_choices([song]):
                     button("Añadir a la cola", "result:queue:" + token, style="primary")
-                    button("Solo descargar", "result:save:" + token, style="link")
+                    button(download_label, "result:save:" + token, style="link")
                     if song.get("reference_duration"):
                         button("Usar mi copia de esta edición", "result:file:" + token, style="link")
                 else:
@@ -1793,7 +1810,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                     text("Versión de la biblioteca")
                 if self.auto_choices([song]):
                     button("Añadir a la cola", "result:queue:" + token, style="primary")
-                    button("Solo descargar", "result:save:" + token, style="link")
+                    button(download_label, "result:save:" + token, style="link")
                 else:
                     text("La grabación del enlace no coincide con esta edición.")
             if self.edition_group and song in self.editions_for(self.edition_group):
@@ -1922,8 +1939,6 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             button("Cantantes y entradas", "page:Cantantes", style="link")
             button("Generar desde YouTube", "page:Generar", style="link")
             button("Conectar móviles", "remote:start", style="link")
-            field("Primer cantante", "player1", "Cantante 1")
-            field("Segundo cantante (opcional)", "player2")
             slider("Volumen de música", "music", 65)
             slider("Volumen de mi voz", "gain:0", 0)
             if self.fields.get("player2", "").strip():

@@ -17,7 +17,7 @@ procedure ShellCaptureStop;
 implementation
 uses UKaraokePalette, SysUtils, Classes, Math, fpjson, jsonparser, UGraphic, UDisplay, URenderer,
   UText, UIni, USongs, USong, UPath, UMusic, URecord, UNote, UScreenMain, UScreenSong,
-  UKaraokeCalibration, UKaraokeMobileAudio, UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
+  UKaraokeOutput, UKaraokeCalibration, UKaraokeMobileAudio, UCommon, UPathUtils, UScreenSingController, UScreenScore, UThemes, UAvatars;
 function SDL_GetDefaultAudioInfo(var Name: PAnsiChar; Spec: PSDL_AudioSpec; Capture: integer): integer; cdecl; external SDL_LibName name 'SDL_GetDefaultAudioInfo';
 procedure SDL_free(mem: pointer); cdecl; external SDL_LibName name 'SDL_free';
 var
@@ -434,9 +434,16 @@ end;
 procedure RefreshOutputIdentity;
 var RawName: PAnsiChar; Spec: TSDL_AudioSpec;
 begin
-  RawName:=nil; OutputName:=''; OutputChecked:=SDL_GetTicks;
+  OutputName:=SystemOutputID(KaraokeOutputDevice); OutputChecked:=SDL_GetTicks;
+  if OutputName<>'' then Exit;
+  RawName:=nil;
   if SDL_GetDefaultAudioInfo(RawName,@Spec,0)=0 then
-    if Assigned(RawName) then begin OutputName:=UTF8String(RawName); SDL_free(RawName); end;
+    if Assigned(RawName) then
+    begin
+      OutputName:=UTF8String(RawName); SDL_free(RawName);
+      if SameText(OutputName,'System default') or SameText(OutputName,'Default output') or
+         SameText(OutputName,'System audio output device') then OutputName:='';
+    end;
 end;
 
 procedure BeginCalibration(J: TJSONObject);
@@ -476,7 +483,13 @@ begin
     CalibrationMessage:='Cambió la salida durante la medición. Repite los pulsos con la salida elegida.'; Exit;
   end;
   if CalibrationResult.Success then begin CalibrationState:='done'; CalibrationMessage:='Recorrido del altavoz al micrófono.'; end
-  else begin CalibrationState:='failed'; CalibrationMessage:='No se distinguieron suficientes pulsos. Acerca el micrófono al altavoz y repite la medida.'; end;
+  else begin
+    CalibrationState:='failed';
+    if (CalibrationResult.InputFrames=0) or (CalibrationResult.InputPeak<3) then
+      CalibrationMessage:='El micrófono no recibió señal. Revisa la entrada y el permiso de micrófono.'
+    else if CalibrationResult.PulsesSent<5 then CalibrationMessage:='La salida no reprodujo suficientes pulsos.'
+    else CalibrationMessage:='No se distinguieron suficientes pulsos. Acerca el micrófono al altavoz y repite la medida.';
+  end;
 end;
 procedure BeginSong(J: TJSONObject);
 var I,K,N: integer; Names: TJSONArray; Found: boolean; FileName: string;
@@ -794,6 +807,9 @@ begin
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].BlockFrames); J.Add('input_frames',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorQueueMs); J.Add('monitor_queue_ms',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorDroppedFrames); J.Add('monitor_dropped_frames',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(MobileReceived(I)); J.Add('mobile_received',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(MobileMissing(I)); J.Add('mobile_gap_frames',A);
+      J.Add('mobile_rejected',MobileRejected);
       J.Add('max_singers',KaraokeMaxSingers); J.Add('mobile_port',MobilePort);
       J.Add('output_frames',KaraokeOutputFrames); J.Add('output_hz',KaraokeOutputHz);
       O:=TJSONObject.Create; J.Add('calibration',O);
@@ -802,7 +818,8 @@ begin
       J.Add('output_device',OutputName);
       O.Add('status',CalibrationState); O.Add('message',CalibrationMessage);
       O.Add('roundtrip_ms',CalibrationResult.RoundtripMs); O.Add('spread_ms',CalibrationResult.SpreadMs);
-      O.Add('samples',CalibrationResult.Samples);
+      O.Add('samples',CalibrationResult.Samples); O.Add('input_frames',CalibrationResult.InputFrames);
+      O.Add('input_peak',CalibrationResult.InputPeak); O.Add('pulses_sent',CalibrationResult.PulsesSent);
       J.Add('audio_driver',KaraokeOutputDevice); J.Add('capture_backend',AudioInput.GetName);
       Devices:=TJSONArray.Create;
       for I:=0 to High(AudioInputProcessor.DeviceList) do

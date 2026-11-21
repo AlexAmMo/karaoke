@@ -12,12 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import parselmouth
 import soundfile as sf
-import torch
-from demucs.apply import apply_model
-from demucs.pretrained import get_model
-from faster_whisper import WhisperModel
 from scipy.ndimage import median_filter
 from scipy.signal import resample_poly
 
@@ -56,6 +51,8 @@ def transcribe(vocals, model, language):
 
 
 def make_chart(out, words):
+    import parselmouth
+
     voice, sr = sf.read(out / "voice.wav", always_2d=True)
     # Praat estimates a monophonic fundamental on the separated vocal stem.
     pitch = parselmouth.Sound(voice.mean(axis=1), sampling_frequency=sr).to_pitch_ac(
@@ -221,6 +218,11 @@ def compare_notes(ref, hyp):
 
 
 def benchmark(audio, language, model_dir, out):
+    import torch
+    from demucs.apply import apply_model
+    from demucs.pretrained import get_model
+    from faster_whisper import WhisperModel
+
     out.mkdir(parents=True, exist_ok=False)
     times = {}
     start = time.perf_counter()

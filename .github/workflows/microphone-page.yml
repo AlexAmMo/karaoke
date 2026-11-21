@@ -1,0 +1,40 @@
+name: Publish the phone microphone helper
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - web-microphone/**
+      - src/karaoke/remote_web/voice-capture.js
+      - .github/workflows/microphone-page.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: microphone-page
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Assemble the static HTTPS microphone page
+        run: |
+          mkdir -p site/microfono
+          cp web-microphone/{index.html,voice.css,connect.js} src/karaoke/remote_web/voice-capture.js site/microfono/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish the page
+        id: deployment
+        uses: actions/deploy-pages@v4

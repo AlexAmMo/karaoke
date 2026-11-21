@@ -77,3 +77,19 @@ def test_missing_audio_never_shows_start_and_saved_filter_works_offline(host, pa
     assert host.remote.operate("a", "Ana", "search", {"saved_only":True})["items"] == []
     with pytest.raises(SongError,match="Falta el mapa"):
         host.enqueue_song(song["id"])
+
+
+def test_failed_preparation_is_identified_and_retry_does_not_reserve_a_turn(host):
+    room = host.remote
+    result = room.operate("a", "Ana", "search", {"q":"On the run"})["items"][0]
+    room.operate("a", "Ana", "action", {"op":"save", "id":result["id"]})
+    host.store.execute("UPDATE jobs SET state='error',message='No se pudo leer la grabación.'")
+    assert room.operate("a", "Ana", "search", {"q":"On the run"})["items"][0]["availability"] == "failed"
+    host.search("On the run")
+    row = next(r for r in host.view()["rows"] if r["kind"] == "song")
+    assert "Preparación fallida" in row["sub"] and not row["add_action"]
+    host.handle({"action": row["action"]})
+    retry = next(r for r in host.view()["rows"] if r["label"] == "Reintentar descarga")
+    host.handle({"action": retry["action"]})
+    assert not host.store.queue()
+    assert host.store.rows("SELECT state FROM jobs") == [{"state":"waiting"}]

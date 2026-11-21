@@ -196,6 +196,7 @@ async def test_phones(session, browser_type, channel, capture=None):
                 capture.mkdir(exist_ok=True, parents=True)
                 await ana.get_by_role("checkbox", name="Solo descargadas").check()
                 await expect(row(ana, "Probe A")).to_be_visible()
+                await expect(ana.locator("#list li")).to_have_count(2)
                 await ana.evaluate("document.fonts.ready")
                 assert await ana.evaluate("""document.fonts.check('16px "Instrument Sans"')""")
                 for width, height in ((390,844),(320,568)):

@@ -1,1 +1,60 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Revisar borrador · Karaoke</title><link rel="stylesheet" href="editor.css"><script defer src="editor.js"></script></head><body><main><h1 id="title">Revisar borrador</h1><p id="artist"></p><audio id="audio" controls preload="metadata" src="audio"></audio><label><input type="checkbox" id="guide"> Oír la melodía del mapa sobre el cantante</label><p>Escucha una frase y ajusta sus sílabas, alturas y tiempos. La pista que oyes es la que se utilizará para cantar.</p><div class="toolbar"><button id="save">Guardar borrador</button><button id="approve">Aprobar para cantar</button></div><p role="status" id="status"></p><div class="scroll"><table><thead><tr><th>Escuchar</th><th>Sílaba</th><th>Inicio (s)</th><th>Duración (s)</th><th>Nota</th><th>Tipo</th></tr></thead><tbody id="notes"></tbody></table></div><details><summary>Editar mapa completo</summary><p>Puedes añadir o quitar notas y saltos de frase en formato UltraStar.</p><textarea id="raw" aria-label="Mapa UltraStar" rows="14"></textarea><button id="apply">Aplicar edición de texto</button></details></main></body></html>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Revisar borrador · Karaoke</title>
+    <link rel="stylesheet" href="editor.css" />
+    <script defer src="editor.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Revisar borrador</h1>
+      <p id="artist"></p>
+      <audio id="audio" controls preload="metadata" src="audio"></audio
+      ><label
+        ><input type="checkbox" id="guide" /> Oír la melodía del mapa sobre el
+        cantante</label
+      >
+      <p>
+        Escucha una frase y ajusta sus sílabas, alturas y tiempos. La pista que
+        oyes es la que se utilizará para cantar.
+      </p>
+      <section id="priority" hidden>
+        <h2>Pasajes para revisar</h2>
+        <p id="why"></p>
+        <button id="next-region" type="button">
+          Escuchar el siguiente pasaje
+        </button>
+      </section>
+      <div class="toolbar">
+        <button id="save">Guardar borrador</button
+        ><button id="approve">Aprobar para cantar</button>
+      </div>
+      <p role="status" id="status"></p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Escuchar</th>
+              <th>Sílaba</th>
+              <th>Inicio (s)</th>
+              <th>Duración (s)</th>
+              <th>Nota</th>
+              <th>Tipo</th>
+            </tr>
+          </thead>
+          <tbody id="notes"></tbody>
+        </table>
+      </div>
+      <details>
+        <summary>Editar mapa completo</summary>
+        <p>
+          Puedes añadir o quitar notas y saltos de frase en formato UltraStar.
+        </p>
+        <textarea id="raw" aria-label="Mapa UltraStar" rows="14"></textarea
+        ><button id="apply">Aplicar edición de texto</button>
+      </details>
+    </main>
+  </body>
+</html>

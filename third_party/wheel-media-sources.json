@@ -1,0 +1,143 @@
+{
+  "av": "19.0.2",
+  "pylibsrtp": "1.0.0",
+  "recipes": {
+    "av": "https://github.com/PyAV-Org/PyAV/blob/v19.0.2/scripts/ffmpeg-latest.json",
+    "ffmpeg": "https://github.com/PyAV-Org/pyav-ffmpeg/blob/bac889417e26be29615cb6a3f38318151fed55cd/scripts/pkg.py",
+    "srtp": "https://github.com/aiortc/pylibsrtp/tree/1.0.0/scripts"
+  },
+  "sources": [
+    {
+      "name": "lamer",
+      "filename": "lamer-3.101.0.tar.gz",
+      "url": "https://codeload.github.com/basswood-io/bwlame/tar.gz/refs/tags/v3.101.0",
+      "sha256": "506d8a6e855f59151a5407d848557f9ac10acad6ff61718c7b0b3441221bfe72",
+      "group": "pyav-wheel",
+      "commit": "3ffd14f5531e0e5078e31eba4b2fb6ccc277b843",
+      "recipe_archive_sha256": "81839b16fdc401e20b73389d05f32a7656008f43bcb960feff290d6f08fc109e",
+      "note": "The repository was renamed from lamer to bwlame. The same v3.101.0 commit is archived under a new top-level directory."
+    },
+    {
+      "name": "opus",
+      "filename": "opus-1.6.1.tar.gz",
+      "url": "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-1.6.1.tar.gz",
+      "sha256": "6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "dav1d",
+      "filename": "dav1d-1.5.4.tar.bz2",
+      "url": "https://code.videolan.org/videolan/dav1d/-/archive/1.5.4/dav1d-1.5.4.tar.bz2",
+      "sha256": "2abfb0c89212e6e4733a54e0ae509ec00a5b845a6360946f918806e14aedb011",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "libsvtav1",
+      "filename": "SVT-AV1-v4.2.0.tar.bz2",
+      "url": "https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/v4.2.0/SVT-AV1-v4.2.0.tar.bz2",
+      "sha256": "512f2ea5649e3e76c2dddcc25c2556fb67a9582baaab207c9c96161c94659dad",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "vpx",
+      "filename": "vpx-1.17.0.tar.gz",
+      "url": "https://codeload.github.com/webmproject/libvpx/tar.gz/refs/tags/v1.17.0",
+      "sha256": "1020f184046187baa2985dbde38e0691f49c44088bca7a1842b0236c6081dc0a",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "png",
+      "filename": "libpng-1.6.58.tar.xz",
+      "url": "https://downloads.sourceforge.net/project/libpng/libpng16/1.6.58/libpng-1.6.58.tar.xz",
+      "sha256": "28eb403f51f0f7405249132cecfe82ea5c0ef97f1b32c5a65828814ae0d34775",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "webp",
+      "filename": "webp-1.6.0.tar.gz",
+      "url": "https://codeload.github.com/webmproject/libwebp/tar.gz/refs/tags/v1.6.0",
+      "sha256": "93a852c2b3efafee3723efd4636de855b46f9fe1efddd607e1f42f60fc8f2136",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "libvmaf",
+      "filename": "vmaf-3.2.1.tar.gz",
+      "url": "https://codeload.github.com/Netflix/vmaf/tar.gz/refs/tags/v3.2.1",
+      "sha256": "5df7386911bc15fd1ca783132528748d219768ae4fc5f8e0b61184f041648092",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "x264",
+      "filename": "x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.bz2",
+      "url": "https://code.videolan.org/videolan/x264/-/archive/b35605ace3ddf7c1a5d67a2eb553f034aef41d55/x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.bz2",
+      "sha256": "6eeb82934e69fd51e043bd8c5b0d152839638d1ce7aa4eea65a3fedcf83ff224",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "x265",
+      "filename": "x265_4.3.tar.gz",
+      "url": "https://github.com/Multicorewareinc/x265/releases/download/4.3/x265_4.3.tar.gz",
+      "sha256": "83c53e4c8bbb8f1e33ed59e10a7d621d1d7801ca853910c3eb41f038b8ffb121",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "nv-codec-headers",
+      "filename": "n13.0.19.0.tar.gz",
+      "url": "https://codeload.github.com/FFmpeg/nv-codec-headers/tar.gz/refs/tags/n13.0.19.0",
+      "sha256": "86d15d1a7c0ac73a0eafdfc57bebfeba7da8264595bf531cf4d8db1c22940116",
+      "group": "pyav-wheel",
+      "windows_only": true
+    },
+    {
+      "name": "amf-headers",
+      "filename": "AMF-headers-v1.5.2.tar.gz",
+      "url": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/releases/download/v1.5.2/AMF-headers-v1.5.2.tar.gz",
+      "sha256": "d3c12eb324edf05e214608b6a395a51dd95770ed9d45520185d6c3a206811c99",
+      "group": "pyav-wheel",
+      "windows_only": true
+    },
+    {
+      "name": "libvpl",
+      "filename": "v2.16.0.tar.gz",
+      "url": "https://codeload.github.com/intel/libvpl/tar.gz/refs/tags/v2.16.0",
+      "sha256": "d60931937426130ddad9f1975c010543f0da99e67edb1c6070656b7947f633b6",
+      "group": "pyav-wheel",
+      "windows_only": true
+    },
+    {
+      "name": "ffmpeg",
+      "filename": "ffmpeg-9.0.2.tar.xz",
+      "url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+      "sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "pyav-ffmpeg-build-9.0.2-1",
+      "filename": "pyav-ffmpeg-build-9.0.2-1.tar.gz",
+      "url": "https://codeload.github.com/PyAV-Org/pyav-ffmpeg/tar.gz/bac889417e26be29615cb6a3f38318151fed55cd",
+      "sha256": "18cb507f2651902bbd824aec838262a6ac2c85a9883b629360322acadd4c4bfd",
+      "group": "pyav-wheel"
+    },
+    {
+      "name": "libsrtp-2.7.0",
+      "filename": "libsrtp-2.7.0.tar.gz",
+      "url": "https://codeload.github.com/cisco/libsrtp/tar.gz/ee1a77c9f9dc02c42bda9901038c500c5efe4cfa",
+      "sha256": "635cf337ddb9a774b5c7fa453c175f3e666bf436bd3767352c0f46676b659dda",
+      "group": "pylibsrtp-wheel"
+    },
+    {
+      "name": "aioquic-openssl-build-3.5.4-1",
+      "filename": "aioquic-openssl-build-3.5.4-1.tar.gz",
+      "url": "https://codeload.github.com/aiortc/aioquic-openssl/tar.gz/107757823165a1a25511e84b44a15d659c271f4b",
+      "sha256": "3ffda552b58e321b7f594d0efbe3c98fb8586289912d70f9777105acfda86fa4",
+      "group": "pylibsrtp-wheel"
+    },
+    {
+      "name": "openssl-3.5.4",
+      "filename": "openssl-3.5.4.tar.gz",
+      "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.4/openssl-3.5.4.tar.gz",
+      "sha256": "967311f84955316969bdb1d8d4b983718ef42338639c621ec4c34fddef355e99",
+      "group": "pylibsrtp-wheel"
+    }
+  ]
+}

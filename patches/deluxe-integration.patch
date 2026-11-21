@@ -1747,13 +1747,14 @@ index 77a31ec..1e1f29f 100644
    // include defines but no constants
    {$I config-darwin.inc}
 diff --git a/src/ultrastardx.dpr b/src/ultrastardx.dpr
-index 3c445a7..d78ae36 100644
+index 3c445a7..5611c57 100644
 --- a/src/ultrastardx.dpr
 +++ b/src/ultrastardx.dpr
-@@ -189,6 +189,10 @@ uses
+@@ -189,6 +189,11 @@ uses
    URenderer_OpenGL  in 'base\URenderer_OpenGL.pas',
    UGraphic          in 'base\UGraphic.pas',
    ULanguage         in 'base\ULanguage.pas',
++  UKaraokeOutput in 'base\UKaraokeOutput.pas',
 +  UKaraokeCalibration in 'base\UKaraokeCalibration.pas',
 +  UKaraokeMobileAudio in 'base\UKaraokeMobileAudio.pas',
 +  UKaraokePalette in 'base\UKaraokePalette.pas',

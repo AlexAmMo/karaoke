@@ -132,8 +132,17 @@ def formula_sources(formula):
     return items
 
 
+def wheel_media_sources():
+    """PyAV and pylibsrtp wheels carry native libraries independent of system FFmpeg."""
+    manifest = json.loads((ROOT / 'third_party/wheel-media-sources.json').read_text())
+    for name in ('av', 'pylibsrtp'):
+        if importlib.metadata.version(name) != manifest[name]:
+            raise RuntimeError(f'Review wheel source recipes for the new {name} version')
+    return [item for item in manifest['sources'] if not item.get('windows_only') or sys.platform == 'win32']
+
+
 def python_sources():
-    items = []
+    items = wheel_media_sources()
     for d in importlib.metadata.distributions():
         name = d.metadata.get('Name', '')
         if name.lower().replace('_', '-') in ('karaoke-local', 'usdb-syncer', 'pyside6', 'pyside6-essentials', 'pyside6-addons', 'shiboken6'): continue
