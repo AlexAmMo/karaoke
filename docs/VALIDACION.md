@@ -10,6 +10,7 @@
 | QR, audio Opus, veinte minutos con diez voces, cinco dúos utilizando dos entradas | [Micrófonos web y perfiles](validation/voz-web-y-borradores.md) |
 | Grabación original, letra, notas y tiempos frente a mapas humanos | [Generación, controles y límites observados](validation/generacion-iteracion.md) |
 | Paquetes macOS e instalación del entorno opcional | [Instalación y pruebas por arquitectura](validation/instalacion-macos-y-mando.md) |
+| Actualizar una biblioteca existente, abrir el paquete final y cerrar durante el canto | [Entrega 0.3.0](validation/entrega-0.3.0.md) |
 
 ## Historial de la versión 0.1
 
