@@ -297,4 +297,7 @@ def main():
 
 
 if __name__ == "__main__":
+    from karaoke.generation_assets.runtime import configure_intel_openmp
+
+    configure_intel_openmp()
     main()

@@ -176,13 +176,8 @@ def artist_names(artist):
     return {normalize(artist), *(normalize(s) for s in re.findall(r"\(([^()]+)\)", artist))} - {""}
 
 
-def choose_candidate(candidates, transcript, artist, title, duration):
-    """Corroborate the work, credited performer, recording length and ordered sung text."""
-    recognized = normalize(transcript)
-    if len(recognized.split()) < 12:
-        return None
+def candidate_editions(candidates, artist, title, duration):
     titles, artists = normalize(title), artist_names(artist)
-    matches = []
     for row in candidates:
         if not isinstance(row, dict) or row.get("instrumental"):
             continue
@@ -198,39 +193,78 @@ def choose_candidate(candidates, transcript, artist, title, duration):
             continue
         if normalize(str(row.get("trackName") or "")) != titles:
             continue
-        if not artist_names(str(row.get("artistName") or "")).intersection(artists):
-            continue
-        length = len(normalize(text).split()) / len(recognized.split())
-        if not 0.78 <= length <= 1.25:
-            continue
-        similarity = text_agreement(recognized, text)
-        if similarity >= 0.78:
-            matches.append((similarity, -delta, source_id, text))
-    if not matches:
+        if artist_names(str(row.get("artistName") or "")).intersection(artists):
+            yield delta, source_id, text
+
+
+def choose_candidate(candidates, transcript, artist, title, duration, *, rescue=None):
+    """Corroborate the work, edition, duration and sung text before accepting words."""
+    from difflib import SequenceMatcher
+
+    recognized = normalize(transcript).split()
+    if len(recognized) < 12:
         return None
-    score, _, source_id, lyrics = max(matches)
-    return lyrics, {"kind": "lrclib", "id": source_id, "agreement": round(score, 3)}
+    matches, partial = [], []
+    for delta, source_id, text in candidate_editions(candidates, artist, title, duration):
+        tokens = normalize(text).split()
+        length = len(tokens) / len(recognized)
+        if not 0.78 <= length <= (2.6 if rescue else 1.25):
+            continue
+        matcher = SequenceMatcher(None, recognized, tokens, autojunk=False)
+        similarity = matcher.ratio()
+        if length <= 1.25 and similarity >= 0.78:
+            matches.append((similarity, -delta, source_id, text))
+        elif length > 1.25 and rescue:
+            # A missing verse can leave a very accurate but incomplete first pass.
+            # Only pay for another inference when the words already heard support this edition.
+            covered = sum(block.size for block in matcher.get_matching_blocks()) / len(recognized)
+            if covered >= 0.85:
+                partial.append((source_id, text, covered, delta))
+    if matches:
+        score, _, source_id, lyrics = max(matches)
+        return lyrics, {"kind": "lrclib", "id": source_id, "agreement": round(score, 3)}
+    if not partial:
+        return None
+    alternate = normalize(rescue()).split()
+    if len(alternate) < 1.20 * len(recognized):
+        return None
+    corrected = []
+    for source_id, text, covered, delta in partial:
+        tokens = normalize(text).split()
+        if not 0.88 <= len(tokens) / len(alternate) <= 1.13:
+            continue
+        score = SequenceMatcher(None, alternate, tokens, autojunk=False).ratio()
+        if score >= 0.85:
+            corrected.append((score, covered, -delta, source_id, text))
+    if not corrected:
+        return None
+    score, covered, _, source_id, lyrics = max(corrected)
+    return lyrics, {
+        "kind": "lrclib",
+        "id": source_id,
+        "agreement": round(score, 3),
+        "recovered_with_windows": True,
+        "first_pass_word_coverage": round(covered, 3),
+    }
 
 
-def lookup(transcript, artist, title, duration):
-    try:
-        for name in [artist, *sorted(artist_names(artist) - {normalize(artist)})]:
+def lookup(transcript, artist, title, duration, *, rescue=None):
+    candidates = []
+    for name in [artist, *sorted(artist_names(artist) - {normalize(artist)})]:
+        try:
             query = urlencode({"artist_name": name, "track_name": title})
             request = Request(
                 "https://lrclib.net/api/search?" + query, headers={"User-Agent": APP_AGENT}
             )
             with urlopen(request, timeout=8) as response:
                 raw = response.read(2_000_001)
-            if len(raw) > 2_000_000:
-                continue
-            rows = json.loads(raw)
-            if isinstance(rows, list):
-                matched = choose_candidate(rows, transcript, artist, title, duration)
-                if matched:
-                    return matched
-    except (OSError, ValueError):
-        pass  # A transcription is available if the optional lyrics provider is down.
-    return None
+            if len(raw) <= 2_000_000:
+                rows = json.loads(raw)
+                if isinstance(rows, list):
+                    candidates.extend(rows)
+        except (OSError, ValueError):
+            continue  # ASR remains available when the optional external source is down.
+    return choose_candidate(candidates, transcript, artist, title, duration, rescue=rescue)
 
 
 def split_vocals(audio, directory, separator):
@@ -323,34 +357,57 @@ def split_vocals(audio, directory, separator):
     return voice, frame_count / rate
 
 
-def transcribe(voice, whisper, language, model=None):
-    if model is None:
-        from faster_whisper import WhisperModel
-
-        model = WhisperModel(str(whisper), device="cpu", compute_type="int8", cpu_threads=3)
+def transcribe(voice, whisper, language, model=None, *, windowed=False):
+    from faster_whisper import WhisperModel
     import soundfile as sf
     from scipy.signal import resample_poly
 
+    if model is None:
+        model = WhisperModel(str(whisper), device="cpu", compute_type="int8", cpu_threads=3)
     samples, rate = sf.read(voice, dtype="float32", always_2d=True)
     factor = math.gcd(16000, rate)
     waveform = resample_poly(samples.mean(axis=1), 16000 // factor, rate // factor)
-    segments, detail = model.transcribe(
-        waveform,
-        language=None if language == "auto" else language,
-        beam_size=5,
-        word_timestamps=True,
-        vad_filter=False,
-        condition_on_previous_text=False,
-    )
-    words = [
-        [
-            {"word": w.word.strip(), "start": float(w.start), "end": float(w.end)}
-            for w in (segment.words or [])
-            if w.end > w.start and TOKEN.search(w.word)
-        ]
-        for segment in segments
-    ]
-    return [line for line in words if line], detail.language
+    del samples
+    duration = len(waveform) / 16000
+    chunk_size = 24 if windowed else max(1, math.ceil(duration))
+    words = []
+    detected = language
+    for offset in range(0, math.ceil(duration), chunk_size):
+        left = max(0, offset - 3) if windowed else 0
+        right = min(duration, offset + chunk_size + 3)
+        segments, detail = model.transcribe(
+            waveform[round(left * 16000) : round(right * 16000)],
+            language=None if detected == "auto" else detected,
+            beam_size=5,
+            word_timestamps=True,
+            vad_filter=False,
+            condition_on_previous_text=False,
+        )
+        detected = detail.language
+        for segment in segments:
+            line = []
+            for w in segment.words or []:
+                middle = left + (w.start + w.end) / 2
+                if w.end <= w.start or not TOKEN.search(w.word):
+                    continue
+                if windowed and not offset <= middle < offset + chunk_size:
+                    continue
+                line.append(
+                    {
+                        "word": w.word.strip(),
+                        "start": float(left + w.start),
+                        "end": float(left + w.end),
+                    }
+                )
+            if line:
+                words.append(line)
+    return words, detected
+
+
+def recover_transcript(voice, whisper, language):
+    notify("Comprobando un tramo que falta en la transcripción")
+    lines, _ = transcribe(voice, whisper, language, windowed=True)
+    return " ".join(w["word"] for line in lines for w in line)
 
 
 def safe_text(value, maximum=180):
@@ -717,7 +774,13 @@ def generate(args):
                     json.loads(args.captions.read_text(encoding="utf-8")), words, language
                 )
             if selected is None and args.lookup_lyrics:
-                selected = lookup(transcript, args.artist, args.title, duration)
+                selected = lookup(
+                    transcript,
+                    args.artist,
+                    args.title,
+                    duration,
+                    rescue=lambda: recover_transcript(voice, whisper, language),
+                )
             if selected:
                 lyrics, source = selected
         if args.profile == "quality":
@@ -819,4 +882,10 @@ def main():
 
 
 if __name__ == "__main__":
+    if __package__:
+        from .generation_assets.runtime import configure_intel_openmp
+    else:
+        from generation_assets.runtime import configure_intel_openmp
+
+    configure_intel_openmp()
     main()

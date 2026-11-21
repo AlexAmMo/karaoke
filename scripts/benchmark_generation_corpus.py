@@ -18,10 +18,6 @@ from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import soundfile as sf
-import torch
-from faster_whisper import WhisperModel
-
 from benchmark_chart_generation import compare_notes, compare_words, extract
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/karaoke"))
@@ -52,7 +48,7 @@ def seconds(media):
 
 
 def score(reference, draft, offset, duration, clip):
-    # This is the first time the human chart is opened. Discard boundary words whose
+    # This is where the human notes and words are decoded. Discard boundary words whose
     # syllables may extend beyond the excerpt, with the same margin for both charts.
     notes, words = extract(reference)
     found, recognized = extract(draft)
@@ -86,6 +82,10 @@ def record_time(d, stage, fn):
 
 
 def run(args):
+    import soundfile as sf
+    import torch
+    from faster_whisper import WhisperModel
+
     torch.set_num_threads(3)
     raw = json.loads(args.manifest.read_text())
     cases = sum(raw.values(), []) if isinstance(raw, dict) else raw
@@ -183,7 +183,13 @@ def run(args):
         lyr, src = transcript, {"kind": "asr"}
         # Full-track lyrics cannot be used as if they were lyrics for a 24 s excerpt.
         if args.lookup_lyrics and not args.clip_seconds:
-            selected = worker.lookup(transcript, row["artist"], row["title"], duration)
+            selected = worker.lookup(
+                transcript,
+                row["artist"],
+                row["title"],
+                duration,
+                rescue=lambda: worker.recover_transcript(voice, whisper, language),
+            )
             if selected:
                 lyr, src = selected
         timing = dict(stage["seconds"])
@@ -195,7 +201,6 @@ def run(args):
             "lyrics_source": src,
             "seconds": timing,
             "audio_sha256": stage["signature"][0],
-            "chart_sha256": worker.digest(row["reference"]),
         }
         try:
             notes, evidence = record_time(
@@ -207,9 +212,14 @@ def run(args):
             draft.write_text(
                 worker.chart_text(notes, row["title"], row["artist"], language, duration)
             )
-            result["metrics"] = score(
-                Path(row["reference"]), draft, offset, duration, args.clip_seconds
-            )
+            # Finish and fingerprint the prediction before opening the gold chart.
+            # Only the evaluator receives its path; neither model nor text resolver does.
+            result["draft_sha256"] = worker.digest(draft)
+            reference = Path(row["reference"])
+            result["chart_sha256"] = worker.digest(reference)
+            if row.get("chart_sha") and result["chart_sha256"] != row["chart_sha"]:
+                raise RuntimeError(f"The evaluation reference changed for {row['tag']}")
+            result["metrics"] = score(reference, draft, offset, duration, args.clip_seconds)
             result["diagnostics"] = {k: v for k, v in evidence.items() if k != "review_regions"}
             result["meets_thresholds"] = passes(result["metrics"])
         except ValueError as exc:
@@ -234,6 +244,9 @@ def passes(m):
 
 
 if __name__ == "__main__":
+    from generation_assets.runtime import configure_intel_openmp
+
+    configure_intel_openmp()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
     parser.add_argument("output", type=Path)
