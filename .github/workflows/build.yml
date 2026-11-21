@@ -23,7 +23,30 @@ concurrency:
   group: prepare-release-assets-${{ inputs.source_run }}-${{ inputs.source_commit }}
   cancel-in-progress: false
 jobs:
+  source:
+    name: Wait for exact release CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN: ${{ inputs.source_run }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+    steps:
+      - name: Wait for a successful complete build
+        run: |
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ && "$SOURCE_COMMIT" =~ ^[a-f0-9]{40}$ ]] || exit 1
+          while true; do
+            run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN")
+            [[ $(jq -r '.head_sha' <<< "$run") == "$SOURCE_COMMIT" ]] || exit 1
+            [[ $(jq -r '.path' <<< "$run") == .github/workflows/build.yml ]] || exit 1
+            if [[ $(jq -r '.status' <<< "$run") == completed ]]; then
+              jq -e '.conclusion == "success"' <<< "$run"
+              break
+            fi
+            sleep 35
+          done
   assets:
+    needs: source
     name: ${{ matrix.arch }} release verification
     runs-on: ubuntu-latest
     timeout-minutes: 40
