@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import suppress
+import ctypes
 import hashlib
 import importlib.metadata
 import json
@@ -29,10 +30,41 @@ CONFIG_SHA = "1d3b58b473025183d0d3c91e7a444cb5f1418d9f34e8f46b8d2fb10d2cc8ab34"
 PILOT = ("bad-bunny-amorfoda", "fito-paez-11-y-6",
          "jonathan-coulton-mr-fancy-pants", "northern-star")
 MEMORY_LIMIT = 2 * 1024 ** 3
+WORKER_MEMORY_STOP = 1536 * 1024 ** 2
+MEMORY_SAMPLE_SECONDS = 0.05
 SAMPLE_RATE = 44100
 STFT_HOP = 512
 ATTENTION_BANDS = 62
 ATTENTION_HEADS = 8
+
+
+class RUsageInfoV0(ctypes.Structure):
+    # Apple <sys/resource.h>, RUSAGE_INFO_V0. All sizes below are bytes.
+    _fields_ = [("ri_uuid", ctypes.c_uint8 * 16)] + [
+        (name, ctypes.c_uint64) for name in (
+            "ri_user_time", "ri_system_time", "ri_pkg_idle_wkups", "ri_interrupt_wkups",
+            "ri_pageins", "ri_wired_size", "ri_resident_size", "ri_phys_footprint",
+            "ri_proc_start_abstime", "ri_proc_exit_abstime")]
+
+
+def memory_sampler():
+    """Read the worker, not its supervisor, using Apple's public libproc API."""
+    if sys.platform != "darwin":
+        raise RuntimeError("This v3 research supervisor requires macOS libproc memory monitoring")
+    libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+    query = libproc.proc_pid_rusage
+    query.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_void_p]
+    query.restype = ctypes.c_int
+
+    def sample(pid):
+        usage = RUsageInfoV0()
+        if query(pid, 0, ctypes.byref(usage)) != 0:
+            code = ctypes.get_errno()
+            raise OSError(code, os.strerror(code))
+        return {"rss_bytes": usage.ri_resident_size, "physical_footprint_bytes": usage.ri_phys_footprint}
+
+    sample(os.getpid())  # Fail before starting an unmonitored child.
+    return sample
 
 
 def digest(path):
@@ -78,21 +110,24 @@ def attention_estimate(chunk_samples):
 def preflight(args):
     # This must run before importing torch, reading weights or starting a worker.
     if args.device != "cpu":
-        raise ValueError("MPS is disabled for this experiment after a Mac restart; use CPU in a new v2 directory")
+        raise ValueError("MPS is disabled for this experiment after a Mac restart; use CPU in a new v3 directory")
     if not 0 < args.chunk_seconds <= 120 or not 0 < args.timeout_seconds <= 3600:
         raise ValueError("Expected positive finite window and timeout (at most 120s / 3600s)")
     estimate = attention_estimate(round(args.chunk_seconds * SAMPLE_RATE))
     if estimate["estimated_bytes"] > MEMORY_LIMIT:
-        raise ValueError("Window exceeds the 2 GiB preflight estimate; the v2 default is 4 seconds")
+        raise ValueError("Window exceeds the 2 GiB preflight estimate; the default is 4 seconds")
     return estimate
 
 
 def run_settings(args):
     estimate = preflight(args)
-    return {"schema": 2, "adapter_sha256": digest(__file__), "device": "cpu",
+    return {"schema": 3, "adapter_sha256": digest(__file__), "device": "cpu",
             "chunk_samples": round(args.chunk_seconds * SAMPLE_RATE), "overlap": 4,
             "batch_size": 1, "amp": False, "cpu_threads": 2,
             "timeout_seconds": args.timeout_seconds, "memory_preflight": estimate,
+            "memory_monitor": {"api": "proc_pid_rusage/RUSAGE_INFO_V0", "worker_only": True,
+                               "stop_bytes": WORKER_MEMORY_STOP, "sample_seconds": MEMORY_SAMPLE_SECONDS,
+                               "limit": "sampled values, not an absolute peak or an OS allocation limit"},
             "model_sha256": MODEL_SHA, "config_sha256": CONFIG_SHA,
             "source_revision": REVISION, "model_revision": MODEL_REVISION,
             "stems_manifest_sha256": digest(args.stems),
@@ -102,18 +137,18 @@ def run_settings(args):
 def prepare_plan(args):
     settings = run_settings(args)
     selected = args.ids or list(PILOT)
-    path = args.output / "plan-v2.json"
+    path = args.output / "plan-v3.json"
     if path.exists():
         plan = json.loads(path.read_text(encoding="utf-8"))
         if plan["settings"] != settings:
-            raise ValueError("Changed v2 settings: use a new output directory")
+            raise ValueError("Changed v3 settings: use a new output directory")
         if (args.worker and not set(selected).issubset(plan["ids"])) or (
             not args.worker and selected != plan["ids"]
         ):
-            raise ValueError("Changed v2 cohort: use a new output directory")
+            raise ValueError("Changed v3 cohort: use a new output directory")
     else:
         if args.worker or (args.output.exists() and any(args.output.iterdir())):
-            raise ValueError("v2 requires a new empty directory; keep the previous probe and plan unchanged")
+            raise ValueError("v3 requires a new empty directory; keep the previous probe and plan unchanged")
         plan = {"settings": settings, "ids": selected,
                 "created_at_unix": time.time(), "reference_input": None,
                 "scope": "CPU research only; shorter windows differ from the published 20s configuration; no inference yet",
@@ -124,15 +159,23 @@ def prepare_plan(args):
 
 def run_worker(command, log, checkpoint, timeout):
     """Bound one CPU song; never continue to another if termination is uncertain."""
+    sample_memory = memory_sampler()
     log.parent.mkdir(parents=True, exist_ok=True)
-    with log.open("a", encoding="utf-8") as stream:
+    checkpoint.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("a", encoding="utf-8") as stream, checkpoint.with_suffix(".resources.jsonl").open(
+        "a", encoding="utf-8"
+    ) as resources:
         process = subprocess.Popen(command, stdout=stream, stderr=stream, start_new_session=True)
         record = {"pid": process.pid, "command": command, "started_at_unix": time.time(),
-                  "state": "running", "timeout_seconds": timeout}
-        def terminate(state):
-            record["signals"] = ["terminate"]
+                  "state": "running", "timeout_seconds": timeout,
+                  "resource_samples": 0, "sampled_max_rss_bytes": 0,
+                  "sampled_max_physical_footprint_bytes": 0,
+                  "memory_stop_bytes": WORKER_MEMORY_STOP, "memory_sample_seconds": MEMORY_SAMPLE_SECONDS,
+                  "memory_scope": "worker PID only; sampled maximum, not an absolute peak"}
+        def terminate(state, immediate=False):
+            record["signals"] = ["kill" if immediate else "terminate"]
             with suppress(ProcessLookupError):
-                process.terminate()
+                (process.kill if immediate else process.terminate)()
             try:
                 code = process.wait(timeout=5)
             except subprocess.TimeoutExpired:
@@ -150,12 +193,39 @@ def run_worker(command, log, checkpoint, timeout):
 
         try:
             write_checkpoint(checkpoint, record)
-            code = process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            terminate("timed-out")
-            raise TimeoutError(f"CPU song exceeded {timeout}s; no further songs started") from None
+            started = time.monotonic()
+            last_checkpoint = started
+            while process.poll() is None:
+                elapsed = time.monotonic() - started
+                if elapsed >= timeout:
+                    terminate("timed-out")
+                    raise TimeoutError(f"CPU song exceeded {timeout}s; no further songs started")
+                try:
+                    memory = sample_memory(process.pid)
+                except OSError:
+                    if process.poll() is not None:
+                        break
+                    raise  # Loss of the monitor stops the worker, too.
+                record["resource_samples"] += 1
+                record["sampled_max_rss_bytes"] = max(record["sampled_max_rss_bytes"], memory["rss_bytes"])
+                record["sampled_max_physical_footprint_bytes"] = max(
+                    record["sampled_max_physical_footprint_bytes"], memory["physical_footprint_bytes"])
+                resources.write(json.dumps({"pid": process.pid, "elapsed_seconds": elapsed, **memory}) + "\n")
+                resources.flush()
+                if max(memory.values()) >= WORKER_MEMORY_STOP:
+                    terminate("memory-limit", immediate=True)
+                    raise MemoryError("CPU worker reached the 1.5 GiB stop threshold; no further songs started")
+                if time.monotonic() - last_checkpoint >= 1:
+                    write_checkpoint(checkpoint, record)
+                    last_checkpoint = time.monotonic()
+                try:
+                    process.wait(timeout=min(MEMORY_SAMPLE_SECONDS, max(0.001, timeout - elapsed)))
+                except subprocess.TimeoutExpired:
+                    pass
+            code = process.wait(timeout=0)
         except BaseException:
-            terminate("interrupted")
+            if record["state"] == "running":
+                terminate("interrupted", immediate=True)
             raise
         record.update(state="complete" if code == 0 else "failed", returncode=code,
                       finished_at_unix=time.time())
@@ -188,7 +258,7 @@ def load_model(args):
     torch.manual_seed(113)
     raw = yaml.load((args.model_dir / "config.yaml").read_text(), Loader=yaml.FullLoader)
     config = ConfigDict(raw)
-    # v2 uses shorter CPU windows; the published 20s configuration is not resumed.
+    # Shorter CPU windows; the published 20s configuration is not resumed.
     config.audio.chunk_size = round(args.chunk_seconds * SAMPLE_RATE)
     config.inference.batch_size = 1
     config.training.use_amp = False
@@ -237,7 +307,7 @@ def probe(args):
     result = {"input": f"fixed synthetic {args.chunk_seconds:g}-second configured window; no reference chart",
               "times_seconds": times, "shape": list(outputs["cpu"].shape),
               "adapter_sha256": digest(__file__)}
-    write_new(args.output / "cpu-probe-v2.json", result)
+    write_new(args.output / "cpu-probe-v3.json", result)
     print(json.dumps(result), flush=True)
 
 
@@ -308,7 +378,7 @@ def bounded_probe(args):
     plan = prepare_plan(args)
     run_worker(worker_command(args, "probe", plan["ids"]), args.output / "logs" / "probe.log",
                args.output / "execution" / "probe.json", args.timeout_seconds)
-    if not (args.output / "cpu-probe-v2.json").is_file():
+    if not (args.output / "cpu-probe-v3.json").is_file():
         raise RuntimeError("CPU probe exited without its result")
 
 
@@ -318,7 +388,10 @@ def bounded_separation(args):
     charts = json.loads(args.charts.read_text(encoding="utf-8"))
     if not set(plan["ids"]).issubset(stems) or not set(plan["ids"]).issubset(charts):
         raise ValueError("Pilot missing from source manifests")
-    for tag in plan["ids"]:
+    selected = args.only or plan["ids"]
+    if not set(selected).issubset(plan["ids"]):
+        raise ValueError("Selected song must belong to the frozen pilot cohort")
+    for tag in selected:
         record = args.output / "separation" / (tag + ".json")
         output = args.output / "audio" / (tag + ".wav")
         if record.exists():
@@ -332,6 +405,8 @@ def bounded_separation(args):
                    args.output / "execution" / (tag + ".json"), args.timeout_seconds)
         if not record.is_file():
             raise RuntimeError(f"Worker exited without a frozen separation: {tag}")
+    if set(selected) != set(plan["ids"]):
+        return  # A single-song checkpoint must not publish incomplete cohort manifests.
     manifests = {
         "lead-stems.json": {tag: str((args.output / "audio" / (tag + ".wav")).resolve()) for tag in plan["ids"]},
         "original-stems.json": {tag: str(Path(stems[tag]).resolve()) for tag in plan["ids"]},
@@ -354,6 +429,7 @@ def main():
     parser.add_argument("--stems", type=Path)
     parser.add_argument("--charts", type=Path)
     parser.add_argument("--ids", nargs="+")
+    parser.add_argument("--only", nargs="+", help="Run only these songs from the unchanged pilot cohort")
     parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
     parser.add_argument("--chunk-seconds", type=float, default=4)
     parser.add_argument("--timeout-seconds", type=float, default=900)
@@ -362,12 +438,14 @@ def main():
     try:
         preflight(args)
         if args.stems is None or args.charts is None:
-            raise ValueError("v2 stages need --stems and --charts, even when only preparing a plan")
+            raise ValueError("v3 stages need --stems and --charts, even when only preparing a plan")
+        if args.only and (args.stage != "separate" or args.worker):
+            raise ValueError("--only is valid only for supervised separation")
         prepare_plan(args)
     except ValueError as exc:
         parser.error(str(exc))
     if args.stage == "plan":
-        print(args.output / "plan-v2.json")
+        print(args.output / "plan-v3.json")
     elif args.stage == "probe":
         if args.worker:
             probe(args)

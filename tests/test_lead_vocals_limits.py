@@ -1,7 +1,9 @@
 """Resource guards only: no separator, PyTorch or audio inference is executed."""
 
 import importlib.util
+import ctypes
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -69,11 +71,17 @@ def test_plan_does_not_touch_old_probe_or_load_models(tmp_path):
     result = cli_without_torch("plan", "--model-dir", str(tmp_path / "missing-model"),
                                "--output", str(output), "--stems", str(stems), "--charts", str(charts))
     assert result.returncode == 0, result.stderr
-    plan = json.loads((output / "plan-v2.json").read_text(encoding="utf-8"))
+    plan = json.loads((output / "plan-v3.json").read_text(encoding="utf-8"))
     assert plan["settings"]["device"] == "cpu"
     assert plan["settings"]["chunk_samples"] == 4 * 44100
     assert "no inference yet" in plan["scope"]
-    assert list(output.iterdir()) == [output / "plan-v2.json"]
+    assert list(output.iterdir()) == [output / "plan-v3.json"]
+
+
+@pytest.fixture
+def fake_monitor(monkeypatch):
+    monkeypatch.setattr(lead, "memory_sampler", lambda: lambda _pid: {
+        "rss_bytes": 1024, "physical_footprint_bytes": 2048})
 
 
 def test_immutable_json_is_not_partially_published(tmp_path):
@@ -89,7 +97,7 @@ def test_immutable_json_is_not_partially_published(tmp_path):
     assert list(tmp_path.iterdir()) == [target]
 
 
-def test_timeout_reaps_an_ordinary_cpu_worker_and_records_failure(tmp_path):
+def test_timeout_reaps_an_ordinary_cpu_worker_and_records_failure(tmp_path, fake_monitor):
     checkpoint = tmp_path / "execution.json"
     with pytest.raises(TimeoutError, match="no further songs"):
         lead.run_worker([sys.executable, "-c", "import time; time.sleep(30)"],
@@ -100,7 +108,7 @@ def test_timeout_reaps_an_ordinary_cpu_worker_and_records_failure(tmp_path):
     assert state["signals"] == ["terminate"]
 
 
-def test_interrupting_controller_also_terminates_its_worker(tmp_path, monkeypatch):
+def test_interrupting_controller_also_terminates_its_worker(tmp_path, monkeypatch, fake_monitor):
     class Interrupted:
         pid = 123
         terminated = False
@@ -112,6 +120,11 @@ def test_interrupting_controller_also_terminates_its_worker(tmp_path, monkeypatc
 
         def terminate(self):
             self.terminated = True
+
+        kill = terminate
+
+        def poll(self):
+            return None
 
     process = Interrupted()
     monkeypatch.setattr(lead.subprocess, "Popen", lambda *_a, **_k: process)
@@ -131,7 +144,7 @@ def test_probe_uses_the_same_bounded_worker_without_inference(tmp_path, monkeypa
 
     def run(command, log, checkpoint, timeout):
         captured.append((command, timeout))
-        (tmp_path / "cpu-probe-v2.json").write_text("{}", encoding="utf-8")
+        (tmp_path / "cpu-probe-v3.json").write_text("{}", encoding="utf-8")
 
     monkeypatch.setattr(lead, "run_worker", run)
     lead.bounded_probe(args)
@@ -145,3 +158,68 @@ def test_probe_uses_the_same_bounded_worker_without_inference(tmp_path, monkeypa
 def test_invalid_resource_settings_rejected(window, timeout):
     with pytest.raises(ValueError):
         lead.preflight(SimpleNamespace(device="cpu", chunk_seconds=window, timeout_seconds=timeout))
+
+
+@pytest.mark.parametrize("field", ["rss_bytes", "physical_footprint_bytes"])
+def test_memory_threshold_kills_small_worker_without_large_allocation(tmp_path, monkeypatch, field):
+    sample = {"rss_bytes": 1024, "physical_footprint_bytes": 1024, field: lead.WORKER_MEMORY_STOP}
+    monkeypatch.setattr(lead, "memory_sampler", lambda: lambda _pid: sample)
+    checkpoint = tmp_path / "execution" / "memory.json"
+    with pytest.raises(MemoryError, match="1.5 GiB"):
+        lead.run_worker([sys.executable, "-c", "import time; time.sleep(30)"],
+                        tmp_path / "worker.log", checkpoint, 2)
+    state = json.loads(checkpoint.read_text())
+    assert state["state"] == "memory-limit" and state["signals"] == ["kill"]
+    assert state["returncode"] is not None and state["resource_samples"] == 1
+    assert lead.WORKER_MEMORY_STOP < lead.MEMORY_LIMIT
+
+
+def test_monitor_failure_stops_and_reaps_worker(tmp_path, monkeypatch):
+    def failing(_pid):
+        raise OSError("lost worker memory telemetry")
+
+    monkeypatch.setattr(lead, "memory_sampler", lambda: failing)
+    checkpoint = tmp_path / "execution.json"
+    with pytest.raises(OSError, match="lost worker"):
+        lead.run_worker([sys.executable, "-c", "import time; time.sleep(30)"],
+                        tmp_path / "worker.log", checkpoint, 2)
+    state = json.loads(checkpoint.read_text())
+    assert state["state"] == "interrupted" and state["signals"] == ["kill"]
+    assert state["returncode"] is not None
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="Apple libproc is only available on macOS")
+def test_native_worker_memory_sampling_on_small_process(tmp_path):
+    # The SDK's rusage_info_v0 has a 16-byte UUID followed by ten uint64 fields.
+    assert ctypes.sizeof(lead.RUsageInfoV0) == 96
+    sample = lead.memory_sampler()(os.getpid())
+    assert sample["rss_bytes"] > 0 and sample["physical_footprint_bytes"] > 0
+    checkpoint = tmp_path / "execution.json"
+    lead.run_worker([sys.executable, "-c", "import time; a=bytearray(32*1024**2); time.sleep(.2)"],
+                    tmp_path / "worker.log", checkpoint, 2)
+    state = json.loads(checkpoint.read_text())
+    assert state["state"] == "complete" and state["returncode"] == 0
+    assert state["resource_samples"] >= 2
+    assert state["sampled_max_rss_bytes"] >= 32 * 1024 ** 2
+    assert state["sampled_max_physical_footprint_bytes"] >= 32 * 1024 ** 2
+
+
+def test_single_song_retains_declared_cohort_and_does_not_start_others(tmp_path, monkeypatch):
+    stems, charts = tmp_path / "stems.json", tmp_path / "charts.json"
+    stems.write_text(json.dumps(dict.fromkeys(lead.PILOT, "audio.wav")))
+    charts.write_text(json.dumps(dict.fromkeys(lead.PILOT, "chart.json")))
+    args = SimpleNamespace(device="cpu", chunk_seconds=4, timeout_seconds=900,
+                           stems=stems, charts=charts, output=tmp_path / "new",
+                           ids=None, worker=False, only=[lead.PILOT[0]], model_dir=tmp_path)
+    started = []
+
+    def worker(command, _log, _checkpoint, _timeout):
+        started.append(command[command.index("--ids") + 1:])
+        lead.write_new(args.output / "separation" / (lead.PILOT[0] + ".json"), {})
+
+    monkeypatch.setattr(lead, "run_worker", worker)
+    lead.bounded_separation(args)
+    plan = json.loads((args.output / "plan-v3.json").read_text())
+    assert plan["ids"] == list(lead.PILOT)
+    assert started == [[lead.PILOT[0]]]
+    assert not (args.output / "lead-stems.json").exists()
