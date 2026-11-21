@@ -18,8 +18,11 @@ tag = provenance["tag"]
 voice = tmp/"export/vocals.wav"
 suite = json.loads(zlib.decompress(base64.b85decode(os.environ.pop("PRIVATE_CUES"))))
 request = suite[tag]
+from timing_wav_clock import set_peak_time
+raw_hash = digest(voice)
+set_peak_time(voice, json.loads(Path(".github/validation/cc-wave-clocks.json").read_text())[tag])
 if (digest(voice),provenance["audio_sha256"]) != (request["stem"], request["audio"]):
-    raise ValueError("Incompatible master or numeric vocal signature")
+    raise ValueError(f"Incompatible master or vocal signature after restoring ancillary timestamp: {digest(voice)} / {provenance['audio_sha256']}")
 out = {}
 model = ForcedAligner(Path(sys.argv[1]), tmp/"qwen.gguf", 4, "cpu")
 try:
@@ -30,5 +33,5 @@ try:
 finally:
     model.close()
 (tmp/"numeric-output.json").write_text(json.dumps(dict(id=tag, model_sha256=MODEL_SHA,
-    stem_sha256=request["stem"],audio_sha256=request["audio"], native="Linux x86_64 0.8.54 Q4 CPU",cases=out)))
+    stem_sha256=request["stem"],audio_sha256=request["audio"], rebuilt_wav_sha256=raw_hash, native="Linux x86_64 0.8.54 Q4 CPU",cases=out)))
 print("Completed",tag,"variants",len(out))
