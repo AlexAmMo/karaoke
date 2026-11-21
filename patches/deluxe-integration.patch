@@ -450,7 +450,7 @@ index c5514a3..cd103d9 100644
        end;
        SDL_KEYDOWN, SDL_TEXTINPUT:
 diff --git a/src/base/UMusic.pas b/src/base/UMusic.pas
-index 8464074..2823d47 100644
+index 8464074..1694064 100644
 --- a/src/base/UMusic.pas
 +++ b/src/base/UMusic.pas
 @@ -358,6 +358,8 @@   TAudioDecodeStream = class(TAudioSourceStream)
@@ -462,7 +462,15 @@ index 8464074..2823d47 100644
      protected
        FormatInfo: TAudioFormatInfo;
        ChannelMap: integer;
-@@ -681,6 +683,11 @@ procedure DumpMediaInterfaces();
+@@ -467,6 +469,7 @@   TAudioOutputDevice = class
+ 
+   IAudioPlayback = Interface( IGenericPlayback )
+   ['{E4AE0B40-3C21-4DC5-847C-20A87E0DFB96}']
++      procedure QuiescePlayback;
+       function InitializePlayback: boolean;
+       function FinalizePlayback: boolean;
+ 
+@@ -681,6 +684,11 @@ procedure DumpMediaInterfaces();
  
  function FindNote(beat: integer): TPos;
  
@@ -474,6 +482,28 @@ index 8464074..2823d47 100644
  implementation
  
  uses
+@@ -690,6 +698,7 @@ implementation
+   UCommandLine,
+   UCommon,
+   URecord,
++  UKaraokeShell,
+   ULog,
+   UPathUtils;
+ 
+@@ -1068,8 +1077,11 @@ procedure UnloadMediaModules;
+ 
+ procedure FinalizeMedia;
+ begin
+-  // Stop and release the main music streams before auxiliary sound effects.
+-  // This avoids backend teardown races during shutdown.
++  // Wait for the output callback before releasing its music, monitor and effect streams.
++  if (AudioPlayback <> nil) then
++    AudioPlayback.QuiescePlayback;
++  if ShellEnabled then
++    ShellCaptureStop;
+   if (AudioPlayback <> nil) then
+     AudioPlayback.Close;
+ 
 diff --git a/src/base/UNote.pas b/src/base/UNote.pas
 index 9f8300b..5e71a22 100644
 --- a/src/base/UNote.pas
@@ -1550,7 +1580,7 @@ index e68a4f6..cce38b4 100644
      if name <> nil then
        device.UseName := true;
 diff --git a/src/media/UAudioPlayback_SDL.pas b/src/media/UAudioPlayback_SDL.pas
-index 68cc46e..16d7fba 100644
+index 68cc46e..f0febc9 100644
 --- a/src/media/UAudioPlayback_SDL.pas
 +++ b/src/media/UAudioPlayback_SDL.pas
 @@ -93,6 +93,7 @@ function TAudioPlayback_SDL.InitializeAudioPlaybackEngine(): boolean;
@@ -1612,11 +1642,37 @@ index 68cc46e..16d7fba 100644
    Latency := (ObtainedAudioSpec.samples/2) / FormatInfo.SampleRate;
  
    Log.LogStatus('Opened audio device', 'TAudioPlayback_SDL.InitializeAudioPlaybackEngine');
+@@ -164,6 +182,9 @@ function TAudioPlayback_SDL.StartAudioPlaybackEngine(): boolean;
+ procedure TAudioPlayback_SDL.StopAudioPlaybackEngine();
+ begin
+   SDL_PauseAudio(1);
++  // Pair with any callback already inside SDL when shutdown was requested.
++  SDL_LockAudio();
++  SDL_UnlockAudio();
+ end;
+ 
+ function TAudioPlayback_SDL.FinalizeAudioPlaybackEngine(): boolean;
 diff --git a/src/media/UAudioPlayback_SoftMixer.pas b/src/media/UAudioPlayback_SoftMixer.pas
-index e31c71b..801c66f 100644
+index e31c71b..9473607 100644
 --- a/src/media/UAudioPlayback_SoftMixer.pas
 +++ b/src/media/UAudioPlayback_SoftMixer.pas
-@@ -190,6 +190,7 @@ implementation
+@@ -137,6 +137,7 @@   TAudioMixerStream = class
+   TAudioPlayback_SoftMixer = class(TAudioPlaybackBase)
+     private
+       MixerStream: TAudioMixerStream;
++      PlaybackRunning: boolean;
+     protected
+       FormatInfo: TAudioFormatInfo;
+ 
+@@ -149,6 +150,7 @@   TAudioPlayback_SoftMixer = class(TAudioPlaybackBase)
+       function CreatePlaybackStream(): TAudioPlaybackStream; override;
+     public
+       function GetName: string; override; abstract;
++      procedure QuiescePlayback; override;
+       function InitializePlayback(): boolean; override;
+       function FinalizePlayback: boolean; override;
+ 
+@@ -190,6 +192,7 @@ implementation
  
  uses
    Math,
@@ -1624,7 +1680,7 @@ index e31c71b..801c66f 100644
    ULog,
    UIni,
    UFFT,
-@@ -399,6 +400,8 @@ function TGenericPlaybackStream.Open(SourceStream: TAudioSourceStream): boolean;
+@@ -399,6 +402,8 @@ function TGenericPlaybackStream.Open(SourceStream: TAudioSourceStream): boolean;
    end;
  
    SourceBufferSize := SOURCE_BUFFER_FRAMES * SourceStream.GetAudioFormatInfo().FrameSize;
@@ -1633,6 +1689,30 @@ index e31c71b..801c66f 100644
    GetMem(SourceBuffer, SourceBufferSize);
    fVolume := 1.0;
  
+@@ -509,18 +514,16 @@ procedure TGenericPlaybackStream.Stop();
+ var
+   Mixer: TAudioMixerStream;
+ begin
+-  if (Status = ssStopped) then
+-    Exit;
+-
++  // Always detach under the mixer lock. The callback can mark EOF before its
++  // final read, resample and volume access have returned to the mixer.
++  Mixer := Engine.GetMixer();
++  if Mixer <> nil then
++    Mixer.RemoveStream(Self);
+   Status := ssStopped;
+   // stop fading
+   FadeInTime := 0;
+ 
+   LastReadSize := 0;
+-  
+-  Mixer := Engine.GetMixer();
+-  if (Mixer <> nil) then
+-    Mixer.RemoveStream(Self);
+ end;
+ 
+ function TGenericPlaybackStream.GetLoop(): boolean;
 @@ -979,6 +982,8 @@ function TGenericVoiceStream.Open(ChannelMap: integer; FormatInfo: TAudioFormatI
    // - the buffer-size must be a multiple of the FrameSize
    BufferSize := (Ceil(MAX_VOICE_DELAY * Self.FormatInfo.BytesPerSec) div Self.FormatInfo.FrameSize) *
@@ -1660,7 +1740,34 @@ index e31c71b..801c66f 100644
    finally
      SDL_UnlockMutex(BufferLock);
    end;
-@@ -1098,6 +1106,9 @@ procedure TAudioPlayback_SoftMixer.AudioCallback(Buffer: PByteArray; Size: integ
+@@ -1073,15 +1081,25 @@ function TAudioPlayback_SoftMixer.InitializePlayback: boolean;
+     Exit;
+   end;
+ 
++  PlaybackRunning := true;
+   Log.LogStatus('Opened audio device', 'UAudioPlayback_SoftMixer.InitializePlayback');
+ 
+   Result := true;
+ end;
+ 
++procedure TAudioPlayback_SoftMixer.QuiescePlayback;
++begin
++  if PlaybackRunning then
++  begin
++    StopAudioPlaybackEngine();
++    PlaybackRunning := false;
++  end;
++end;
++
+ function TAudioPlayback_SoftMixer.FinalizePlayback: boolean;
+ begin
++  QuiescePlayback;
+   Close;
+-  StopAudioPlaybackEngine();
+ 
+   FreeAndNil(MixerStream);
+   FreeAndNil(FormatInfo);
+@@ -1098,6 +1116,9 @@ procedure TAudioPlayback_SoftMixer.AudioCallback(Buffer: PByteArray; Size: integ
    OldMask := GetExceptionMask;
    SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
    MixerStream.ReadData(Buffer, Size);
@@ -1948,3 +2055,50 @@ index 3c445a7..97d067b 100644
        ShowMessage(Report);
  
        Halt;
+diff --git a/src/media/UAudioPlaybackBase.pas b/src/media/UAudioPlaybackBase.pas
+index 7f39683..8efc680 100644
+--- a/src/media/UAudioPlaybackBase.pas
++++ b/src/media/UAudioPlaybackBase.pas
+@@ -84,6 +84,7 @@   TAudioPlaybackBase = class(TInterfacedObject, IAudioPlayback)
+       procedure SetStartTime(Time: real);
+       function GetStartTime: real;
+ 
++      procedure QuiescePlayback; virtual;
+       function InitializePlayback: boolean; virtual; abstract;
+       function FinalizePlayback: boolean; virtual;
+ 
+@@ -154,6 +155,11 @@ constructor TAudioPlaybackBase.Create();
+ 
+ { TAudioPlaybackBase }
+ 
++procedure TAudioPlaybackBase.QuiescePlayback;
++begin
++  Stop;
++end;
++
+ function TAudioPlaybackBase.FinalizePlayback: boolean;
+ begin
+   FreeAndNil(MusicStream);
+diff --git a/src/media/UMedia_dummy.pas b/src/media/UMedia_dummy.pas
+index 1c743c0..1fe252c 100644
+--- a/src/media/UMedia_dummy.pas
++++ b/src/media/UMedia_dummy.pas
+@@ -81,6 +81,7 @@     TAudio_Dummy = class( TInterfacedObject, IAudioPlayback, IAudioInput )
+ 
+ 
+       // IAudioPlayback
++      procedure QuiescePlayback;
+       function InitializePlayback: boolean;
+       function FinalizePlayback: boolean;
+ 
+@@ -286,6 +287,10 @@ function TAudio_Dummy.GetFormatInfo(): TAudioFormatInfo;
+ 
+ 
+ // IAudioPlayback
++procedure TAudio_Dummy.QuiescePlayback;
++begin
++end;
++
+ function TAudio_Dummy.InitializePlayback: boolean;
+ begin
+   SetLength(DummyOutputDeviceList, 1);
