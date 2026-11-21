@@ -44,7 +44,11 @@ def run(args):
             if args.channel < 1 or args.channel > device["channels"]:
                 raise RuntimeError(f"This device has {device['channels']} input channels.")
             session.native(
-                "calibrate", name=device["name"], device=device["index"], channel=args.channel - 1
+                "calibrate",
+                name=device["name"],
+                device=device["index"],
+                channel=args.channel - 1,
+                purpose="scoring" if args.music else "monitor",
             )
             active = session.wait(
                 lambda state: state.get("calibration", {}).get("status") in ("running", "failed")
@@ -88,6 +92,11 @@ if __name__ == "__main__":
         "--mixer",
         action="store_true",
         help="Measure through the SDL mixer instead of using a wired duplex callback",
+    )
+    parser.add_argument(
+        "--music",
+        action="store_true",
+        help="Measure the backing track output, as the scoring calibration does in the app",
     )
     parser.add_argument("--frames", type=int, choices=(128, 256, 512, 1024, 2048))
     raise SystemExit(0 if run(parser.parse_args()) else 1)

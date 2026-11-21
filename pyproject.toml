@@ -1,6 +1,6 @@
 [project]
 name = "karaoke-local"
-version = "0.3.0"
+version = "0.3.1"
 description = "Karaoke local con UltraStar Deluxe, biblioteca y cola integrada"
 requires-python = ">=3.12,<3.14"
 license = "GPL-3.0-only"

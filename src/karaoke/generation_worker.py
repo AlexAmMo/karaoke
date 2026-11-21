@@ -830,9 +830,16 @@ def generate(args):
             notify("Calculando la melodía vocal")
             notes, stats = standard_notes(voice, words), {}
         chart = payload / "song.txt"
-        chart.write_text(
-            chart_text(notes, args.title, args.artist, language, duration), encoding="utf-8"
-        )
+        text = chart_text(notes, args.title, args.artist, language, duration)
+        if source["kind"] == "lrclib" and language == "en":
+            if __package__:
+                from .generation_assets.spelling import restore_spelling
+            else:
+                from generation_assets.spelling import restore_spelling
+            text, stats["spelling_corrections"] = restore_spelling(
+                text, words, args.title, language
+            )
+        chart.write_text(text, encoding="utf-8")
         # Keep the artist's original vocal mix. Decode only when the source is not an MP3 stream.
         preserved = audio.suffix.lower() == ".mp3"
         if preserved:

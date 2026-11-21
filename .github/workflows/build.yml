@@ -100,6 +100,8 @@ jobs:
           mkdir -p build/pcm-test
           fpc -Funative -Fubuild/engine/src/lib/SDL2 -FUbuild/pcm-test -FEbuild/pcm-test "-Fl$(brew --prefix sdl2-compat)/lib" scripts/test_pcm_conversion.pas
           build/pcm-test/test_pcm_conversion
+          fpc -Funative -FUbuild/pcm-test -FEbuild/pcm-test scripts/test_audio_capture_history.pas
+          build/pcm-test/test_audio_capture_history
       - name: Install the Mac release candidate and sing with the bundled engine
         id: mac_session
         env:
@@ -118,6 +120,7 @@ jobs:
             if (( status != 0 )); then exit "$status"; fi
           done
           uv run --locked python scripts/test_remote_session.py --launcher "$launcher" --phone-mic
+          uv run --locked python scripts/test_audio_score_clock.py --launcher "$launcher"
       - name: Package source and provenance
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         run: |
@@ -284,7 +287,7 @@ jobs:
           exit $LASTEXITCODE
       - name: Verify Windows desktop with software graphics and dummy audio
         timeout-minutes: 3
-        run: uv run python scripts/smoke_desktop.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke --package-archive dist/Karaoke-0.3.0-windows-x86_64.zip --source-run "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --check-cursor
+        run: uv run python scripts/smoke_desktop.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke --package-archive dist/Karaoke-0.3.1-windows-x86_64.zip --source-run "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --check-cursor
       - name: Verify live pitch on the singing screen
         timeout-minutes: 3
         run: |
@@ -302,6 +305,10 @@ jobs:
         if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
         timeout-minutes: 5
         run: uv run python scripts/test_group_audio.py --launcher "$env:KARAOKE_CI_LAUNCHER"
+      - name: Score timestamped voices at ten fps and keep the monitor live
+        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
+        timeout-minutes: 4
+        run: uv run python scripts/test_audio_score_clock.py --launcher "$env:KARAOKE_CI_LAUNCHER"
       - name: Measure visible pitch transitions across the singing register
         if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
         timeout-minutes: 3
@@ -437,7 +444,7 @@ jobs:
         run: |
           [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] || exit 1
           [[ "$EXPECTED_ZIP_SHA" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
-          test "$(gh release view v0.3.0 --repo AlexAmMo/karaoke --json isDraft --jq .isDraft)" = true
+          test "$(gh release view v0.3.1 --repo AlexAmMo/karaoke --json isDraft --jq .isDraft)" = true
       - uses: actions/download-artifact@v4
         with:
           name: karaoke-windows-x86_64

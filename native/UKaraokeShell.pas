@@ -6,6 +6,7 @@ uses sdl2;
 function ShellEnabled: boolean;
 function ShellSynthetic: boolean;
 procedure ShellTick;
+procedure ShellFeedSynthetic(SongTime: Double; SampleClock: Int64);
 procedure ShellDraw;
 procedure ShellViewport;
 procedure ShellFinishFrame;
@@ -34,7 +35,7 @@ var
   LastEditTick: cardinal;
   Sequence: integer = 0;
   SynthPosition: int64 = 0;
-  SynthTick: cardinal;
+  SynthClock: Int64;
   ProbePending, ProbeMatched: array[0..KaraokeMaxSingers-1] of boolean;
   ProbeClass, ProbeFirstMs, ProbeConfirmMs: array[0..KaraokeMaxSingers-1] of integer;
   ProbeStart: array[0..KaraokeMaxSingers-1] of cardinal;
@@ -375,7 +376,6 @@ begin
   for I:=0 to N-1 do
   begin
     MobileSlot[I]:=R[I].Mobile;
-    if R[I].DelayMs<>0 then KaraokeHasRouteDelay:=true;
     AudioInputProcessor.Sound[I].MonitorGain:=R[I].Gain;
     AudioInputProcessor.Sound[I].RouteDelayMs:=R[I].DelayMs;
     if not R[I].Mobile and not ShellSynthetic then
@@ -387,15 +387,17 @@ begin
   Result:=true;
 end;
 
-procedure FeedMobile(Slot: integer; var Frame: TMobileFrame);
+procedure FeedMobile(Slot: integer; var Frame: TMobileFrame; EndTick: Int64; Discontinuity: boolean);
 begin
-  AudioInputProcessor.Sound[Slot].TestFeed(@Frame[0],SizeOf(Frame));
+  AudioInputProcessor.Sound[Slot].FeedMono(@Frame[0],SizeOf(Frame),EndTick,Discontinuity);
 end;
 procedure ShellCaptureStart;
 var I: integer; Slots: Word; Fmt: TAudioFormatInfo;
 begin
   if CaptureActive then Exit;
   CaptureCount:=PlayersPlay; CaptureActive:=true; Slots:=0;
+  // Score even a zero-offset wired route when the second half of its PCM window arrives.
+  KaraokeHasRouteDelay:=true;
   if not ShellSynthetic then AudioInput.CaptureStart;
   Fmt:=TAudioFormatInfo.Create(1,48000,asfS16);
   try
@@ -408,7 +410,7 @@ begin
       end;
   finally Fmt.Free; end;
   if Slots<>0 then MobileArm(Slots,@FeedMobile);
-  SynthTick:=SDL_GetTicks; SynthPosition:=0;
+  SynthClock:=SDL_GetPerformanceCounter; SynthPosition:=0;
 end;
 
 procedure ShellCaptureStop;
@@ -506,7 +508,9 @@ begin
   finally Routes.Free; end;
   PlayersPlay:=1; ShellCaptureStart;
   if not AllDevicesOpened(1) then begin ShellCaptureStop; Exit; end;
-  CalibrationDirect:=AudioInputProcessor.Sound[0].DirectMonitor;
+  { A singer follows the backing track through the music mixer. The diagnostic
+    CLI can independently measure the mic monitor output on a duplex stream. }
+  CalibrationDirect:=(J.Get('purpose','scoring')='monitor') and AudioInputProcessor.Sound[0].DirectMonitor;
   if CalibrationDirect then CalibrationOutputRate:=Round(AudioInputProcessor.Sound[0].AudioFormat.SampleRate);
   CalibrationStart(CalibrationClockMs(SDL_GetPerformanceCounter,SDL_GetPerformanceFrequency),CalibrationOutputRate,CalibrationDirect);
   CalibrationStarted:=SDL_GetTicks; CalibrationState:='running'; CalibrationMessage:='Escuchando siete pulsos…';
@@ -619,6 +623,14 @@ begin
       end;
     end;
   end
+  else if (Op='test-hold-analysis') and ShellSynthetic and Singing then
+  begin
+    I:=J.Get('player',-1);
+    if (I<0) or (I>=CaptureCount) or not MobileSlot[I] then Exit;
+    AudioInputProcessor.Sound[I].LockAnalysisBuffer();
+    try SDL_Delay(EnsureRange(J.Get('milliseconds',160),1,500));
+    finally AudioInputProcessor.Sound[I].UnlockAnalysisBuffer(); end;
+  end
   else if (Op='test-silent-frame') and ShellSynthetic and Singing then
   begin
     I:=J.Get('player',-1);
@@ -696,11 +708,44 @@ begin
   end;
 end;
 
+procedure ShellFeedSynthetic(SongTime: Double; SampleClock: Int64);
+var I,K,N,Remaining: integer; BlockTick: Int64; Buf: array[0..4095] of SmallInt;
+    Frequency,SampleTime: Double;
+begin
+  if not ShellSynthetic or not (Singing or TestingInput) then Exit;
+  { Each virtual device gets the same capture clock. A slow display can deliver
+    several audio blocks at once without squeezing them into the last 85 ms. }
+  Remaining:=Min(120000,Round((SampleClock-SynthClock)*(48000.0/SDL_GetPerformanceFrequency)));
+  while Remaining>0 do
+  begin
+    N:=Min(Length(Buf),Remaining);
+    BlockTick:=SampleClock-Round((Remaining-N)*(SDL_GetPerformanceFrequency/48000.0));
+    for I:=0 to PlayersPlay-1 do
+    begin
+      if not SynthFeeding[I] then Continue;
+      Frequency := SynthFrequency[I];
+      for K:=0 to N-1 do
+      begin
+        if SynthPattern[I] then
+        begin
+          // Deterministic alternating A4/C5 test fixture, delayed at the input.
+          SampleTime:=SongTime-(Remaining-K)/48000-SynthDelayMs[I]/1000.0;
+          if Odd(Floor((SampleTime-1.0)*4)) then Frequency:=523.251 else Frequency:=440;
+        end;
+        Buf[K]:=Round(8000*Sin(2*Pi*Frequency*(SynthPosition+K)/48000));
+      end;
+      AudioInputProcessor.Sound[I].FeedMono(@Buf[0],N*2,BlockTick,false);
+    end;
+    Inc(SynthPosition,N); Dec(Remaining,N);
+  end;
+  SynthClock:=SampleClock;
+end;
+
 procedure ShellTick;
 var J,O: TJSONObject; A,Scores,Devices,Levels: TJSONArray; SR: TSearchRec;
     Commands: TStringList; Forgotten: TSong;
-    I,K,N: integer; NowTick: cardinal; Buf: array[0..4095] of SmallInt;
-    Frequency,SampleTime,SongTime: double; Name,FocusKey: string; NewFocus: integer; EnterSearch: boolean;
+    I,K,N: integer; NowTick: cardinal;
+    Name,FocusKey: string; NewFocus: integer; EnterSearch: boolean;
 begin
   if Quitting or not ShellEnabled then Exit;
   NowTick:=SDL_GetTicks;
@@ -755,31 +800,7 @@ begin
   if not Singing and not CalibrationActive and ((OutputChecked=0) or (NowTick-OutputChecked>5000)) then RefreshOutputIdentity;
   if CalibrationActive and (NowTick-CalibrationStarted>=CalibrationDurationMs) then FinishCalibration;
   if MobilePort<>0 then MobileSetPaused(not Singing or ScreenSing.Paused);
-  if ShellSynthetic and (Singing or TestingInput) and not Assigned(Display.NextScreen) then
-  begin
-    N:=Min(4096,Round((NowTick-SynthTick)*48));
-    if N>0 then
-    begin
-      SongTime:=AudioPlayback.Position;
-      for I:=0 to PlayersPlay-1 do
-      begin
-        if not SynthFeeding[I] then Continue;
-        Frequency := SynthFrequency[I];
-        for K:=0 to N-1 do
-        begin
-          if SynthPattern[I] then
-          begin
-            // Deterministic alternating A4/C5 test fixture, delayed at the input.
-            SampleTime:=SongTime-(N-K)/48000-SynthDelayMs[I]/1000.0;
-            if Odd(Floor((SampleTime-1.0)*4)) then Frequency:=523.251 else Frequency:=440;
-          end;
-          Buf[K]:=Round(8000*Sin(2*Pi*Frequency*(SynthPosition+K)/48000));
-        end;
-        AudioInputProcessor.Sound[I].TestFeed(@Buf[0],N*2);
-      end;
-      Inc(SynthPosition,N); SynthTick:=NowTick;
-    end;
-  end;
+  if ShellSynthetic and TestingInput then ShellFeedSynthetic(AudioPlayback.Position, SDL_GetPerformanceCounter);
   if (not PanelCollapsed) and (Composition='') and (NowTick-LastEditTick>=350) then PublishSearch;
   if NowTick-LastView>150 then
   begin
@@ -864,11 +885,12 @@ begin
       N:=Max(2,CaptureCount);
       for I:=0 to N-1 do Levels.Add(AudioInputProcessor.Sound[I].MaxSampleVolume);
       J.Add('scores',Scores); J.Add('levels',Levels);
-      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].Tone); J.Add('tones',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].DetectedPitch mod 12); J.Add('tones',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorPeak); J.Add('monitor_peaks',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].CaptureAgeMs); J.Add('input_age_ms',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].BlockFrames); J.Add('input_frames',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorQueueMs); J.Add('monitor_queue_ms',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(InterlockedCompareExchange(AudioInputProcessor.Sound[I].AnalysisSkippedBlocks,0,0)); J.Add('analysis_skipped_blocks',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorDroppedFrames); J.Add('monitor_dropped_frames',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].DirectMonitor); J.Add('duplex_monitor',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(MobileReceived(I)); J.Add('mobile_received',A);

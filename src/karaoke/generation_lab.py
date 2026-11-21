@@ -1,4 +1,4 @@
-"""Explicit, resumable draft generation. Only a reviewed draft can enter the song library."""
+"""Resumable chart generation with independent verification or host review."""
 
 from __future__ import annotations
 
@@ -256,8 +256,7 @@ class GenerationLab:
                 shutil.rmtree(attempt)
         self.check_resources(home)
         if (target / "generation.json").is_file() and (target / "song.txt").is_file():
-            validate(target / "song.txt")
-            return
+            return self.verify(job, target)
         with tempfile.TemporaryDirectory(prefix="attempt-", dir=home) as temporary:
             stage = Path(temporary)
             self.bootstrap(job, log)
@@ -346,6 +345,23 @@ class GenerationLab:
             )
             os.replace(stage / "draft", target)
             self.db.execute("UPDATE drafts SET title=?,artist=? WHERE id=?", (title, artist, uid))
+            return self.verify(job, target)
+
+    def verify(self, job, directory):
+        chart = directory / "song.txt"
+        info = validate(chart)
+        if job["profile"] != "quality":
+            return None
+        from .generation_verification import verify_generated
+
+        self.report(job["id"], "Comprobando la letra, las notas y sus tiempos")
+        return verify_generated(
+            chart,
+            Path(info["audio"]),
+            info["duration"],
+            job["video"],
+            self.host.root / "catalogues",
+        )
 
     def check_resources(self, path):
         if self.cancelled.is_set():
@@ -402,20 +418,32 @@ class GenerationLab:
 
     def tick(self):
         self.pause_analysis(bool(self.host.active))
+        if self.host.active:
+            # Importing the finished package calls FFprobe and reads the original audio from disk.
+            # Commit it between performances, like the model work started below.
+            return
         if self.future and self.future.done():
             try:
-                self.future.result()
+                evidence = self.future.result()
                 self.db.execute(
                     "UPDATE drafts SET state='review',message='Listo para revisar' WHERE id=? AND state='working'",
                     (self.current,),
                 )
+                if evidence and self.row(self.current)["state"] == "review":
+                    try:
+                        self.approve(self.current, evidence=evidence)
+                    except (OSError, SongError):
+                        self.db.execute(
+                            "UPDATE drafts SET message='Listo para revisar' WHERE id=? AND state='review'",
+                            (self.current,),
+                        )
             except Exception as exc:
                 self.db.execute(
                     "UPDATE drafts SET state='error',message=? WHERE id=? AND state='working'",
                     (str(exc)[:480], self.current),
                 )
             self.future = self.current = None
-        if self.future or self.host.active or self.closing:
+        if self.future or self.closing:
             return
         rows = self.db.rows("SELECT * FROM drafts WHERE state='waiting' ORDER BY created LIMIT 1")
         if rows:
@@ -450,17 +478,26 @@ class GenerationLab:
             (uid,),
         )
 
-    def approve(self, uid):
+    def approve(self, uid, *, evidence=None):
         row = self.row(uid)
         if row["state"] == "approved":
             return row["song_id"]
         if row["state"] != "review":
             raise SongError("La generación aún no está lista para revisar.")
-        info = import_package(self.root / uid / "draft" / "song.txt", self.host.library)
+        chart = self.root / uid / "draft" / "song.txt"
+        source_hash = hashlib.sha256(chart.read_bytes()).hexdigest()
+        if evidence and (
+            source_hash != evidence["chart_sha256"] or evidence["video_id"] != row["video"]
+        ):
+            raise SongError("El mapa ha cambiado. Vuelve a revisarlo antes de cantar.")
+        info = import_package(chart, self.host.library)
+        if evidence:
+            with Path(info["audio"]).open("rb") as stream:
+                if hashlib.file_digest(stream, "sha256").hexdigest() != evidence["audio_sha256"]:
+                    raise SongError("El audio ha cambiado. Revisa esta edición antes de cantar.")
         manifest = self.root / uid / "draft" / "generation.json"
         if manifest.exists():
             provenance = json.loads(manifest.read_text(encoding="utf-8"))
-            source_hash = hashlib.sha256((manifest.parent / "song.txt").read_bytes()).hexdigest()
             provenance["review"] = {
                 "chart_sha256": source_hash,
                 "library_chart_sha256": hashlib.sha256(
@@ -469,25 +506,32 @@ class GenerationLab:
                 "edited": source_hash != provenance.get("chart_sha256"),
                 "approved_at": time.time(),
             }
-            provenance["state"] = "reviewed"
+            provenance["state"] = "verified" if evidence else "reviewed"
+            provenance["automatically_verified"] = bool(evidence)
+            if evidence:
+                provenance["verification"] = evidence
             dest = Path(info["chart"]).with_name("generation.json")
             with tempfile.NamedTemporaryFile(
                 "w", encoding="utf-8", dir=dest.parent, delete=False
             ) as f:
                 json.dump(provenance, f, ensure_ascii=False, indent=2)
             os.replace(f.name, dest)
+        source = ("verified:" if evidence else "reviewed:") + uid
+        message = (
+            "Verificada con el mapa de esta grabación" if evidence else "Revisada por el anfitrión"
+        )
         with self.db.lock, self.db.db:
-            self.db._save_song(info, "reviewed:" + uid, "original", None, True)
+            self.db._save_song(info, source, "original", None, True)
             self.db.db.execute(
-                "UPDATE drafts SET state='approved',message='Revisada por el anfitrión',song_id=? WHERE id=?",
-                (info["id"], uid),
+                "UPDATE drafts SET state='approved',message=?,song_id=? WHERE id=?",
+                (message, info["id"], uid),
             )
             self.db.db.execute(
                 """UPDATE turns SET song_id=?,source=?
                 WHERE state='queued' AND song_id IS NULL AND EXISTS (
                     SELECT 1 FROM draft_turns dt WHERE dt.draft_id=? AND dt.turn_id=turns.id AND dt.source=turns.source
                 )""",
-                (info["id"], "reviewed:" + uid, uid),
+                (info["id"], source, uid),
             )
         return info["id"]
 
@@ -548,7 +592,7 @@ class GenerationLab:
             else:
                 text("Descarga los modelos una vez. Los borradores se revisan antes de cantar.")
             if getattr(view, "draft_turn", None):
-                text("Al aprobarlo se conservarán el turno y sus cantantes.")
+                text("Cuando esté listo se conservarán el turno y sus cantantes.")
             button("Generar borrador", "lab:enqueue", style="primary")
             for row in self.rows():
                 button(

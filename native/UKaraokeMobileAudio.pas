@@ -5,7 +5,7 @@ interface
 const KaraokeMaxSingers = 10;
       MobileFrameSamples = 960;
 type TMobileFrame = array[0..MobileFrameSamples-1] of SmallInt;
-     TMobileSink = procedure(Slot: integer; var Frame: TMobileFrame);
+     TMobileSink = procedure(Slot: integer; var Frame: TMobileFrame; EndTick: Int64; Discontinuity: boolean);
 function MobileOpen(const TurnSecret: RawByteString): boolean;
 procedure MobileClose;
 procedure MobileArm(Slots: Word; Sink: TMobileSink);
@@ -16,7 +16,7 @@ function MobileMissing(Slot: integer): integer;
 function MobileRejected: integer;
 function MobilePort: integer;
 implementation
-uses Classes, SysUtils, {$IFDEF MSWINDOWS} WinSock2 {$ELSE} BaseUnix {$ENDIF}, Sockets;
+uses Classes, SysUtils, SDL2, UKaraokeCaptureHistory, {$IFDEF MSWINDOWS} WinSock2 {$ELSE} BaseUnix {$ENDIF}, Sockets;
 type TPacket = packed record
   Secret: array[0..31] of AnsiChar;
   Slot: byte;
@@ -97,10 +97,10 @@ begin
     if not Result then CloseSocket(SocketFD);
   end;
 end;
-function MobileRead(out Slot: integer; out Frame: TMobileFrame): boolean;
+function MobileRead(out Slot: integer; out Frame: TMobileFrame; out Gap: boolean): boolean;
 var Packet: TPacket; Received,I: integer; Seq: Cardinal;
 begin
-  Slot:=-1; Result:=false;
+  Slot:=-1; Gap:=false; Result:=false;
   if Port=0 then Exit;
   Received:=fpRecv(SocketFD,@Packet,SizeOf(Packet),0);
   if Received<0 then Exit;
@@ -111,27 +111,43 @@ begin
   Seq:=LEtoN(Packet.Seq);
   if Int64(Seq)<=LastSeq[Packet.Slot] then Exit;
   Dec(Rejections); Inc(Accepted[Packet.Slot]);
-  if LastSeq[Packet.Slot]>=0 then Inc(Missing[Packet.Slot],Int64(Seq)-LastSeq[Packet.Slot]-1);
+  if LastSeq[Packet.Slot]>=0 then
+  begin
+    Gap:=Int64(Seq)>LastSeq[Packet.Slot]+1;
+    Inc(Missing[Packet.Slot],Int64(Seq)-LastSeq[Packet.Slot]-1);
+  end;
   LastSeq[Packet.Slot]:=Seq; Slot:=Packet.Slot;
   for I:=0 to High(Frame) do Frame[I]:=LEtoN(Packet.Frame[I]);
 end;
 procedure TReceiver.Execute;
-var Frame: TMobileFrame; Slot: integer; Previous,NowMs: QWord; Stale: boolean;
+var Frame: TMobileFrame; Slot: integer; Previous,NowMs: QWord; Stale,Gap: boolean;
+    NeedsReset: array[0..KaraokeMaxSingers-1] of boolean;
+    Clocks: array[0..KaraokeMaxSingers-1] of TDeviceCaptureClock;
+    TickRate, EndTick: Int64; I: integer;
 begin
+  for I:=0 to High(Clocks) do Clocks[I].Reset;
+  TickRate:=SDL_GetPerformanceFrequency;
+  FillChar(NeedsReset,SizeOf(NeedsReset),1);
   Previous:=GetTickCount64; Stale:=false;
   while not Terminated do
   begin
     NowMs:=GetTickCount64;
     if NowMs-Previous>200 then Stale:=true;
     Previous:=NowMs;
-    if not MobileRead(Slot,Frame) then
+    if not MobileRead(Slot,Frame,Gap) then
     begin
       Stale:=false; Sleep(2); Continue;
     end;
     if Slot<0 then Continue;
     if Stale or (InterlockedCompareExchange(Paused,0,0)<>0) or ((ActiveSlots and (1 shl Slot))=0) then
-    begin Inc(Discarded); Continue; end;
-    Feed(Slot,Frame);
+    begin Inc(Discarded); NeedsReset[Slot]:=true; Continue; end;
+    Gap:=Gap or NeedsReset[Slot];
+    // The bridge supplies a sequence for each 20 ms PCM packet. Map that
+    // media cadence once per singer instead of scoring network arrival jitter.
+    EndTick:=Clocks[Slot].Align(SDL_GetPerformanceCounter,TickRate,
+      (LastSeq[Slot]+1)*(MobileFrameSamples/48000.0),Gap);
+    Feed(Slot,Frame,EndTick,Gap);
+    NeedsReset[Slot]:=false;
   end;
 end;
 finalization

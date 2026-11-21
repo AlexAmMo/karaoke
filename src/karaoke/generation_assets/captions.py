@@ -69,6 +69,40 @@ def manual_tracks(info, language, fetch):
     return tracks
 
 
+def _span_agreement(matcher, recognized, signed, phonetic=False):
+    counts = [0, 0, 0]
+    on_time = [0, 0, 0]
+    literal = [0, 0, 0]
+    distinct = [set() for _ in counts]
+    for i, j, size in matcher.get_matching_blocks():
+        for k in range(size):
+            word, when = recognized[i + k]
+            target, start, end = signed[j + k]
+            third = 3 * (i + k) // len(recognized)
+            counts[third] += 1
+            if word == target:
+                literal[third] += 1
+                distinct[third].add(word)
+            if math.isfinite(when) and start - 0.8 <= when <= end + 0.8:
+                on_time[third] += 1
+    for t, count in enumerate(counts):
+        if count < 3 or on_time[t] / count < (0.90 if phonetic else 0.75):
+            return None
+        if phonetic:
+            # Demand literal, diverse anchors and good coverage throughout the song.
+            size = ((t + 1) * len(recognized) + 2) // 3 - (t * len(recognized) + 2) // 3
+            if count / size < 0.85 or literal[t] / size < 0.60 or len(distinct[t]) < 8:
+                return None
+    return sum(on_time) / sum(counts)
+
+
+def _spanish_variant(word):
+    # Used exclusively for matching. Preserve the author's spelling for forced alignment.
+    if word in {"ye", "yea", "yeh", "yeah", "yeahh"}:
+        return "yeah"
+    return word[:-1] if len(word) > 1 and word.endswith("s") else word
+
+
 def matching_lyrics(tracks, transcript, language):
     """Check ordered words and their absolute timing in all thirds of the sung passage."""
     recognized = [
@@ -76,35 +110,38 @@ def matching_lyrics(tracks, transcript, language):
     ]
     if not 12 <= len(recognized) <= 4000:
         return None
+    heard = [w for w, _ in recognized]
     for track in tracks:
         if track["language"] != language:
             continue
         signed = [(word, start, end) for start, end, text in track["cues"] for word in _words(text)]
-        if not 0.78 <= len(signed) / len(recognized) <= 1.25:
+        ratio = len(signed) / len(recognized)
+        if not 0.78 <= ratio <= 1.25:
             continue
-        matcher = SequenceMatcher(
-            None, [w[0] for w in recognized], [w[0] for w in signed], autojunk=False
-        )
+        written = [w for w, _, _ in signed]
+        matcher = SequenceMatcher(None, heard, written, autojunk=False)
         agreement = matcher.ratio()
-        if agreement < 0.79:
-            continue
-        matched = [0, 0, 0]
-        totals = [0, 0, 0]
-        for block in matcher.get_matching_blocks():
-            for i in range(block.size):
-                index = block.a + i
-                when = recognized[index][1]
-                _, start, end = signed[block.b + i]
-                third = min(2, 3 * index // len(recognized))
-                totals[third] += 1
-                if math.isfinite(when) and start - 0.8 <= when <= end + 0.8:
-                    matched[third] += 1
-        if all(n >= 3 and m / n >= 0.75 for m, n in zip(matched, totals)):
+        coverage = None
+        details = {}
+        if agreement >= 0.79:
+            coverage = _span_agreement(matcher, recognized, signed)
+        elif language == "es" and len(heard) >= 60 and 0.93 <= ratio <= 1.07 and agreement >= 0.68:
+            folded = SequenceMatcher(
+                None,
+                list(map(_spanish_variant, heard)),
+                list(map(_spanish_variant, written)),
+                autojunk=False,
+            )
+            if folded.ratio() >= 0.90:
+                coverage = _span_agreement(folded, recognized, signed, phonetic=True)
+                details["variant_agreement"] = round(folded.ratio(), 3)
+        if coverage is not None:
             return "\n".join(c[2] for c in track["cues"]), {
                 "kind": "youtube-manual-subtitles",
                 "language": language,
                 "video_id": track["video_id"],
                 "agreement": round(agreement, 3),
-                "time_coverage": round(sum(matched) / sum(totals), 3),
+                "time_coverage": round(coverage, 3),
+                **details,
             }
     return None

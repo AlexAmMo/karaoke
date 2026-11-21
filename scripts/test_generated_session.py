@@ -1,4 +1,4 @@
-"""Check video link → generated draft → local review → queue → singing in a private test library."""
+"""Check video link → generated chart → verification or local review → queue → singing in a private test library."""
 
 import argparse
 import json
@@ -11,6 +11,24 @@ import requests
 from karaoke.draft_review import DraftEditor
 from karaoke.service import Service, youtube_id
 from test_session import Session
+
+
+def approve_in_editor(host, uid):
+    ed = DraftEditor(host.lab, uid)
+    host.lab.editor = ed
+    api = ed.url + "chart"
+    snap = requests.get(api, timeout=4).json()
+    partial = requests.get(ed.url + "audio", headers={"Range": "bytes=0-511"}, timeout=4)
+    assert partial.status_code == 206 and len(partial.content) == 512
+    response = requests.post(
+        api,
+        headers={"Origin": ed.origin},
+        json={"revision": snap["revision"], "body": snap["body"], "approve": True},
+        timeout=15,
+    )
+    response.raise_for_status()
+    assert response.json()["state"] == "approved"
+    return len(snap["regions"])
 
 
 def run(args):
@@ -31,7 +49,7 @@ def run(args):
                 if point != last:
                     print(round(time.monotonic() - started, 1), point, flush=True)
                     last = point
-                if draft["state"] == "review":
+                if draft["state"] in ("review", "approved"):
                     break
                 if draft["state"] in ("error", "cancelled"):
                     raise RuntimeError(draft["message"])
@@ -45,20 +63,11 @@ def run(args):
                 manifest["video_id"] == youtube_id(args.video)
                 and not manifest["automatically_verified"]
             )
-            ed = DraftEditor(host.lab, uid)
-            host.lab.editor = ed
-            api = ed.url + "chart"
-            snap = requests.get(api, timeout=4).json()
-            partial = requests.get(ed.url + "audio", headers={"Range": "bytes=0-511"}, timeout=4)
-            assert partial.status_code == 206 and len(partial.content) == 512
-            response = requests.post(
-                api,
-                headers={"Origin": ed.origin},
-                json={"revision": snap["revision"], "body": snap["body"], "approve": True},
-                timeout=15,
+            automatic = draft["state"] == "approved"
+            assert automatic == args.expect_verified, (
+                f"Unexpected generation outcome: {draft['message']}"
             )
-            response.raise_for_status()
-            assert response.json()["state"] == "approved"
+            regions = None if automatic else approve_in_editor(host, uid)
             song = host.lab.row(uid)["song_id"]
             turn = host.enqueue_song(song)
             provenance = json.loads(
@@ -70,18 +79,22 @@ def run(args):
                 provenance["review"]["chart_sha256"]
                 and provenance["video_id"] == manifest["video_id"]
             )
+            assert provenance["automatically_verified"] == automatic
+            if automatic:
+                assert provenance["verification"]["chart_sha256"] == manifest["chart_sha256"]
             evidence = {
                 "video_id": manifest["video_id"],
-                "title": snap["title"],
-                "artist": snap["artist"],
+                "title": host.song(song)["title"],
+                "artist": host.song(song)["artist"],
                 "generation_seconds": round(time.monotonic() - started, 1),
                 "source": manifest["lyrics"]["kind"],
                 "notes": manifest["notes"],
                 "analyzed_duration_s": round(manifest["duration"], 3),
                 "method": manifest["method"],
                 "models": manifest["models"],
-                "regions": len(snap["regions"]),
-                "approval": "explicit in temporary test data",
+                "regions": regions,
+                "approval": "automatic" if automatic else "explicit in temporary test data",
+                "verification": provenance.get("verification"),
             }
         finally:
             host.close()
@@ -117,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument("--video", required=True)
     parser.add_argument("--launcher", required=True, type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--expect-verified", action="store_true")
     args = parser.parse_args()
     if not youtube_id(args.video):
         parser.error("Use an exact YouTube URL")

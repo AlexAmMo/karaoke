@@ -10,15 +10,14 @@ import argparse
 import gc
 import hashlib
 import json
-import math
 import subprocess
 import sys
 import time
-from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from benchmark_chart_generation import compare_notes, compare_words, extract
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from karaoke.generation_metrics import passes, score  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/karaoke"))
 import generation_worker as worker  # noqa: E402
@@ -45,33 +44,6 @@ def seconds(media):
         text=True,
     )
     return float(result.strip())
-
-
-def score(reference, draft, offset, duration, clip):
-    # This is where the human notes and words are decoded. Discard boundary words whose
-    # syllables may extend beyond the excerpt, with the same margin for both charts.
-    notes, words = extract(reference)
-    found, recognized = extract(draft)
-    lo, hi = (0.5, duration - 0.5) if clip else (0, duration)
-    golden = [
-        replace(n, start=n.start - offset, end=min(n.end - offset, hi))
-        for n in notes
-        if lo <= n.start - offset < hi
-    ]
-    vocal = [(word, t - offset) for word, t in words if lo <= t - offset < hi]
-    found = [replace(n, end=min(n.end, hi)) for n in found if lo <= n.start < hi]
-    recognized = [(word, t) for word, t in recognized if lo <= t < hi]
-    metric = compare_words(vocal, recognized) if vocal else {"ref_words": 0, "wer": None}
-    scored = any(n.pitch is not None for n in golden)
-    if found and golden and scored:
-        metric.update(compare_notes(golden, found))
-    else:
-        metric.update(
-            reference_notes=sum(n.pitch is not None for n in golden),
-            correct_class_all=0.0 if scored else None,
-            onset_pitch_f1_100ms=0.0 if scored else None,
-        )
-    return metric
 
 
 def record_time(d, stage, fn):
@@ -217,9 +189,14 @@ def run(args):
                 lambda: worker.chart_quality(voice, lyr, language, args.cache.resolve()),
             )
             draft = folder / "draft.txt"
-            draft.write_text(
-                worker.chart_text(notes, row["title"], row["artist"], language, duration)
-            )
+            text = worker.chart_text(notes, row["title"], row["artist"], language, duration)
+            if src["kind"] == "lrclib" and language == "en":
+                from generation_assets.spelling import restore_spelling
+
+                text, evidence["spelling_corrections"] = restore_spelling(
+                    text, stage["words"], row["title"], language
+                )
+            draft.write_text(text, encoding="utf-8")
             # Finish and fingerprint the prediction before opening the gold chart.
             # Only the evaluator receives its path; neither model nor text resolver does.
             result["draft_sha256"] = worker.digest(draft)
@@ -238,17 +215,6 @@ def run(args):
             voice.unlink()
     results = [json.loads(p.read_text()) for p in sorted(args.output.glob("*/metrics.json"))]
     save(args.output / "results.json", results)
-
-
-def passes(m):
-    p90 = m.get("word_mae_p50_p90_s", [])
-    return bool(
-        len(p90) == 2
-        and p90[1] <= 0.12
-        and m.get("wer", math.inf) <= 0.05
-        and (m.get("correct_class_all") or 0) >= 0.9
-        and (m.get("onset_pitch_f1_100ms") or 0) >= 0.85
-    )
 
 
 if __name__ == "__main__":

@@ -489,3 +489,15 @@ def test_paste_spanish_publisher_search_preserves_exact_song_and_stays_in_karaok
     assert field["value"] == url and row["label"] == "Todo un hombre haré de ti"
     assert row["add_action"].endswith(":community-es:mulan")
     assert "Requiere al anfitrión" in row["sub"]
+
+
+def test_first_start_click_reads_the_same_tick_engine_snapshot(service, package):
+    service.add_import(str(package))
+    wait(service, lambda: bool(service.store.rows("SELECT id FROM songs")))
+    song = service.store.rows("SELECT id FROM songs")[0]
+    turn = service.store.request(song["id"], {}, ["Ana"])
+    assert not service.engine
+    atomic_json(service.ipc / "engine.json", {"state": "idle", "synthetic": True})
+    atomic_json(service.ipc / "events" / "first.json", {"action": "start:" + turn})
+    service.tick()
+    assert service.active == turn

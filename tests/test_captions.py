@@ -45,3 +45,27 @@ def test_never_accept_machine_captions_or_an_unrelated_track():
     for cue in tracks[0]["cues"]:
         cue[2] = "canta libre otra letra"
     assert not matching_lyrics(tracks, transcript, "es")
+
+
+def test_spanish_spelling_recovers_authored_words_only_with_time_and_literal_anchors():
+    singular = "nube campo roca canto monte rama valle brisa paso cielo puerto faro".split()
+    heard = ["sol" + str(i) if i % 4 else singular[(i // 4) % 12] + "s" for i in range(90)]
+    authored = [w[:-1] if i % 4 == 0 else w for i, w in enumerate(heard)]
+    transcript = [[{"word": w, "start": i} for i, w in enumerate(heard)]]
+    track = {
+        "language": "es",
+        "video_id": "IA0uSub1xy4",
+        "cues": [[i - 0.1, i + 0.4, w] for i, w in enumerate(authored)],
+    }
+    text, proof = matching_lyrics([track], transcript, "es")
+    assert text.splitlines() == authored and proof["agreement"] < 0.79
+    assert proof["variant_agreement"] == proof["time_coverage"] == 1
+    assert not matching_lyrics([{**track, "language": "en"}], transcript, "en")
+    # Same words sung later in the bridge, and an alternate cut missing a verse.
+    shifted = [
+        [a + (6 if 30 <= i < 60 else 0), b + (6 if 30 <= i < 60 else 0), w]
+        for i, (a, b, w) in enumerate(track["cues"])
+    ]
+    assert not matching_lyrics([{**track, "cues": shifted}], transcript, "es")
+    assert not matching_lyrics([{**track, "cues": track["cues"][:60]}], transcript, "es")
+    assert not matching_lyrics([track], [[{"word": "la", "start": i} for i in range(90)]], "es")

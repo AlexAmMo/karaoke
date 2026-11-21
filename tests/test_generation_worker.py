@@ -206,3 +206,22 @@ def test_repeated_choruses_must_match_the_recording_and_all_three_sections():
     assert w.ordered_word_agreement(lyrics, close) > 0.9
     assert w.repeated_lyric_agreement(lyrics, close, 0) is None
     assert w.ordered_word_agreement(["a", "b", "a", "c"], ["b", "c", "a"]) == 4 / 7
+
+
+def test_restore_spelling_needs_the_sung_word_at_the_same_time_and_preserves_notes():
+    from karaoke.generation_assets.spelling import restore_spelling
+
+    chart = "#TITLE:Evening\n#BPM:150\n#GAP:500\n: 0 1 3 Im \n: 20 1 4 eve\n: 21 1 5 ~\n: 22 2 6 nnig \n: 50 1 7 cant \nE\n"
+    heard = [
+        [
+            {"word": "I'm", "start": 0.5},
+            {"word": "evening", "start": 2.5},
+            {"word": "can't", "start": 7.5},
+        ]
+    ]
+    # 'evennig' is 'evening' with adjacent characters transposed in the middle of the word.
+    result, count = restore_spelling(chart, heard, "Evening", "en")
+    assert count == 2
+    assert result == chart.replace("Im ", "I'm ").replace("nnig ", "ning ")
+    assert restore_spelling(chart, heard, "Elsewhere", "en")[1] == 1
+    assert restore_spelling(chart, heard, "Evening", "es") == (chart, 0)

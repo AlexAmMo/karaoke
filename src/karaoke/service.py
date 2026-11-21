@@ -1533,6 +1533,14 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         raise SongError("Esta acción ya no está disponible.")
 
     def tick(self):
+        # A native click can arrive in the same tick as the very first engine snapshot.
+        state = self.ipc / "engine.json"
+        try:
+            self.engine = json.loads(state.read_text(encoding="utf-8"))
+            self.remember_measurement()
+        except (FileNotFoundError, json.JSONDecodeError, PermissionError):
+            # Deluxe can be replacing the previous Windows snapshot.
+            pass
         for path in sorted((self.ipc / "events").glob("*.json")):
             try:
                 event = json.loads(path.read_text(encoding="utf-8"))
@@ -1562,13 +1570,6 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                     if hasattr(future, "candidate_generation"):
                         self.instrumental_busy = False
                     self.message = str(exc)
-        state = self.ipc / "engine.json"
-        try:
-            self.engine = json.loads(state.read_text(encoding="utf-8"))
-            self.remember_measurement()
-        except (FileNotFoundError, json.JSONDecodeError, PermissionError):
-            # Deluxe can be replacing the previous Windows snapshot.
-            pass
         if self.engine and self.sent_audio is None:
             for i in range(2):
                 self.command("gain", player=i, value=self.store.setting("gain" + str(i), 0) / 100)
