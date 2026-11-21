@@ -36,7 +36,7 @@ jobs:
           #!/bin/bash
           cd "$(dirname "$VERIFIED_ENGINE")"
           trace="$ENGINE_DIAGNOSTICS/lldb-$$.log"
-          xcrun lldb --batch -o 'settings set target.env-vars MallocScribble=1 MallocGuardEdges=1 MallocPreScribble=1' -o 'breakpoint set --name abort' -o run -o 'thread backtrace all' -o "script exec(open("'$ENGINE_INSPECTION'").read())" -k 'thread backtrace all' -- "$VERIFIED_ENGINE" "$@" > "$trace" 2>&1
+          xcrun lldb --batch -o 'settings set target.env-vars MallocScribble=1 MallocGuardEdges=1 MallocPreScribble=1' -o 'breakpoint set --name abort' -o run -o 'thread backtrace all' -o 'script import os; exec(open(os.environ["ENGINE_INSPECTION"]).read())' -k 'thread backtrace all' -- "$VERIFIED_ENGINE" "$@" > "$trace" 2>&1
           if grep -Eq 'exited with status = 0|exited with status = 0x00000000' "$trace"; then exit 0; fi
           tail -100 "$trace" >&2
           exit 1
