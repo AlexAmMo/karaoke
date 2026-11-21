@@ -183,3 +183,26 @@ def test_checkpointed_ctc_reconstructs_every_frame_with_original_tie_order():
                 assert actual.tolist() == expected
     with pytest.raises(ValueError):
         checkpointed_path(np.ones((2, 4), dtype="float32"), [1, 1])
+
+
+def test_repeated_choruses_must_match_the_recording_and_all_three_sections():
+    from difflib import SequenceMatcher
+
+    chorus = [f"c{i}" for i in range(22)]
+    lyrics = [word for verse in range(7) for word in [*chorus, f"vez{verse}"]]
+    heard = list(lyrics)
+    for i in (14, 23, 21, 92, 43, 78, 64, 155, 54, 9, 148, 40, 110):
+        heard[i] = f"error{i}"
+    assert SequenceMatcher(None, heard, lyrics, autojunk=False).ratio() < 0.5
+    original = row(plainLyrics=" ".join(lyrics))
+    chosen = w.choose_candidate([original], " ".join(heard), "María", "El valle", 180)
+    assert chosen[1]["agreement_method"] == "ordered_repetitions"
+    assert chosen[1]["agreement"] == 0.919 and chosen[1]["weakest_third"] == 0.887
+    assert w.repeated_lyric_agreement(heard, lyrics, 5) is None
+    assert w.repeated_lyric_agreement(heard[:40], lyrics[:40], 0) is None
+    # The total can look acceptable when the discrepancies are confined to one verse.
+    close = lyrics.copy()
+    close[25:39] = ["otra"] * 14
+    assert w.ordered_word_agreement(lyrics, close) > 0.9
+    assert w.repeated_lyric_agreement(lyrics, close, 0) is None
+    assert w.ordered_word_agreement(["a", "b", "a", "c"], ["b", "c", "a"]) == 4 / 7

@@ -197,6 +197,36 @@ def candidate_editions(candidates, artist, title, duration):
             yield delta, source_id, text
 
 
+def ordered_word_agreement(heard, lyrics):
+    """Exact longest common subsequence, with one bit per lyric token and linear memory."""
+    columns = {}
+    for i, token in enumerate(lyrics):
+        columns[token] = columns.get(token, 0) | (1 << i)
+    # A set bit marks a column where the prefix LCS increases by one.
+    row = 0
+    for token in heard:
+        matches = columns.get(token, 0) | row
+        row = matches & ~(matches - ((row << 1) | 1))
+    return 2 * row.bit_count() / max(1, len(heard) + len(lyrics))
+
+
+def repeated_lyric_agreement(heard, lyrics, seconds_apart):
+    """Repeated refrains can attract a greedy match to the wrong occurrence."""
+    if len(heard) < 96 or not 0.94 <= len(lyrics) / len(heard) <= 1.06 or seconds_apart > 4:
+        return None
+    agreement = ordered_word_agreement(heard, lyrics)
+    if agreement < 0.90:
+        return None
+    thirds = [
+        ordered_word_agreement(
+            heard[len(heard) * i // 3 : len(heard) * (i + 1) // 3],
+            lyrics[len(lyrics) * i // 3 : len(lyrics) * (i + 1) // 3],
+        )
+        for i in range(3)
+    ]
+    return (agreement, min(thirds)) if min(thirds) >= 0.84 else None
+
+
 def choose_candidate(candidates, transcript, artist, title, duration, *, rescue=None):
     """Corroborate the work, edition, duration and sung text before accepting words."""
     from difflib import SequenceMatcher
@@ -204,7 +234,7 @@ def choose_candidate(candidates, transcript, artist, title, duration, *, rescue=
     recognized = normalize(transcript).split()
     if len(recognized) < 12:
         return None
-    matches, partial = [], []
+    matches, partial, repeated = [], [], []
     for delta, source_id, text in candidate_editions(candidates, artist, title, duration):
         tokens = normalize(text).split()
         length = len(tokens) / len(recognized)
@@ -220,9 +250,23 @@ def choose_candidate(candidates, transcript, artist, title, duration, *, rescue=
             covered = sum(block.size for block in matcher.get_matching_blocks()) / len(recognized)
             if covered >= 0.85:
                 partial.append((source_id, text, covered, delta))
+        else:
+            evidence = repeated_lyric_agreement(recognized, tokens, delta)
+            if evidence:
+                agreement, weakest = evidence
+                repeated.append((agreement, weakest, -delta, source_id, text))
     if matches:
         score, _, source_id, lyrics = max(matches)
         return lyrics, {"kind": "lrclib", "id": source_id, "agreement": round(score, 3)}
+    if repeated:
+        agreement, weakest, _, source_id, lyrics = max(repeated)
+        return lyrics, {
+            "kind": "lrclib",
+            "id": source_id,
+            "agreement": round(agreement, 3),
+            "agreement_method": "ordered_repetitions",
+            "weakest_third": round(weakest, 3),
+        }
     if not partial:
         return None
     alternate = normalize(rescue()).split()
