@@ -10,6 +10,14 @@ Esta rama de desarrollo conserva la publicación 0.3.1. Las alternativas de gene
 - [Diagnóstico de intervalos y límite de corregir sólo alturas](validation/generacion-diagnostico-intervalos-2026-11-21.md)
 - [Selección acústica de letras sobre cuarenta grabaciones](validation/research-letra-acustica-2026-11-21.md)
 - [Reinicio del ensayo de separación y medidas preventivas](validation/reinicio-experimento-2026-11-21.md)
+- [Ensamblado de eventos GAME y origen de las prolongaciones](validation/generacion-game-ensamblado-2026-11-21.md)
+- [Consenso de finales: cuarenta pares, mejora insuficiente y pérdidas de cobertura](validation/generacion-finales-consenso-2026-11-21.md)
+- [Separación de voz principal en CPU y recursos medidos en una canción completa](validation/research-voz-principal-2026-11-21.md)
+- [YourMT3+: procedencia, adaptador y control sintético](validation/research-finales-nota-2026-11-21.md)
+- [YourMT3+: cuatro canciones completas y evaluación de mapas, sin mejora suficiente](validation/generacion-yourmt3-2026-11-21.md)
+- [Siguientes hipótesis para letra: modelo especializado y cortes por energía](validation/research-letras-siguientes-2026-11-21.md)
+- [Cortes RMS de cuarenta voces: geometría, exclusiones y coste, antes de ASR](validation/research-segmentacion-letras-2026-11-21.md)
+- [Comparación ASR preparada: cuatro fuentes exactas y dieciséis condiciones predeclaradas](validation/research-letras-rms-asr-2026-11-21.md)
 
 La [ejecución 44940393293](https://github.com/AlexAmMo/karaoke/actions/runs/44940393293), sobre `2ed7467`, pasa **245 pruebas en macOS** (71,39 s), **244 en Ubuntu** (28,62 s) y **244 en Windows Server 2022** (42,64 s). Linux y Windows omiten únicamente la prueba de la API nativa de memoria de Apple. Incluye quince pruebas de límites y supervisión del separador experimental; las pruebas no cargan sus modelos. Usa `target=tests`: comprueba código y sintaxis de instaladores, sin construir paquetes ni validar hardware de audio Windows. La [ejecución anterior](https://github.com/AlexAmMo/karaoke/actions/runs/44939711109) y la suite local de 240 pruebas comprobaron las primeras guardias tras el reinicio.
 

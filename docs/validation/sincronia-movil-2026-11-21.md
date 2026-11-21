@@ -38,6 +38,7 @@ El motor probado tiene SHA-256 `32655ecaab435ba2340141efa2b099a2c0f7f935f6a9bd02
 Se ejecuta en el Mac M4 real, pero la entrada de voz es sintética. El test del reloj y el de navegadores usan salida SDL simulada. La sesión integral usa la configuración de audio del motor de desarrollo; durante su comprobación se detectó la salida del sistema sin silenciar y se restableció inmediatamente el silencio. No se capturó voz ni se realizó otra medición acústica. El estado final de la salida es silenciado.
 
 No se ha probado este cambio en móviles físicos, una red wifi real o Windows. La mejora acústica anterior de 73 a 57 ms corresponde a la medición física documentada en [retorno y puntuación](retorno-y-puntuacion.md). Las correcciones actuales evitan errores de sincronización; no demuestran otra reducción de esos 57 ms.
+
 ## Comprobación posterior: llegada diferida del último datagrama
 
 La [ejecución 44942748050](https://github.com/AlexAmMo/karaoke/actions/runs/44942748050), sobre `c7d1dcb`, pasó Linux y Windows pero falló una prueba en macOS: al sustituir una entrada estéreo, el test esperaba secuencias `[3, 4]` y leyó `[3]`. Las otras 250 pruebas macOS pasaron. Esta ejecución se conserva como fallo; no se presenta como una validación completa.
