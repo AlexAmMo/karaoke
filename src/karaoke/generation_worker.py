@@ -29,6 +29,10 @@ ASR_REV = "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf"
 SEPARATOR_REV = "cbc8a9b1a87023b7fd74e7b3412e6321c0eab003"
 SEPARATOR_SHA = "d9fa14133cfcc034a6758923bb3a8ca9f8dfd0b582134643bbf83f72c17576dd"
 MODELS_REV = "75854108a364f01f8ee0a3df0db9ce8eb902beca"
+REFINER_REPO = "tuneperfect/tunestudio-note-refiners"
+REFINER_REV = "a770e8194a70c5b5f7dce8ab3b44fbe77db1a5a0"
+REFINER_SHA = "87c66621cdf07fa7d1fe481638c23d2ec868367a0908be75c83974d74cea52f7"
+NOTE_SEED = 113
 TOKEN = re.compile(r"[^\W_]+", re.UNICODE)
 APP_AGENT = "Karaoke/0.2 (https://github.com/AlexAmMo/karaoke)"
 # Exact, unmodified source from the pinned GPLv3 program. No user-controlled file names.
@@ -40,16 +44,11 @@ ENGINE_FILES = (
         f"services/{module}.py"
         for module in (
             "alignment_whisper",
-            "consonant_trim",
             "forced_alignment",
             "game_notes",
             "hyphenation",
-            "melisma",
             "model_mirror",
-            "note_holds",
-            "note_pipeline",
             "pitch_detection",
-            "ultrastar",
         )
     ),
 )
@@ -141,10 +140,15 @@ def prepare(cache, profile, model_dir=None):
             if digest(model_mirror.fetch(model)) != model["sha256"]:
                 raise ValueError("La firma de un modelo vocal no coincide.")
         game_notes.download(str(cache))
+        refiner = cached(hf_hub_download, REFINER_REPO, "notefix.onnx", revision=REFINER_REV)
+        if digest(refiner) != REFINER_SHA:
+            raise ValueError("La firma del corrector de tono no coincide.")
         pins.update(
             alignment="Retotito/ultrastar-models@" + MODELS_REV,
             pitch="FCPE@" + MODELS_REV,
             notes="openvpi/GAME@" + game_notes.MODEL_VERSION,
+            notes_seed=NOTE_SEED,
+            refiner=REFINER_REPO + "@" + REFINER_REV,
             code="retotito/UltrastarCreatorTool@" + CREATOR_REV,
         )
     return whisper, separator, pins
@@ -278,11 +282,33 @@ def split_vocals(audio, directory, separator):
         kwargs["segment"] = Fraction(segment["numerator"], segment["denominator"])
         model = HTDemucs(**kwargs)
         model.load_state_dict({k: weights.get_tensor(k) for k in weights.keys()})
-    model.eval()
+
+    class VocalsOnly(torch.nn.Module):
+        # Demucs normally accumulates all four full-length stems. Its public segment
+        # loop can accumulate just the selected channel with identical overlap weights.
+        sources = ("vocals",)
+
+        def __init__(self, separator):
+            super().__init__()
+            self.separator = separator
+            self.segment = separator.segment
+            self.samplerate = separator.samplerate
+            self.vocal_index = separator.sources.index("vocals")
+
+        def valid_length(self, length):
+            return self.separator.valid_length(length)
+
+        def forward(self, samples):
+            sources = self.separator(samples)
+            return sources[:, self.vocal_index : self.vocal_index + 1].contiguous()
+
+    frame_count = len(mono)
+    del mono
+    wave.sub_(mean).div_(std)
     with torch.inference_mode():
         stems = apply_model(
-            model,
-            ((wave - mean) / std)[None],
+            VocalsOnly(model).eval(),
+            wave[None],
             device="cpu",
             shifts=0,
             overlap=0.25,
@@ -290,11 +316,11 @@ def split_vocals(audio, directory, separator):
             progress=False,
             num_workers=0,
         )
-    vocals = stems[0, model.sources.index("vocals")] * std + mean
+        vocals = stems[0, 0].mul_(std).add_(mean)
     voice = directory / "vocals.wav"
     sf.write(voice, vocals.T.numpy(), rate, subtype="FLOAT")
     decoded.unlink()
-    return voice, len(mono) / rate
+    return voice, frame_count / rate
 
 
 def transcribe(voice, whisper, language, model=None):
@@ -340,9 +366,10 @@ def chart_text(notes, title, artist, language, duration):
         f"#LANGUAGE:{safe_text(language)}",
         "#BPM:900",
         "#GAP:0",
-        "#EDITION:Borrador local",
+        "#EDITION:Generada localmente",
     ]
     previous_line, last_end, count = None, 0, 0
+    phrase_chars, phrase_words, phrase_start, word_finished = 0, 0, 0, False
     for note in notes:
         text = note["syllable"]
         clean = "".join(c for c in text if c.isprintable()).replace("\u00a0", " ")
@@ -356,8 +383,19 @@ def chart_text(notes, title, artist, language, duration):
         stop = min(math.floor(duration * 60), max(start + 1, round(note["end"] * 60)))
         if stop <= start:
             continue
-        if previous_line is not None and line != previous_line:
-            rows.append(f"- {last_end}")
+        wrap = word_finished and (
+            phrase_chars >= 44
+            or phrase_words >= 8
+            or start - phrase_start >= 480
+            or start - last_end >= 84
+        )
+        if previous_line is None or line != previous_line or wrap:
+            if previous_line is not None:
+                rows.append(f"- {last_end}")
+            phrase_chars, phrase_words, phrase_start = 0, 0, start
+        word_finished = clean.endswith(" ")
+        phrase_chars += len(clean.replace("~", ""))
+        phrase_words += int(word_finished)
         pitch = note.get("pitch")
         kind = "F" if note.get("is_rap") or pitch is None else ":"
         rows.append(
@@ -535,8 +573,19 @@ def configure_inference(cache):
     if folder not in game_notes._sessions:
         game_notes._sessions[folder] = {
             name: session(Path(folder) / f"{name}.onnx")
-            for name in ("encoder", "segmenter", "estimator", "dur2bd", "bd2dur")
+            for name in ("encoder", "estimator", "dur2bd", "bd2dur")
         }
+    # The released diffusion segmenter draws random boundaries in each of its
+    # eight steps. A fresh seeded session makes reprocessing the same recording
+    # reproducible even when other songs were analysed earlier in this process.
+    ort.set_seed(NOTE_SEED)
+    game_notes._sessions[folder]["segmenter"] = session(Path(folder) / "segmenter.onnx")
+    from huggingface_hub import hf_hub_download
+
+    refiner_path = hf_hub_download(
+        REFINER_REPO, "notefix.onnx", revision=REFINER_REV, local_files_only=True
+    )
+    return session(refiner_path)
 
 
 def acoustic_evidence(notes, pitch):
@@ -587,7 +636,7 @@ def chart_quality(voice, lyrics, language, cache):
         raise ValueError(
             "Esta grabación y su letra superan la memoria del alineador. Divide la canción en dos partes."
         )
-    configure_inference(cache)
+    refiner = configure_inference(cache)
     syllables = hyphenation.hyphenate_lyrics(lyrics, language)["hyphenated"]
     notify("Alineando sílabas y voz")
     pitch = pitch_detection.detect_pitches_fcpe(str(voice))
@@ -604,7 +653,13 @@ def chart_quality(voice, lyrics, language, cache):
     if not events:
         raise ValueError("No se detectó una melodía vocal que pueda convertirse en notas.")
     notes = join_syllables_and_notes(timing, events, pitch, duration)
+    if __package__:
+        from .generation_assets.pitch_refinement import refine
+    else:
+        from generation_assets.pitch_refinement import refine
+    corrected = refine(notes, pitch, refiner)
     stats = {
+        "refined_pitches": corrected,
         "syllables": len(timing),
         "musical_events": len(events),
         **acoustic_evidence(notes, pitch),
@@ -635,15 +690,20 @@ def generate(args):
         notify("Transcribiendo la letra")
         words, language = transcribe(voice, whisper, args.language)
         transcript = "\n".join(" ".join(w["word"] for w in spans) for spans in words)
-        if not words:
+        recognized_count = len(normalize(transcript).split())
+        if not recognized_count:
             raise ValueError("No se reconoció una voz con letra suficiente para generar el mapa.")
         lyrics, source = transcript, {"kind": "asr"}
         if args.lyrics:
             if args.lyrics.stat().st_size > 160_000:
                 raise ValueError("El texto de la letra excede el tamaño que admite el alineador.")
             lyrics = args.lyrics.read_text(encoding="utf-8-sig")
-            agreement = text_agreement(transcript, lyrics)
-            if len(normalize(transcript).split()) >= 12 and agreement < 0.45:
+            size = len(normalize(lyrics).split())
+            # Avoid forcing a complete libretto, or several repeats of a chorus, onto a single recording.
+            agreement = (
+                text_agreement(transcript, lyrics) if 0.25 <= size / recognized_count <= 3 else 0
+            )
+            if not size or (recognized_count >= 12 and agreement < 0.45):
                 raise ValueError("La letra aportada parece corresponder a otra grabación.")
             source = {"kind": "user", "agreement": round(agreement, 3)}
         elif args.profile == "quality":
@@ -750,9 +810,19 @@ def main():
                 result = generate(args)
         print(json.dumps(result, ensure_ascii=False), flush=True)
     except (ValueError, OSError, RuntimeError, ImportError, subprocess.SubprocessError) as exc:
-        print(json.dumps({"error": safe_text(str(exc), 500)}, ensure_ascii=False), file=sys.stderr, flush=True)
+        print(
+            json.dumps({"error": safe_text(str(exc), 500)}, ensure_ascii=False),
+            file=sys.stderr,
+            flush=True,
+        )
         raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
+    if __package__:
+        from .generation_assets.runtime import configure_intel_openmp
+    else:
+        from generation_assets.runtime import configure_intel_openmp
+
+    configure_intel_openmp()
     main()
