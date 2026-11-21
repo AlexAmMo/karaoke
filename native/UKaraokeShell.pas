@@ -22,6 +22,7 @@ function SDL_GetDefaultAudioInfo(var Name: PAnsiChar; Spec: PSDL_AudioSpec; Capt
 procedure SDL_free(mem: pointer); cdecl; external SDL_LibName name 'SDL_free';
 var
   Started: boolean = false;
+  Quitting: boolean = false;
   View: TJSONObject = nil;
   LastStatus, LastView: cardinal;
   Focus: integer = -1;
@@ -428,6 +429,31 @@ begin
   CaptureActive:=false; KaraokeHasRouteDelay:=false; ActiveMobileSecret:=''; RestoreRoutes;
 end;
 
+procedure RequestQuit;
+begin
+  if Quitting then Exit;
+  Quitting:=true;
+  // Cancel a queued screen change before the next draw can start a song.
+  Display.NextScreen:=nil;
+  Display.NextScreenWithCheck:=nil;
+  Display.CheckOK:=true;
+
+  if CalibrationActive then CalibrationCancel;
+  if Assigned(AudioPlayback) then AudioPlayback.QuiescePlayback;
+  ShellCaptureStop;
+  // A closed session restores its interrupted turn. EndSong would save a result.
+  if Assigned(AudioPlayback) then
+  begin
+    AudioPlayback.Stop;
+    AudioPlayback.SetSyncSource(nil);
+  end;
+  if Assigned(LyricsState) then
+  begin
+    LyricsState.Stop;
+    LyricsState.SetSyncSource(nil);
+  end;
+end;
+
 function AllDevicesOpened(N: integer): boolean;
 var D,C,P: integer;
 begin
@@ -653,11 +679,7 @@ begin
     Ini.InputDeviceConfig[K].ChannelToPlayerMap[C]:=P;
     Ini.Save; ErrorText:='';
   end
-  else if Op='quit' then
-  begin
-    if CalibrationActive then begin CalibrationCancel; ShellCaptureStop; end;
-    Display.NextScreenWithCheck:=nil; Display.CheckOK:=true;
-  end;
+  else if Op='quit' then RequestQuit;
 end;
 procedure EditChanged;
 begin
@@ -680,7 +702,7 @@ var J,O: TJSONObject; A,Scores,Devices,Levels: TJSONArray; SR: TSearchRec;
     I,K,N: integer; NowTick: cardinal; Buf: array[0..4095] of SmallInt;
     Frequency,SampleTime,SongTime: double; Name,FocusKey: string; NewFocus: integer; EnterSearch: boolean;
 begin
-  if not ShellEnabled then Exit;
+  if Quitting or not ShellEnabled then Exit;
   NowTick:=SDL_GetTicks;
   if not Started then
   begin
@@ -711,6 +733,7 @@ begin
       try J:=ReadJSON(Name); DeleteFile(Name); Command(J);
       except on E: Exception do ErrorText:=E.Message; end;
       J.Free;
+      if Quitting then Exit;
     end;
   finally Commands.Free; end;
   // Only refresh engine indexes at a safe point, never during a song.
@@ -1373,7 +1396,7 @@ procedure ShellDraw;
 var I,Y,RH,W,TopY,BottomY,Total,Avail:integer; A:TJSONArray; R:TJSONObject;
     B:TBox; Value:UTF8String; LabelX,Scale,ThumbH:single;
 begin
-  if not ShellEnabled or not Started then Exit;
+  if Quitting or not ShellEnabled or not Started then Exit;
   Renderer.SetClipText(false); Renderer.SetScissorTest(false);
   W:=ScreenW-SideWidth;
   if not Singing then
@@ -1613,7 +1636,11 @@ function ShellEvent(var Event: TSDL_Event): boolean;
 var Action,Control:string; X,Y,P,I: integer; A: TJSONArray; R: TJSONObject; Clip: PAnsiChar; Key: cardinal;
 begin
   Result:=false; if not ShellEnabled or not Started then Exit;
-  if (Event.type_=SDL_QUITEV) and CalibrationActive then begin CalibrationCancel; ShellCaptureStop; end;
+  if Quitting then Exit(true);
+  if (Event.type_=SDL_QUITEV) or
+     ((Event.type_=SDL_WINDOWEVENT) and (Event.window.event=SDL_WINDOWEVENT_CLOSE) and
+      (Event.window.windowID=SDL_GetWindowID(screen))) then
+  begin RequestQuit; Exit(true); end;
   if (Event.type_=SDL_WINDOWEVENT) and (Event.window.event=SDL_WINDOWEVENT_FOCUS_GAINED) then Display.SetCursor;
   if (Event.type_=SDL_WINDOWEVENT) and
      ((Event.window.event=SDL_WINDOWEVENT_FOCUS_LOST) or (Event.window.event=SDL_WINDOWEVENT_LEAVE)) then
@@ -1706,7 +1733,7 @@ begin
     if (Event.key._repeat<>0) and ((Key=SDLK_RETURN) or (Key=SDLK_PLUS) or (Key=SDLK_SPACE)) and (EditAction='') then Exit;
     if (Event.key.keysym._mod and (KMOD_CTRL or KMOD_GUI))<>0 then
     begin
-      if Key=SDLK_q then begin Display.NextScreenWithCheck:=nil; Display.CheckOK:=true; Exit; end;
+      if Key=SDLK_q then begin RequestQuit; Exit; end;
       if Key=SDLK_b then begin SetPanelCollapsed(not PanelCollapsed); Exit; end;
       if (Key=SDLK_p) and Singing then begin Emit('pause'); Exit; end;
       if (Key=SDLK_e) and Singing then begin SetPanelCollapsed(false); Emit('end'); Exit; end;
