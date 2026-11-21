@@ -69,17 +69,17 @@ class Session:
         self.last_command_timestamp = 0
         self.samples = []
 
-    def launch(self):
+    def launch(self, *, synthetic=True):
         self.launch_count += 1
         self.log = (self.data / f"launcher-{self.launch_count}.log").open("w", encoding="utf-8")
         self.process = subprocess.Popen(
-            [*self.launcher, "--data-dir", str(self.data), "--demo"],
+            [*self.launcher, "--data-dir", str(self.data), *(["--demo"] if synthetic else [])],
             cwd=ROOT,
             env=self.environment,
             stdout=self.log,
             stderr=self.log,
         )
-        self.wait(lambda state: bool(state.get("synthetic")), timeout=45)
+        self.wait(lambda state: state.get("synthetic") is synthetic, timeout=45)
 
     def state(self):
         if self.process is not None and self.process.poll() is not None:
