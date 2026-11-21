@@ -3,7 +3,8 @@
   let popup,
     nonce,
     active = false,
-    indicator;
+    indicator,
+    micButton;
   const securePage = 'https://alexammo.github.io/karaoke/microfono/';
   let stopSignal;
   const text = (tag, value) => {
@@ -14,9 +15,16 @@
   function note(message) {
     if (indicator) indicator.textContent = message;
   }
+  function setActive(value) {
+    active = value;
+    if (micButton)
+      micButton.textContent = active
+        ? 'Desactivar mi micrófono'
+        : 'Usar este móvil como micrófono';
+  }
   window.closeKaraokeMicrophone = () => {
     KaraokeVoice.stop();
-    active = false;
+    setActive(false);
     if (popup && !popup.closed)
       popup.postMessage(
         { kind: 'karaoke-room-closed', nonce },
@@ -27,8 +35,7 @@
   window.addEventListener('pagehide', window.closeKaraokeMicrophone);
   window.karaokePeople = (content, { api, action, state }) => {
     stopSignal = async () => {
-      active = false;
-      mic.textContent = 'Usar este móvil como micrófono';
+      setActive(false);
       await api('mic-stop', {}).catch(() => {});
       note('Micrófono apagado.');
     };
@@ -84,6 +91,7 @@
       'button',
       active ? 'Desactivar mi micrófono' : 'Usar este móvil como micrófono',
     );
+    micButton = mic;
     content.append(mic, indicator);
     async function assign() {
       for (let i = 0; i < 12; i++) {
@@ -103,7 +111,6 @@
         if (active) {
           window.closeKaraokeMicrophone();
           await stopSignal();
-          mic.textContent = 'Usar este móvil como micrófono';
           return;
         }
         if (window.isSecureContext && navigator.mediaDevices) {
@@ -111,8 +118,7 @@
             (sdp) => api('mic-offer', { sdp }),
             stopSignal,
           );
-          active = true;
-          mic.textContent = 'Desactivar mi micrófono';
+          setActive(true);
           await assign();
         } else {
           nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
@@ -155,8 +161,7 @@
           { kind: 'karaoke-mic-answer', nonce, answer },
           e.origin,
         );
-        active = true;
-        mic.textContent = 'Desactivar mi micrófono';
+        setActive(true);
         await assign();
       } catch (err) {
         popup?.postMessage(

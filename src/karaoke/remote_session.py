@@ -217,6 +217,7 @@ class RemoteSession:
 
     def state(self, name):
         rows = self.turn_rows()
+        generations = self.host.turn_generations()
         turns = []
         for t in rows:
             song = ({"title": t["title"], "artist": t["artist"], "chart": t["chart"]} if t["song_id"]
@@ -227,10 +228,13 @@ class RemoteSession:
                 status = "missing"
             if status == "cancelled":
                 status = "error"
+            generation = generations.get(t["id"])
+            if generation:
+                status = generation["status"]
             turns.append({"id": t["id"], "title": song.get("title") or "Preparando canción",
                           "artist": song.get("artist") or "", "names": json.loads(t["names"]),
                           "voices": self.host.people.voices(t), "status": status, "cover": self.cover(song),
-                          "message": {"error": "Preparación fallida. Puedes reintentar.",
+                          "message": generation["message"] if generation else {"error": "Preparación fallida. Puedes reintentar.",
                                       "missing": "Vuelve a importar el mapa y el audio en el ordenador.",
                                       "host": "Elige la edición en el ordenador."}.get(status, "")})
         preparations = []
@@ -538,6 +542,8 @@ class RemoteSession:
             elif op == "start":
                 self.host.start(item)
             else:
+                if item in self.host.turn_generations():
+                    raise RemoteError("Este turno tiene un borrador. Continúa su preparación en el ordenador.", 409)
                 jobs = self.host.store.rows("SELECT id FROM jobs WHERE source=? AND state IN ('error','cancelled')",
                                            (turn["source"],))
                 if not jobs:

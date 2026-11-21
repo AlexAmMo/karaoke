@@ -686,10 +686,17 @@ class GenerationLab:
             )
             turn = getattr(view, "draft_turn", None)
             if turn and turn[2] == youtube_id(url):
-                self.db.execute(
-                    "INSERT OR IGNORE INTO draft_turns VALUES(?,?,?)",
-                    (view.draft_id, turn[0], turn[1]),
-                )
+                # Enqueue may reuse an older pending draft. The last request,
+                # not draft creation time, decides which result fills this turn.
+                with self.db.lock, self.db.db:
+                    self.db.db.execute(
+                        "DELETE FROM draft_turns WHERE turn_id=? AND source=?",
+                        (turn[0], turn[1]),
+                    )
+                    self.db.db.execute(
+                        "INSERT INTO draft_turns VALUES(?,?,?)",
+                        (view.draft_id, turn[0], turn[1]),
+                    )
             view.draft_turn = None
             view.page = "Borrador"
         elif op.startswith("detail:"):

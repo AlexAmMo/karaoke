@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 const captions = {search: "Busca una canción", queue: "Próximos turnos"};
-const statuses = {ready: "Lista", waiting: "En espera", missing: "Copia incompleta", working: "Preparando", error: "Necesita atención", host: "Pendiente en el ordenador", starting: "Empezando", singing: "Cantando"};
+const statuses = {ready: "Lista", waiting: "En espera", missing: "Copia incompleta", working: "Preparando", review: "Pendiente de revisión", error: "Necesita atención", host: "Pendiente en el ordenador", starting: "Empezando", singing: "Cantando"};
 const browse = {
   search: {q: "", page: 0},
 
@@ -26,6 +26,7 @@ let renderedResults = [];
 let artworkAttempts = 0;
 let confirmedItem = null;
 let currentSheet = null;
+let refreshSheet = null;
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -229,6 +230,7 @@ async function refresh() {
     renderPlayer();
     $("queue-count").textContent = data.queue.length ? "(" + data.queue.length + ")" : "";
     if (tab === "queue") renderQueue();
+    refreshSheet?.();
   } catch (err) {
     if (seq !== stateRequest) return;
     if (err.status === 401) fail(err);
@@ -415,7 +417,9 @@ function renderQueue() {
     const li = element("li", "song");
     const open = button("", () => openTurn(item), "song-main");
     open.dataset.focusKey = item.id;
-    open.append(cover(item), detail(item.title, [item.artist, (item.names || []).join(" + "), statuses[item.status]].filter(Boolean).join(" · ")));
+    const description = detail(item.title, [item.artist, (item.names || []).join(" + "), statuses[item.status]].filter(Boolean).join(" · "));
+    if (item.message) description.append(element("span", "sub", item.message));
+    open.append(cover(item), description);
     const more = iconButton("Opciones del turno " + (index + 1) + ", " + item.title, "more", () => openTurn(item));
     more.dataset.focusKey = "options:" + item.id;
     li.append(open, more);
@@ -429,11 +433,13 @@ function closeOrigin(origin) {
 function closeSheet() {
   clearTimeout(candidateTimer);
   currentSheet = null;
+  refreshSheet = null;
   if ($("sheet").open) $("sheet").close();
 }
 function sheet(title) {
   clearTimeout(candidateTimer);
   currentSheet = Symbol();
+  refreshSheet = null;
   $("sheet-title").textContent = title;
   $("sheet-content").replaceChildren();
   if (!$("sheet").open) $("sheet").showModal();
@@ -564,37 +570,64 @@ async function openInstrumentals(item) {
 function openTurn(stale) {
   const item = state.queue.find(row => row.id === stale.id);
   if (!item) { message("Este turno ya ha terminado."); return; }
-  const revision = state.revision;
+  let editRevision = state.revision;
+  const originalVoices = JSON.stringify([item.names, item.voices]);
   const content = sheet(item.title);
-  content.append(element("p", "muted", [item.artist, statuses[item.status]].filter(Boolean).join(" · ")));
-  if (item.message) content.append(element("p", "small muted", item.message));
-  if (item.status === "host" && !item.message) content.append(element("p", "small muted", "Elige la edición en el ordenador para continuar."));
-  if (item.id === state.active || ["starting", "singing"].includes(item.status)) {
-    const actions = element("div", "sheet-actions");
-    const op = state.paused ? "resume" : "pause";
-    const pause = button(state.paused ? "Reanudar" : "Pausar", () => command(op, item.id), "primary");
-    pause.disabled = item.status === "starting";
-    actions.append(pause, button("Terminar canción", () => confirmAction("¿Terminar la canción?", item.title,
-      "Terminar canción", () => command("end", item.id)), "danger"));
-    content.append(actions);
-    return;
-  }
+  const status = element("p", "muted");
+  status.setAttribute("aria-live", "polite");
+  const explanation = element("p", "small muted");
+  content.append(status, explanation);
   const actions = element("div", "sheet-actions");
-  const pending = state.queue.filter(row => row.id !== state.active && !["starting","singing"].includes(row.status));
-  const position = pending.findIndex(row => row.id === item.id);
-  if (position > 0) actions.append(button("Subir turno", () => command("up", item.id, {revision}), "", "up"));
-  if (position + 1 < pending.length) actions.append(button("Bajar turno", () => command("down", item.id, {revision}), "", "down"));
-  if (item.status === "ready" && !state.active) actions.append(button("Empezar a cantar", () => command("start", item.id, {revision}), "primary"));
-  if (item.status === "error") actions.append(button("Reintentar", () => command("retry", item.id, {revision})));
+  const up = button("Subir turno", () => command("up", item.id), "", "up");
+  const down = button("Bajar turno", () => command("down", item.id), "", "down");
+  const start = button("Empezar a cantar", () => command("start", item.id), "primary");
+  const retry = button("Reintentar", () => command("retry", item.id));
+  const pause = button("Pausar", () => command(state.paused ? "resume" : "pause", item.id), "primary");
+  const end = button("Terminar canción", () => confirmAction("¿Terminar la canción?", item.title,
+    "Terminar canción", () => command("end", item.id)), "danger");
+  actions.append(up, down, start, retry, pause, end);
   content.append(actions);
-  if (state.singers?.length) window.karaokeVoiceEditor?.(content,item,state,revision,command);
-  const names = singerFields(content, item.names || []);
-  content.append(button("Guardar cantantes", () => {
+  const editor = element("div");
+  const editCommand = (op, id, extra, message) => command(op, id, {...extra, revision:editRevision}, message);
+  if (state.singers?.length) window.karaokeVoiceEditor?.(editor,item,state,editRevision,editCommand);
+  const names = singerFields(editor, item.names || []);
+  editor.append(button("Guardar cantantes", () => {
     const values = names();
-    if (values) command("rename", item.id, {names:values, revision}, "Cantantes actualizados");
+    if (values) editCommand("rename", item.id, {names:values}, "Cantantes actualizados");
   }, "full"));
-  content.append(button("Quitar de la cola", () => confirmAction("¿Quitar este turno?", item.title, "Quitar turno",
-    () => command("remove", item.id, {revision}, "Turno retirado")), "danger full"));
+  editor.append(button("Quitar de la cola", () => {
+    const revision = state.revision;
+    confirmAction("¿Quitar este turno?", item.title, "Quitar turno",
+      () => command("remove", item.id, {revision}, "Turno retirado"));
+  }, "danger full"));
+  content.append(editor);
+  refreshSheet = () => {
+    const scroll = $("sheet").scrollTop;
+    const latest = state.queue.find(row => row.id === item.id);
+    const active = latest && (item.id === state.active || ["starting", "singing"].includes(latest.status));
+    const summary = latest ? [latest.artist, statuses[latest.status]].filter(Boolean).join(" · ") : "Este turno ya ha terminado.";
+    if (status.textContent !== summary) status.textContent = summary;
+    const hint = latest?.message || (latest?.status === "host" ? "Elige la edición en el ordenador para continuar." : "");
+    if (explanation.textContent !== hint) explanation.textContent = hint;
+    explanation.hidden = !hint;
+    const pending = state.queue.filter(row => row.id !== state.active && !["starting", "singing"].includes(row.status));
+    const position = pending.findIndex(row => row.id === item.id);
+    up.hidden = !latest || active || position < 1;
+    down.hidden = !latest || active || position + 1 >= pending.length;
+    start.hidden = !latest || active || latest.status !== "ready" || !!state.active;
+    retry.hidden = !latest || active || latest.status !== "error";
+    pause.hidden = end.hidden = !active;
+    pause.disabled = latest?.status === "starting";
+    const caption = state.paused ? "Reanudar" : "Pausar";
+    if (pause.textContent !== caption) pause.textContent = caption;
+    actions.hidden = ![...actions.children].some(control => !control.hidden);
+    editor.hidden = !latest || active;
+    // Preparation and queue changes must not stale the form. A competing edit
+    // to these voices still retains the original server conflict check.
+    if (latest && JSON.stringify([latest.names, latest.voices]) === originalVoices) editRevision = state.revision;
+    $("sheet").scrollTop = scroll;
+  };
+  refreshSheet();
 }
 $("settings-button").addEventListener("click", () => {
   if (!state) return;
@@ -632,7 +665,7 @@ $("settings-button").addEventListener("click", () => {
   window.karaokePeople?.(content, {api, action:sendAction, state, session});
 });
 $("sheet-close").addEventListener("click", closeSheet);
-$("sheet").addEventListener("close", () => { if (!$("sheet").open) { clearTimeout(candidateTimer); currentSheet = null; } });
+$("sheet").addEventListener("close", () => { if (!$("sheet").open) { clearTimeout(candidateTimer); currentSheet = null; refreshSheet = null; } });
 document.querySelectorAll("[data-tab]").forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.tab)));
 $("saved-only").addEventListener("change", () => {
   browse.search.page = 0;

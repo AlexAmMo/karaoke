@@ -902,6 +902,38 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 AND NOT EXISTS (SELECT 1 FROM turns t WHERE t.source=j.source
                                 AND t.state IN ('queued','starting','singing')) ORDER BY j.created""")
 
+    def turn_generations(self):
+        """Project the latest replacement draft without changing turn identity or inputs."""
+        phases = {
+            "Instalando el entorno de generación · primera vez": "Preparando las herramientas para generar canciones · primera vez",
+            "Preparando modelos locales": "Preparando las herramientas para generar canciones",
+            "Obteniendo la grabación exacta de YouTube": "Descargando el audio de YouTube",
+            "Separando la voz de la mezcla original": "Separando la voz del acompañamiento",
+            "Transcribiendo la letra": "Transcribiendo la letra",
+            "Comprobando un tramo que falta en la transcripción": "Comprobando la letra",
+            "Alineando sílabas y voz": "Sincronizando la letra con la voz",
+            "Calculando notas y prolongaciones": "Calculando las notas y su duración",
+            "Calculando la melodía vocal": "Calculando las notas de la voz",
+            "Comprobando la letra, las notas y sus tiempos": "Comprobando la letra, las notas y sus tiempos",
+            "En pausa mientras se canta": "En pausa mientras se canta",
+        }
+        result = {}
+        drafts = self.store.rows("""SELECT d.id,d.state,d.message,dt.turn_id FROM draft_turns dt
+            JOIN drafts d ON d.id=dt.draft_id JOIN turns t ON t.id=dt.turn_id
+            WHERE t.state='queued' AND t.song_id IS NULL AND t.source=dt.source
+              AND d.state IN ('waiting','working','review','error','cancelled')
+            ORDER BY d.created DESC,d.rowid DESC""")
+        for draft in drafts:
+            status, message = {
+                "waiting": ("waiting", "Pendiente de generar el mapa y la letra."),
+                "working": ("working", phases.get(draft["message"], "Generando el mapa y la letra")),
+                "review": ("review", "Revisa la letra y las notas en el ordenador antes de cantar."),
+                "error": ("host", "No se ha podido generar el borrador. Reintenta en el ordenador."),
+                "cancelled": ("host", "Generación cancelada. Puedes reanudarla en el ordenador."),
+            }[draft["state"]]
+            result.setdefault(draft["turn_id"], {"draft_id": draft["id"], "status": status, "message": message})
+        return result
+
     def clean_catalogue_reviews(self):
         # Keep the input of persistent jobs across retries and application restarts.
         root = self.root / "catalogue-review"
@@ -1859,6 +1891,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             button("Volver a los resultados", "page:Buscar", style="back")
         elif self.page == "Cola":
             turns = self.store.queue()
+            generations = self.turn_generations()
             next_ready = next((turn for turn in turns if turn["state"] == "queued" and has_song_files(turn)), None)
             if next_ready and not self.active:
                 button("Empezar a cantar", "start:" + next_ready["id"], next_ready["title"], style="primary")
@@ -1876,6 +1909,8 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                     "cancelled": "Cancelada", "host": "Elegir edición en el ordenador"}.get(turn["preparation"], "Pendiente")
                 if turn["song_id"] and turn["state"] == "queued" and not has_song_files(turn):
                     status = "Copia incompleta"
+                if turn["id"] in generations:
+                    status = generations[turn["id"]]["message"]
                 sub = " · ".join(filter(None, (song.get("artist"), ", ".join(json.loads(turn["names"])), status)))
                 song_row(song, f"{index + 1}. {title}", sub, "turn:" + turn["id"])
             if start:
@@ -1904,6 +1939,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             turns = self.store.queue()
             turn = next((t for t in turns if t["id"] == self.turn_detail), None)
             if turn:
+                generation = self.turn_generations().get(turn["id"])
                 text(turn["title"] or json.loads(turn["job_payload"] or "{}").get("song", {}).get("title")
                      or "Preparando canción", ", ".join(json.loads(turn["names"])))
                 if turn["state"] == "queued":
@@ -1914,6 +1950,9 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                         text("Copia incompleta", "Vuelve a importar el mapa y el audio de esta edición.")
                     elif turn["song_id"] and not self.active:
                         button("Empezar este turno", "start:" + turn["id"], style="primary")
+                    elif generation:
+                        text(generation["message"])
+                        button("Ver borrador", "lab:detail:" + generation["draft_id"], style="primary")
                     elif turn["preparation"] in ("error", "cancelled"):
                         text("No se ha podido preparar", turn["message"] or "")
                         jobs = self.store.rows("SELECT id FROM jobs WHERE source=?", (turn["source"],))
