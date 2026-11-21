@@ -1,0 +1,47 @@
+name: Isolate the lead singer in the frozen Creative Commons masters
+on:
+  push:
+    branches: [codex/validar-voz-principal-20261121]
+permissions:
+  contents: read
+jobs:
+  song:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    env:
+      SHARD: ${{ matrix.shard }}
+      OMP_NUM_THREADS: 3
+      OPENBLAS_NUM_THREADS: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Set up pinned CPU separator
+        run: |
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          uv venv .lead --python 3.12
+          uv pip install --python .lead/bin/python torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .lead/bin/python demucs==4.1.0 safetensors==0.8.0 numpy==2.5.5 scipy==1.17.1 soundfile==0.14.0 soxr==1.1.0 huggingface-hub==2.4.0 onnxruntime==1.32.0 requests
+          curl -fsSL --retry 3 "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR_MDXNET_KARA_2.onnx" -o "$RUNNER_TEMP/uvr.onnx"
+      - name: Separate the public master and seal the private test waveform
+        run: |
+          set -eu
+          .lead/bin/python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/songs" --language en --shard "$SHARD" --shards 20
+          .lead/bin/python scripts/experiments/melody_runner_stem.py
+          .lead/bin/python scripts/experiments/lead_runner.py
+          tar -c -C "$RUNNER_TEMP/export" lead.wav lead.json | gzip -1 > "$RUNNER_TEMP/private.tgz"
+          openssl cms -encrypt -aes-256-gcm -binary -outform DER -in "$RUNNER_TEMP/private.tgz" -out "$RUNNER_TEMP/lead.cms" .github/validation/recipient.crt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sealed-lead-${{ matrix.shard }}
+          path: ${{ runner.temp }}/lead.cms
+          compression-level: 0
+          retention-days: 1
