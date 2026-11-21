@@ -34,8 +34,22 @@ def digest(path):
 
 def write_json(path, value):
     temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def session_options(threads, memory_policy):
+    """Change allocation retention only; model graphs and numerical settings stay fixed."""
+    if memory_policy not in ("default", "no-arena"):
+        raise ValueError(f"Unknown ONNX memory policy: {memory_policy}")
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = threads
+    options.inter_op_num_threads = 1
+    options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+    if memory_policy == "no-arena":
+        options.enable_cpu_mem_arena = False
+        options.enable_mem_pattern = False
+    return options
 
 
 def predicted_anchors(chart):
@@ -122,11 +136,13 @@ def main():
     parser.add_argument("--modes", nargs="+", choices=("free", "syllables", "spans", "words"),
                         default=["free", "syllables", "spans", "words"])
     parser.add_argument("--threads", type=int, default=2)
+    parser.add_argument("--onnx-memory-policy", choices=("default", "no-arena"), default="default",
+                        help="no-arena disables CPU arena retention and memory-pattern caching")
     args = parser.parse_args()
-    charts = json.loads(args.charts.read_text())
+    charts = json.loads(args.charts.read_text(encoding="utf-8"))
     if args.overlay:
-        charts.update(json.loads(args.overlay.read_text()))
-    stems = json.loads(args.stems.read_text())
+        charts.update(json.loads(args.overlay.read_text(encoding="utf-8")))
+    stems = json.loads(args.stems.read_text(encoding="utf-8"))
     if set(charts) != set(stems):
         raise ValueError("Prediction and vocal manifest cohorts differ")
     if args.ids and not set(args.ids).issubset(charts):
@@ -138,10 +154,7 @@ def main():
     expected = game_notes.MODEL_FILES
     if any(digest(Path(folder) / name) != info[1] for name, info in expected.items()):
         raise ValueError("GAME weights differ from the released pinned model")
-    options = ort.SessionOptions()
-    options.intra_op_num_threads = args.threads
-    options.inter_op_num_threads = 1
-    options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+    options = session_options(args.threads, args.onnx_memory_policy)
 
     def session(name):
         return ort.InferenceSession(str(Path(folder) / (name + ".onnx")),
@@ -168,10 +181,16 @@ def main():
                               "melody_compare": digest(melody_compare.__file__),
                               "generation_worker": digest(generation_worker.__file__),
                               "songs": digest(songs.__file__),
-                          }, "onnxruntime": ort.__version__, "threads": args.threads}
+                          }, "onnxruntime": ort.__version__, "threads": args.threads,
+                          "onnx_memory_policy": args.onnx_memory_policy,
+                          "onnx_memory_options": {
+                              "enable_cpu_mem_arena": options.enable_cpu_mem_arena,
+                              "enable_mem_pattern": options.enable_mem_pattern,
+                              "enable_mem_reuse": options.enable_mem_reuse,
+                          }}
             frozen = output / "frozen.json"
             if frozen.exists():
-                previous = json.loads(frozen.read_text())
+                previous = json.loads(frozen.read_text(encoding="utf-8"))
                 if previous["provenance"] != provenance:
                     raise ValueError(f"Incompatible cached experiment: {output}")
                 if any(digest(output / (method + ".txt")) != sha
