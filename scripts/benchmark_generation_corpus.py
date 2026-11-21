@@ -202,16 +202,6 @@ def run(args):
             "seconds": timing,
             "audio_sha256": stage["signature"][0],
         }
-        # Audit the exact conditions changed since the preceding complete matrix.
-        # No change to either the accepted source or the guarded alignment means
-        # the existing seeded prediction remains applicable for the same ASR input.
-        affected = src.get("agreement_method") == "ordered_repetitions"
-        guarded_before = (2 * len(worker.normalize(lyr)) + 3) * math.ceil(duration * 50) > 240_000_000
-        if not affected and not guarded_before:
-            result["same_algorithm_as_previous_complete_run"] = True
-            save(folder / "metrics.json", result)
-            print("identical chart pipeline", row["tag"], flush=True)
-            continue
         try:
             notes, evidence = record_time(
                 timing,
