@@ -1,0 +1,56 @@
+name: Align the frozen generated CC lyrics on their verified vocal
+on:
+  push:
+    branches: [codex/validar-qwen-cc-20261121]
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 4, 5, 6, 7, 8, 12, 13, 14, 16, 18, 19]
+    env:
+      SHARD: ${{ matrix.shard }}
+      OMP_NUM_THREADS: 4
+      OPENBLAS_NUM_THREADS: 1
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Prepare known weights and CPU runtime
+        run: |
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          uv venv .qwen --python 3.12
+          uv pip install --python .qwen/bin/python torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .qwen/bin/python demucs==4.1.0 safetensors==0.8.0 numpy==2.5.5 soundfile==0.14.0 soxr==1.1.0 huggingface-hub==2.4.0 requests
+          curl --retry 4 -fsSL 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.54/libcrispasr-linux-x86_64.tar.gz' > "$RUNNER_TEMP/native.tar.gz"
+          echo "a337cd4be80228c194fa0a4ab40e720da6727820a16a632880123343634d775c  $RUNNER_TEMP/native.tar.gz" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/native"
+          tar -xzf "$RUNNER_TEMP/native.tar.gz" -C "$RUNNER_TEMP/native"
+          curl --retry 4 -fsSL 'https://huggingface.co/cstr/qwen3-forced-aligner-0.6b-GGUF/resolve/1ec5110602ccab18c878ddebedab0891e290a95c/qwen3-forced-aligner-0.6b-q4_k.gguf' > "$RUNNER_TEMP/qwen.gguf"
+      - name: Obtain the master from its CC source and verify the same separated vocal
+        run: |
+          .qwen/bin/python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/songs" --language en --shard "$SHARD" --shards 20
+          .qwen/bin/python scripts/experiments/melody_runner_stem.py
+      - name: Compute numeric word offsets from ephemeral generated cues
+        env:
+          PRIVATE_CUES: ${{ secrets.KARAOKE_QWEN_CC_20261121_1625 }}
+        run: |
+          lib="$(find "$RUNNER_TEMP/native" -name 'libcrispasr.so*' -type f -print -quit)"
+          test -f "$lib"
+          export LD_LIBRARY_PATH="$(dirname "$lib"):${LD_LIBRARY_PATH:-}"
+          .qwen/bin/python scripts/experiments/timing_qwen_cc.py "$lib"
+          openssl cms -encrypt -aes-256-gcm -binary -outform DER -in "$RUNNER_TEMP/numeric-output.json" -out "$RUNNER_TEMP/timing.cms" .github/validation/recipient.crt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aligned-cc-${{ matrix.shard }}
+          path: ${{ runner.temp }}/timing.cms
+          retention-days: 2
+          if-no-files-found: error
