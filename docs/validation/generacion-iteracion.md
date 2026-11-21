@@ -2,6 +2,54 @@
 
 Karaoke ya puede analizar la mezcla original y producir un paquete UltraStar auditable. La voz del artista permanece en la reproducción. El separador, la transcripción y la estimación musical trabajan sobre una copia temporal. Un mapa generado empieza como borrador y requiere revisión para entrar en la biblioteca. La selección de canciones con un mapa comunitario verificado mantiene su flujo habitual.
 
+## Resultados de la versión distribuida
+
+La tabla cuenta cada grabación una vez dentro de su idioma. Las dos últimas filas vuelven a medir un pasaje de esos mismos temas. WER es la tasa de errores de palabra. La columna de inicio recoge la mediana de los p90 por canción sobre las palabras que coinciden con la referencia. La clase compara la nota cada 10 ms y el F1 exige que su ataque esté a ±100 ms del mapa humano.
+
+| Conjunto | Grabaciones | WER | Inicio de palabra p90 | Clase correcta | F1 de ataques | Cumplen los cuatro objetivos |
+|---|---:|---:|---:|---:|---:|---:|
+| Canción completa, español (M4) | 20 | 9,75 % | 139,5 ms | 71,54 % | 0,610 | 0 |
+| Canción completa, inglés (Windows x64) | 20 | 6,69 % | 73,5 ms | 78,79 % | 0,724 | 0 |
+| Fragmento de 24 s, español (M4) | 20 | 6,93 % | 132,5 ms | 73,53 % | 0,648 | 0 |
+| Fragmento de 24 s, inglés (Windows x64) | 20 | 6,34 % | 71,5 ms | 73,84 % | 0,705 | 0 |
+
+| Objetivos por separado en canciones completas | Letra ≤5 % WER | Inicio p90 ≤120 ms | Clase ≥90 % | F1 ≥0,85 | Candidatas por la regla de confianza |
+|---|---:|---:|---:|---:|---:|
+| Canción completa, español (M4) | 6/20 | 6/20 | 1/20 | 1/20 | 0/20 |
+| Canción completa, inglés (Windows x64) | 9/20 | 16/20 | 1/20 | 0/20 | 0/20 |
+
+Ninguna de las cuarenta grabaciones completas superó el filtro previo de confianza que combinaba letra, coincidencia de tono y cantidad de notas dudosas. Con cero candidatas no se puede estimar el riesgo de aprobar mal una canción futura. La app mantiene la revisión antes de poner en la cola un mapa generado.
+
+Los dos casos que se utilizaron para decidir una mejora también aparecen en los ensayos completos. Si se excluyen *Mr. Fancy Pants* y la grabación de la obra de Fito & Fitipaldis, quedan 19 muestras por idioma.
+
+- En español, WER 10,53 %, p90 140,0 ms, clase 71,96 %, F1 0,609. Cumplen las cuatro metas 0/19.
+- En inglés, WER 6,74 %, p90 76,0 ms, clase 78,78 %, F1 0,720. Cumplen las cuatro metas 0/19.
+
+| Ocho grabaciones adicionales | WER | Inicio p90 | Clase correcta | F1 | Procedencia de la letra |
+|---|---:|---:|---:|---:|---|
+| Sigo Aquí | 6,39 % | 139 ms | 83,19 % | 0,557 | LRCLIB |
+| Todo un hombre haré de ti | 11,54 % | 114 ms | 81,27 % | 0,532 | Transcripción del audio |
+| Por la boca vive el pez | 2,33 % | 111 ms | 75,42 % | 0,792 | LRCLIB |
+| Go The Distance | 5,56 % | 120 ms | 80,58 % | 0,594 | LRCLIB |
+| Something | 0,00 % | 72 ms | 79,67 % | 0,691 | LRCLIB |
+| Paramar | 17,39 % | 84 ms | 75,77 % | 0,675 | LRCLIB |
+| Lose Yourself | 5,35 % | 53 ms | 55,16 % | 0,211 | LRCLIB |
+| Stan | 24,80 % | 123 ms | 33,19 % | 0,078 | Transcripción del audio |
+
+La muestra inglesa incluye once obras de Jonathan Coulton entre los veinte paquetes Creative Commons. Las ocho grabaciones adicionales incluyen siete obras distintas de las de la muestra principal. Los resultados describen estas ediciones y estos equipos. Las cifras individuales, los SHA-256 disponibles y la fuente de letra se conservan en el CSV. [Resultados por edición](generacion-resultados.csv) · [Ejecución de la versión definitiva en Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44904428646)
+
+### Subtítulos manuales de la grabación exacta
+
+Al consultar los veinte ID de YouTube del conjunto español, los veinte respondieron y cuatro ofrecieron subtítulos manuales en español. La aplicación corroboró tres por coincidencia de palabras y reloj a lo largo de la canción. La cuarta, *Amorfoda*, conservó su transcripción. Las tres grabaciones corroboradas se volvieron a procesar con el texto de esos subtítulos y el mismo audio y modelos. Sus resultados con subtítulos son los que entran en la tabla principal.
+
+| Canción | WER sin / con subtítulos | p90 sin / con | F1 de ataques sin / con |
+|---|---:|---:|---:|
+| La señora interesante | 22,11 % / 6,03 % | 181 / 139 ms | 0,557 / 0,562 |
+| Estoy soñando | 6,96 % / 3,80 % | 149 / 154 ms | 0,671 / 0,671 |
+| Monotonía | 13,21 % / 10,71 % | 149 / 148 ms | 0,593 / 0,605 |
+
+Los tiempos de las frases de subtítulos sirven para verificar la edición. La alineación de las palabras y la melodía se calculan de nuevo sobre la voz. En el conjunto inglés se parte de las grabaciones y mapas publicados en los paquetes Creative Commons, sin un vídeo de YouTube asociado. [Comprobación de subtítulos de la app](../../src/karaoke/generation_assets/captions.py)
+
 ## Cómo se obtiene cada componente
 
 1. **Grabación.** El trabajo de la aplicación conserva el identificador del vídeo elegido, limita la descarga a ese vídeo y vincula el paquete a la huella SHA-256 del audio. El generador decodifica la pista, separa la voz con HTDemucs y vuelve a usar la mezcla para el MP3 reproducible. [Demucs](https://github.com/facebookresearch/demucs)
@@ -22,7 +70,7 @@ Wav2Karaoke probó una cadena completa en inglés y documentó la pérdida de pr
 
 ## Iteraciones y controles
 
-Se usaron *Sigo aquí* y *Go the Distance* para elegir el método de segmentación. El resto de mapas humanos se reservaron para medir resultados. Cada generador recibió audio y metadatos o una letra procedente de una fuente independiente. El comprobador abrió el mapa de referencia al calcular errores. No se corrigió el desfase de cada mapa para favorecer las métricas. Los borradores y las grabaciones permanecieron en directorios de trabajo privados.
+Se usaron *Sigo aquí* y *Go the Distance* para elegir el método de segmentación. Después se empleó una edición de *Por la boca vive el pez* para comparar el corrector de altura y *Mr. Fancy Pants* para comprobar una omisión detectada por el primer ensayo. La muestra principal incluye *Mr. Fancy Pants* y otra edición de la obra de Fito. Al interpretar el resultado final distinguimos esos dos casos del resto de las cuarenta grabaciones. Cada generador recibió audio y metadatos o una letra procedente de una fuente independiente. El comprobador abrió el mapa de referencia al calcular errores. No se corrigió el desfase de cada mapa para favorecer las métricas. Los borradores y las grabaciones permanecieron en directorios de trabajo privados.
 
 | Variante sobre «Sigo aquí» | Error de palabras | Inicio de palabra p90 | Clase de nota correcta | F1 de ataques |
 |---|---:|---:|---:|---:|
@@ -104,3 +152,35 @@ Al preparar el corpus se verifican los paquetes que se usarán como referencia. 
 El reloj de transcodificación también se comprobó por separado. Una mezcla real de 24 s se codificó como Opus en WebM y se procesó con el paso a MP3 del generador. Al decodificar a 8 kHz había el mismo número de muestras. En ventanas a los 2, 12 y 20 s la correlación superó 0,999 y el retardo medido fue 0 ms. Esta medición cubre ese flujo de códecs y equipo.
 
 El runner público de GitHub intentó obtener un máster español por el identificador exacto de YouTube. YouTube exigió autenticación de la máquina y el trabajo se detuvo. El corpus español se procesa en el Mac que sí pudo obtener las grabaciones. Se conservan dos comprobaciones de identidad, SHA-256 del archivo y SHA-256 de todas las muestras PCM a 44,1 kHz estéreo de 16 bits. El conjunto público de resultados contiene identificadores, huellas y medidas. [Prueba de origen del runner](https://github.com/AlexAmMo/karaoke/actions/runs/44900526573) · [Resultados por grabación](generacion-resultados.csv)
+
+Se contrastaron las huellas SHA-1 de los 48 mapas evaluados con los 2.805 títulos y huellas publicados en las particiones de Tune Studio. Ningún fichero era idéntico. En la muestra principal de cuarenta no se identificó la misma interpretación por artista y título. Entre los títulos relacionados figura *She Wolf*, la versión inglesa de *Loba*. En los ocho casos adicionales, *Something* figura en entrenamiento, *Go the Distance* figura con otro intérprete y *Lose Yourself* figura en la partición de prueba de Tune Studio. El control de acceso al mapa durante nuestra inferencia y esta comparación de títulos cubren riesgos diferentes. Otros modelos usan colecciones de preentrenamiento más amplias. [Manifiesto publicado por Tune Studio](https://github.com/ZerNico/tunestudio/blob/88d4fac5cb6df35c593cc16e730eddd10d96de39/training/splits/manifest.json)
+
+Los ocho paquetes adicionales incluyen otra edición de *Por la boca vive el pez*, que también aparece en la muestra principal. Comparten las 438 notas al aplicar 73 ms de desfase a los mapas. Las grabaciones presentan 36,25 ms de diferencia por correlación a los 25, 130 y 240 s (correlaciones de 0,980 a 0,988). Al comparar directamente los mapas de la comunidad el F1 de ataques es de 0,998 y la clase por fotograma del 58,53 %. Corrigiendo únicamente el desfase de las grabaciones, estas cifras son 1,000 y 79,62 %. Se conservan las métricas con el reloj original de cada edición al medir el generador. La segunda edición cuenta como prueba de versión de la misma obra, no como otro tema musical.
+
+### Distinguir rap y melodía
+
+En *Lose Yourself* la edición humana deja 706 notas en estilo libre y puntúa 315. Comparamos la mezcla y la voz separada con YAMNet, que distingue habla, canto y rap en ventanas de 0,96 s. Sobre la mezcla, su etiqueta de rap con umbral 0,30 solo identificó el 0,7 % de las notas de estilo libre. Sobre la voz aislada, una regla más estricta (habla ≥0,85 y superior al doble de la señal de canto) identificó el 52,3 % del estilo libre, pero también quitó la altura del 34,9 % de las notas que el mapa sí puntúa. El F1 pasó de 0,211 a 0,228 y la clase correcta bajó del 55,12 % al 35,77 %. Aplicada a otras seis canciones melódicas, esa misma regla retiró entre el 4,3 % y el 47,5 % de las notas humanas. En *Stan* discriminó mejor entre habla y melodía (92,8 % de estilo libre detectado, 1,2 % de notas puntuables marcadas). El comportamiento dependía de la interpretación. Este clasificador se queda en el experimento y los pasajes dudosos siguen siendo revisables en el editor. [Modelo y clases de YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet) · [Conversión ONNX usada en el ensayo](https://huggingface.co/audiomagic/yamnet-onnx/tree/f25b741c2f0bdc6d7e6db24b5fddda23347dbafd)
+
+### Otra medición independiente de los ataques
+
+Probamos el modelo ONNX de Spotify Basic Pitch sobre la voz separada de ocho grabaciones completas. Tardó entre 5,2 y 16,0 s por tema en un núcleo del M4. En cada nota del borrador buscamos un ataque de Basic Pitch a ±100 ms, solapado en el tiempo y con amplitud estimada de al menos 0,6. Sustituir el tono por el del otro modelo redujo la clase correcta del 82,90 % al 82,78 % en *Sigo aquí* y del 77,17 % al 71,71 % en *Go the Distance*, usando los borradores del ensayo previo. Al conservar únicamente las notas en las que ambos modelos coincidían en ataque y altura, la precisión respecto al mapa era del 65,70 % en *Sigo aquí* y del 56,85 % en *Go the Distance*. En *Something* alcanzó el 86,54 % y en *Paramar* el 88,04 %. La coincidencia entre ambos estimadores tampoco bastó para publicar automáticamente ni siquiera esa parte del mapa. [Basic Pitch, modelo y código de inferencia](https://github.com/spotify/basic-pitch/tree/fa5997af0a8210982619003269994a1be25eddf3/basic_pitch)
+
+### Canciones largas con letra densa
+
+La primera ejecución de *Stan* (8 min 16 s) alcanzó el límite protector de 240 millones de celdas de historial del alineador CTC. La ruta definitiva conserva estados intermedios y reconstruye las decisiones de cada bloque hacia atrás. Calcula el mismo camino global y usa el reloj de toda la actuación. Las pruebas de repeticiones, empates y tres matrices de emisiones reales coincidieron en todos sus frames con el algoritmo original. En un fragmento de 24 s forzamos esta ruta con un límite artificial de una sola celda: las 63 notas y la huella del TXT completo coincidieron con la ejecución habitual.
+
+El CLI de producción procesó el M4A de *Stan* durante 656,24 s en el M4 con otro trabajo activo. La ruta densa completó una matriz de 295.398.596 celdas con unos 7,2 MiB para sus checkpoints y el bloque de decisiones. El paquete contenía 1.758 notas, se pudo leer con el importador y mantuvo la duración del original dentro de un microsegundo. El WER fue del 24,8 %, el p90 de inicios de 123 ms, la clase correcta del 33,19 % y el F1 de 0,078. Su referencia puntúa la altura en 256 notas y deja 1.104 de estilo libre. El generador propuso altura en 1.746 notas, de modo que la revisión resulta especialmente importante en rap y diálogo. [Reconstrucción exacta por bloques](../../src/karaoke/generation_assets/dense_alignment.py)
+
+### Estribillos repetidos
+
+En *Lose Yourself*, el comparador inicial se anclaba a otra aparición del mismo estribillo. Devolvía un 67,3 % de acuerdo aunque, en el orden real de la canción, la letra externa y la transcripción alcanzaban el 90,6 %. Mantenemos el comparador original para las ediciones que ya corrobora. Si falla, una segunda comparación calcula la subsecuencia común más larga. Exige identidad de artista y título, hasta cuatro segundos de diferencia de duración, un mínimo de 96 palabras reconocidas, longitud del texto entre el 94 % y el 106 % de la transcripción, coincidencia total del 90 % y al menos el 84 % en cada tercio. Los tercios conservan su posición en ambas letras. La decisión solo usa transcripción, edición y palabras externas.
+
+En 28 grabaciones completas con transcripciones guardadas (20 de la muestra española y ocho casos adicionales), la única nueva elección fue la edición de *Lose Yourself* a 0,26 s de la duración real. Los acuerdos por tercio fueron del 90,3 %, 88,5 % y 91,9 %. Al simular que otras obras tenían los mismos metadatos, la regla rechazó los 887 cruces. También rechazó 168 alteraciones construidas al borrar, repetir, invertir o permutar estrofas enteras. Estos ensayos cubren cambios sustanciales. Unas pocas palabras distintas pueden cumplir los umbrales y siguen formando parte de la revisión humana. [Pruebas del comparador y del rescate de versos](../../tests/test_generation_worker.py)
+
+Los 20 fragmentos ingleses repetidos en Windows con la semilla fijada y el corrector dieron medianas de WER del 6,34 %, p90 de 71,5 ms, clase del 73,84 % y F1 de ataques de 0,705. Ninguno superó simultáneamente los cuatro objetivos. En la ejecución anterior el F1 mediano era de 0,623. Cambiaron la segmentación reproducible, el corrector y las máquinas virtuales del ensayo. Las comparaciones por nota sobre entradas idénticas de la sección anterior aíslan el efecto del corrector. [Medición de 20 canciones completas y sus fragmentos en Windows](https://github.com/AlexAmMo/karaoke/actions/runs/44900471775)
+
+Al volver a generar el mapa completo de *Lose Yourself*, los errores de palabra bajaron de 106 a 45 sobre 841 (WER del 12,60 % al 5,35 %). El borrador nuevo obtuvo p90 de 53 ms, clase correcta del 55,16 % y F1 de ataques de 0,211. La corrección recupera letra en estrofas repetidas. Los límites musicales concretos del rap permanecen en las cifras de la misma grabación.
+
+En la matriz posterior de Windows, *Mr. Fancy Pants* fue la única de las 20 canciones que activó la segunda escucha por ventanas. El mapa generado alcanzó WER del 6,64 %, p90 de 57 ms, clase correcta del 79,04 % y F1 de ataques de 0,753. En el ensayo inicial de esa misma grabación eran 52,61 %, 59 ms, 55,38 % y 0,496, respectivamente. Entre ambas ejecuciones también se fijó la semilla y se incorporó el corrector de altura. El cambio de letra tiene además el ensayo controlado con el mismo reconocedor que aparece más arriba. [20 grabaciones independientes procesadas con rescate por ventanas](https://github.com/AlexAmMo/karaoke/actions/runs/44902083197)
+
+La misma segunda escucha también puede descartar una edición. En *Como la flor* había letras de 171 palabras para grabaciones situadas a menos de dos segundos del máster y el primer pase reconoció 132. El segundo pase no corroboró la ampliación. El generador conservó el borrador transcrito del audio, que obtuvo un WER del 30,43 % respecto a los 138 términos de su mapa humano.

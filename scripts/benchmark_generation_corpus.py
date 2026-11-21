@@ -183,13 +183,21 @@ def run(args):
         lyr, src = transcript, {"kind": "asr"}
         # Full-track lyrics cannot be used as if they were lyrics for a 24 s excerpt.
         if args.lookup_lyrics and not args.clip_seconds:
-            selected = worker.lookup(
-                transcript,
-                row["artist"],
-                row["title"],
-                duration,
-                rescue=lambda: worker.recover_transcript(voice, whisper, language),
-            )
+            selected = None
+            if row.get("captions") and row.get("video_id"):
+                from generation_assets.captions import matching_lyrics
+
+                tracks = json.loads(Path(row["captions"]).read_text(encoding="utf-8"))
+                exact_tracks = [t for t in tracks if t["video_id"] == row["video_id"]]
+                selected = matching_lyrics(exact_tracks, stage["words"], language)
+            if selected is None:
+                selected = worker.lookup(
+                    transcript,
+                    row["artist"],
+                    row["title"],
+                    duration,
+                    rescue=lambda: worker.recover_transcript(voice, whisper, language),
+                )
             if selected:
                 lyr, src = selected
         timing = dict(stage["seconds"])
