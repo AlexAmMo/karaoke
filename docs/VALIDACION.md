@@ -17,7 +17,13 @@ Esta rama de desarrollo conserva la publicación 0.3.1. Las alternativas de gene
 - [YourMT3+: cuatro canciones completas y evaluación de mapas, sin mejora suficiente](validation/generacion-yourmt3-2026-11-21.md)
 - [Siguientes hipótesis para letra: modelo especializado y cortes por energía](validation/research-letras-siguientes-2026-11-21.md)
 - [Cortes RMS de cuarenta voces: geometría, exclusiones y coste, antes de ASR](validation/research-segmentacion-letras-2026-11-21.md)
-- [Comparación ASR preparada: cuatro fuentes exactas y dieciséis condiciones predeclaradas](validation/research-letras-rms-asr-2026-11-21.md)
+- [Dieciséis condiciones ASR completas: mejora parcial y retroceso que impide ampliar](validation/research-letras-rms-asr-2026-11-21.md)
+- [Recursos de Turbo: carga, conversión y presupuesto previo](validation/research-recursos-turbo-2026-11-21.md)
+- [Silencio digital: regresión corregida sin descartar voces bajas](validation/generacion-silencio-digital-2026-11-21.md)
+- [Siguientes límites de nota: STARS condicionado y alternativas descartadas](validation/research-proximos-limites-nota-2026-11-21.md)
+- [HeartTranscriptor: ruta CPU y presupuesto previo, aún sin evaluación musical](validation/research-heart-cpu-2026-11-21.md)
+
+La [ejecución 44946407956](https://github.com/AlexAmMo/karaoke/actions/runs/44946407956), sobre `551247c`, valida la guardia de silencio y la comprobación de todos los artefactos ASR antes de consultar referencias: **261 pruebas en macOS** (68,51 s), **260 más una omisión en Ubuntu** (31,88 s) y **258 más tres omisiones en Windows** (51,50 s). Las omisiones siguen siendo las de plataforma descritas abajo. La suite integrada local pasa 261 pruebas en 18,72 s. Es una ejecución `target=tests`, sin paquetes nuevos ni inferencia de modelos en los runners; su log está en `build/ci-silence-44946407956/run.log`.
 
 La [ejecución 44943417527](https://github.com/AlexAmMo/karaoke/actions/runs/44943417527), sobre `e1208c2`, pasa **252 pruebas en macOS** (74,10 s), **251 en Ubuntu** (31,49 s) y **249 en Windows Server 2022** (54,25 s). Linux omite sólo la API nativa de memoria Apple; Windows omite además dos controles que requieren temporizadores POSIX. Incluye las guardias del separador y del trabajador por ventana, sin cargar modelos. Usa `target=tests`: comprueba código y sintaxis de instaladores, sin construir paquetes ni validar hardware de audio Windows.
 
