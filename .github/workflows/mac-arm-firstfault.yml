@@ -1,0 +1,42 @@
+name: Inspect first failure in the packaged ARM renderer
+on:
+  push:
+    branches: [codex/diagnostico-render-arm]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  acquire:
+    runs-on: macos-latest
+    timeout-minutes: 22
+    env:
+      SDL_AUDIO_DRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+      KARAOKE_TEST_INPUT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch exact candidate package
+        uses: actions/download-artifact@v4
+        with:
+          name: karaoke-macos-latest
+          run-id: 44922442355
+          github-token: ${{ github.token }}
+          path: previous
+      - name: Unpack and identify exact binary
+        run: |
+          prev=$(find previous -name '*macos-arm64.zip' -print -quit)
+          test -n "$prev"
+          ditto -xk "$prev" "$RUNNER_TEMP/package"
+          find "$RUNNER_TEMP/package" -type f -name ultrastardx -print -quit > engine-path.txt
+          shasum -a 256 "$(cat engine-path.txt)"
+          mkdir -p build/first-fault
+          cp -r previous/build/macos-session-runs build/first-fault/source-reports || true
+          cp engine-path.txt build/first-fault/
+      - name: Stop at first exception in real engine with simulated audio
+        run: |
+          /usr/bin/python3 scripts/experiments/diagnose_mac_arm.py "$(cat engine-path.txt)" 35
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: first-fault
+          path: build/first-fault
