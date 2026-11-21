@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import math
 import ntpath
@@ -30,10 +31,12 @@ def headers(text: str) -> dict[str, str]:
     )
 
 
-def read_chart(path: Path) -> tuple[str, dict]:
+def read_chart(path: Path, *, expected_sha256: str | None = None) -> tuple[str, dict]:
     if path.stat().st_size > 8_000_000:
         raise SongError("El mapa supera el tamaño permitido.")
     raw = path.read_bytes()
+    if expected_sha256 and hashlib.sha256(raw).hexdigest() != expected_sha256:
+        raise SongError("El mapa ha cambiado desde la verificación.")
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -140,9 +143,15 @@ def validate(path: Path) -> dict:
     }
 
 
-def import_package(chart: Path, library: Path, *, expected_audio_sha256: str | None = None) -> dict:
-    info = validate(chart)
-    text, meta = read_chart(chart)
+def import_package(
+    chart: Path,
+    library: Path,
+    *,
+    expected_audio_sha256: str | None = None,
+    expected_chart_sha256: str | None = None,
+) -> dict:
+    validate(chart)
+    text, meta = read_chart(chart, expected_sha256=expected_chart_sha256)
     names = {meta.get("AUDIO") or meta.get("MP3", "")}
     names.update(meta[k] for k in ("VIDEO", "COVER", "BACKGROUND") if meta.get(k))
     # Canonical encoding makes reimporting our own prepared package idempotent.
@@ -162,10 +171,23 @@ def import_package(chart: Path, library: Path, *, expected_audio_sha256: str | N
     song_id = digest.hexdigest()[:32]
     library.mkdir(parents=True, exist_ok=True)
     target = library / song_id
+
+    def check_installed(folder):
+        path = folder / "song.txt"
+        info = validate(path)
+        if expected_chart_sha256 and read_chart(path)[0] != text:
+            raise SongError("La copia de la biblioteca ya no coincide con el mapa verificado.")
+        if expected_audio_sha256:
+            with Path(info["audio"]).open("rb") as audio:
+                if hashlib.file_digest(audio, "sha256").hexdigest() != expected_audio_sha256:
+                    raise SongError(
+                        "La copia del audio ya no coincide con la grabación verificada."
+                    )
+        return info
+
     if target.exists():
-        # External deletion or edits must not turn a broken directory into ready media.
-        validate(target / "song.txt")
-    if not target.exists():
+        info = check_installed(target)
+    else:
         required = sum(resource(chart.parent, n).stat().st_size for n in names)
         if shutil.disk_usage(library).free < required + 256 * 1024**2:
             raise SongError(
@@ -179,8 +201,13 @@ def import_package(chart: Path, library: Path, *, expected_audio_sha256: str | N
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(resource(chart.parent, name), dest)
             (staging / "song.txt").write_text(text, encoding="utf-8")
-            validate(staging / "song.txt")
-            staging.rename(target)
+            info = check_installed(staging)
+            try:
+                staging.rename(target)
+            except OSError as exc:
+                if exc.errno not in (errno.EEXIST, errno.ENOTEMPTY) or not target.is_dir():
+                    raise
+                info = check_installed(target)
         finally:
             if staging.exists():
                 shutil.rmtree(staging)

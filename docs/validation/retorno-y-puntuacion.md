@@ -62,4 +62,12 @@ En el ensayo de contención, dos cantantes enviaron PCM en paquetes de 20 ms al 
 
 El recorrido completo de la app superó 21 comprobaciones, incluidas la pausa y reanudación, el panel plegable durante el canto, el cierre, la reapertura y la recuperación de la cola en orden.
 
-La lectura nativa del dispositivo duró ocho segundos por versión y muestreó el informe del motor unas cinco veces por segundo. En la candidata se observaron 4 ms de mediana del ADC al callback y 5 ms de ahí al DAC. En una toma bajo carga se alcanzaron 22 ms de extremo a extremo según el controlador. No hubo desbordamientos indicados. La marca del controlador no incluye todos los efectos físicos del altavoz y el micrófono. La última medición acústica válida de este equipo fue **72 ms** por la ruta dúplex y **91 ms** por la ruta SDL con 512 muestras, con el volumen del sistema al 44 %, durante la iteración anterior. Esta sesión no repitió esa medición acústica. Quedan sin medir los milisegundos que oye una persona con un micrófono USB por cable, un televisor, un teléfono real o hardware Windows. [Medición acústica anterior](audio-iteracion.md)
+La lectura nativa del dispositivo duró ocho segundos por versión y muestreó el informe del motor unas cinco veces por segundo. En la candidata se observaron 4 ms de mediana del ADC al callback y 5 ms de ahí al DAC. En una toma bajo carga se alcanzaron 22 ms de extremo a extremo según el controlador. No hubo desbordamientos indicados. La marca del controlador no incluye todos los efectos físicos del altavoz y el micrófono. Se hizo además una prueba acústica en esta sesión. Los altavoces integrados estaban al 35 % y la entrada al 27 %. Se emitieron siete pulsos por ruta con idéntica configuración para las dos versiones. En las tres tomas se reconocieron los siete, con una dispersión de 0 ms a la resolución de 1 ms del ensayo.
+
+| Recorrido físico en el Mac | Latencia mediana |
+|---|---:|
+| Salida dúplex → altavoz → micrófono integrado en 0.3.0 | 73 ms |
+| Salida dúplex → altavoz → micrófono integrado en 0.3.1 | 73 ms |
+| Salida del acompañamiento por el mezclador → altavoz → micrófono en 0.3.1 | 104 ms |
+
+El resultado acústico es compatible con la medición anterior de 72 ms en dúplex al 44 % de volumen. La comparación directa entre versiones muestra que el retorno físico dúplex de este Mac mantiene su latencia. La nueva calibración mide el acompañamiento por su propia ruta. El adelanto o retraso configurado para puntuar tampoco elimina un eco audible. Queda pendiente una medición con el micrófono por cable del usuario y con hardware Windows. [Lecturas de las tres pruebas acústicas](retorno-acustico-031.json) · [Medición anterior](audio-iteracion.md)

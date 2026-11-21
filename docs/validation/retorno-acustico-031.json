@@ -1,0 +1,85 @@
+{
+  "output_volume_percent": 35,
+  "input_volume_percent": 27,
+  "device": "MacBook Pro M4, micrófono y altavoces integrados",
+  "runs": {
+    "instalada-duplex": {
+      "date_utc": "2026-11-21T15:43:44.495036+00:00",
+      "computer": "macOS-26.6.2-arm64-arm-64bit",
+      "audio_driver": "coreaudio",
+      "capture_backend": "Portaudio",
+      "output_frames": 512,
+      "output_hz": 48000,
+      "input_hz": 48000.0,
+      "input_block_frames": 64,
+      "calibration": {
+        "name": "Micrófono del MacBook Pro",
+        "device": 0,
+        "channel": 0,
+        "monitor_path": "duplex",
+        "output_device": "coreaudio:BuiltInSpeakerDevice",
+        "output_hz": 48000,
+        "status": "done",
+        "message": "Recorrido del altavoz al micrófono.",
+        "roundtrip_ms": 73,
+        "spread_ms": 0,
+        "samples": 7,
+        "input_frames": 213888,
+        "input_peak": 196,
+        "pulses_sent": 7
+      }
+    },
+    "candidata-duplex": {
+      "date_utc": "2026-11-21T15:43:51.406977+00:00",
+      "computer": "macOS-26.6.2-arm64-arm-64bit",
+      "audio_driver": "coreaudio",
+      "capture_backend": "Portaudio",
+      "output_frames": 512,
+      "output_hz": 48000,
+      "input_hz": 48000.0,
+      "input_block_frames": 64,
+      "calibration": {
+        "name": "Micrófono del MacBook Pro",
+        "device": 0,
+        "channel": 0,
+        "monitor_path": "duplex",
+        "output_device": "coreaudio:BuiltInSpeakerDevice",
+        "output_hz": 48000,
+        "status": "done",
+        "message": "Recorrido del altavoz al micrófono.",
+        "roundtrip_ms": 73,
+        "spread_ms": 0,
+        "samples": 7,
+        "input_frames": 213888,
+        "input_peak": 282,
+        "pulses_sent": 7
+      }
+    },
+    "candidata-musica": {
+      "date_utc": "2026-11-21T15:43:58.032781+00:00",
+      "computer": "macOS-26.6.2-arm64-arm-64bit",
+      "audio_driver": "coreaudio",
+      "capture_backend": "Portaudio",
+      "output_frames": 512,
+      "output_hz": 48000,
+      "input_hz": 48000.0,
+      "input_block_frames": 64,
+      "calibration": {
+        "name": "Micrófono del MacBook Pro",
+        "device": 0,
+        "channel": 0,
+        "monitor_path": "mixer",
+        "output_device": "coreaudio:BuiltInSpeakerDevice",
+        "output_hz": 48000,
+        "status": "done",
+        "message": "Recorrido del altavoz al micrófono.",
+        "roundtrip_ms": 104,
+        "spread_ms": 0,
+        "samples": 7,
+        "input_frames": 214144,
+        "input_peak": 262,
+        "pulses_sent": 7
+      }
+    }
+  }
+}

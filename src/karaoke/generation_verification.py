@@ -103,8 +103,11 @@ def verify_generated(chart, media, seconds, video, catalogues, *, verified_chart
         candidate = candidates[0]
         with tempfile.TemporaryDirectory(prefix="compare-", dir=chart.parent.parent) as temp:
             reference = allkaraoke.load_chart(candidate, Path(temp))
+            # All measurements and the eventual attestation refer to the same bytes.
+            prediction = Path(temp) / "prediction.txt"
+            shutil.copyfile(chart, prediction)
             gold = _mono_timeline(reference, seconds)
-            found = _mono_timeline(chart, seconds)
+            found = _mono_timeline(prediction, seconds)
             if gold is None or found is None:
                 return None
             if any(not any(n.pitch is not None for n in notes) for notes, _ in (gold, found)):
@@ -112,12 +115,14 @@ def verify_generated(chart, media, seconds, video, catalogues, *, verified_chart
             raw_metrics = _measure(gold, found)
             if not passes(raw_metrics):
                 return None
+            with media.open("rb") as stream:
+                audio_hash = hashlib.file_digest(stream, "sha256").hexdigest()
             acoustic.require_alignment(reference, media)
             final = Path(temp) / "confirmed.txt"
             mode = "unchanged_prediction"
             metrics = raw_metrics
             if raw_metrics["scored_frame_precision"] < 0.90:
-                _confirmed_intervals(chart, gold[0], final)
+                _confirmed_intervals(prediction, gold[0], final)
                 confirmed = _mono_timeline(final, seconds)
                 if confirmed is None or not any(n.pitch is not None for n in confirmed[0]):
                     return None
@@ -126,14 +131,15 @@ def verify_generated(chart, media, seconds, video, catalogues, *, verified_chart
                     return None
                 mode = "confirmed_intervals"
             else:
-                shutil.copyfile(chart, final)
+                shutil.copyfile(prediction, final)
             final_hash = hashlib.sha256(final.read_bytes()).hexdigest()
+            with media.open("rb") as stream:
+                if hashlib.file_digest(stream, "sha256").hexdigest() != audio_hash:
+                    return None
             if verified_chart is not None:
                 os.replace(final, verified_chart)
-            with media.open("rb") as stream:
-                media_hash = hashlib.file_digest(stream, "sha256").hexdigest()
             return {
-                "audio_sha256": media_hash,
+                "audio_sha256": audio_hash,
                 "method": "independent-chart-and-recording-v2",
                 "scoring": mode,
                 "raw_metrics": raw_metrics,
@@ -141,7 +147,7 @@ def verify_generated(chart, media, seconds, video, catalogues, *, verified_chart
                 "catalogue_revision": allkaraoke.REVISION,
                 "video_id": video,
                 "reference_sha256": hashlib.sha256(reference.read_bytes()).hexdigest(),
-                "generated_sha256": hashlib.sha256(chart.read_bytes()).hexdigest(),
+                "generated_sha256": hashlib.sha256(prediction.read_bytes()).hexdigest(),
                 "chart_sha256": final_hash,
                 "metrics": metrics,
             }

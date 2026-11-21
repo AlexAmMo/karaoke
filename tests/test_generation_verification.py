@@ -1,5 +1,8 @@
 import hashlib
 import re
+from pathlib import Path
+
+import pytest
 
 from karaoke import generation_verification as verification
 from karaoke.songs import SongError
@@ -99,8 +102,6 @@ def test_unverified_map_stays_out_of_queue_and_verified_one_keeps_its_turn(tmp_p
         assert (
             saved["song_id"] == row["song_id"] and saved["id"] == turn and "Luna" in saved["names"]
         )
-        from pathlib import Path
-
         info = Path(host.song(row["song_id"])["chart"]).with_name("generation.json")
         proof = json.loads(info.read_text())
         assert proof["automatically_verified"] and proof["state"] == "verified"
@@ -138,3 +139,38 @@ def test_generated_sustains_do_not_score_the_silences_in_an_independent_map(tmp_
     assert proof["metrics"]["wer"] == 0 and proof["metrics"]["onset_pitch_f1_100ms"] == 1
     assert draft.read_bytes() == original
     assert proof["chart_sha256"] == hashlib.sha256(verified.read_bytes()).hexdigest()
+
+
+def test_verify_reused_library_copy_and_staged_audio_before_import(package, tmp_path, monkeypatch):
+    from karaoke import songs
+
+    library = tmp_path / "library"
+    audio = Path(songs.validate(package)["audio"])
+    expected = dict(
+        expected_audio_sha256=hashlib.sha256(audio.read_bytes()).hexdigest(),
+        expected_chart_sha256=hashlib.sha256(package.read_bytes()).hexdigest(),
+    )
+    first = songs.import_package(package, library, **expected)
+    installed = Path(first["chart"])
+    old = installed.read_text(encoding="utf-8")
+    installed.write_text(old.replace(": 8 8 21", ": 8 8 23"), encoding="utf-8")
+    assert installed.read_text(encoding="utf-8") != old
+    with pytest.raises(SongError, match="mapa verificado"):
+        songs.import_package(package, library, **expected)
+    assert songs.validate(installed)
+
+    # A valid WAV can also change between the identification pass and the actual copy.
+    copy = songs.shutil.copy2
+
+    def changed_copy(src, dest):
+        copy(src, dest)
+        if src == audio:
+            with dest.open("r+b") as stream:
+                stream.seek(-2, 2)
+                stream.write(b"\xaa\xbb")
+
+    monkeypatch.setattr(songs.shutil, "copy2", changed_copy)
+    empty = tmp_path / "empty"
+    with pytest.raises(SongError, match="grabación verificada"):
+        songs.import_package(package, empty, **expected)
+    assert list(empty.iterdir()) == []

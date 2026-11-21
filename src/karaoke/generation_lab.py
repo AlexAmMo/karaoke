@@ -501,11 +501,8 @@ class GenerationLab:
             chart,
             self.host.library,
             expected_audio_sha256=evidence["audio_sha256"] if evidence else None,
+            expected_chart_sha256=evidence["chart_sha256"] if evidence else None,
         )
-        if evidence:
-            with Path(info["audio"]).open("rb") as stream:
-                if hashlib.file_digest(stream, "sha256").hexdigest() != evidence["audio_sha256"]:
-                    raise SongError("El audio ha cambiado. Revisa esta edición antes de cantar.")
         manifest = self.root / uid / "draft" / "generation.json"
         if manifest.exists():
             provenance = json.loads(manifest.read_text(encoding="utf-8"))
