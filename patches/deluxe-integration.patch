@@ -322,7 +322,7 @@ index 3587a97..18acb81 100644
      HeightScale := 1;
  
 diff --git a/src/base/UGraphic.pas b/src/base/UGraphic.pas
-index 17060f5..fe99ad9 100644
+index 17060f5..870045a 100644
 --- a/src/base/UGraphic.pas
 +++ b/src/base/UGraphic.pas
 @@ -123,6 +123,9 @@   TRecR = record
@@ -434,6 +434,21 @@ index 17060f5..fe99ad9 100644
  procedure CalculateScreenMetrics();
  begin
    ScreenWPerScreen := ScreenW div Screens;
+@@ -983,12 +1025,9 @@ procedure CalculateScreenMetrics();
+ procedure LoadLoadingScreen;
+ begin
+   ScreenLoading := TScreenLoading.Create;
+-  ScreenLoading.OnShow;
+   Display.CurrentScreen := @ScreenLoading;
+-  Renderer.SwapBuffers;
+-  ScreenLoading.Draw;
+-  Display.Draw;
+-  Renderer.SwapBuffers;
++  ScreenLoading.OnShow;
++  ScreenLoading.RefreshProgress(true);
+ end;
+ 
+ procedure LoadScreens(Title: string);
 diff --git a/src/base/UIni.pas b/src/base/UIni.pas
 index 3b45ebf..a1a7757 100644
 --- a/src/base/UIni.pas
@@ -2336,7 +2351,7 @@ index 1c743c0..1fe252c 100644
  begin
    SetLength(DummyOutputDeviceList, 1);
 diff --git a/src/menu/UDisplay.pas b/src/menu/UDisplay.pas
-index 93e1eef..38b41c0 100644
+index 93e1eef..3f09f11 100644
 --- a/src/menu/UDisplay.pas
 +++ b/src/menu/UDisplay.pas
 @@ -106,7 +106,7 @@   TDisplay = class
@@ -2373,7 +2388,7 @@ index 93e1eef..38b41c0 100644
    begin
      ScreenAct := S;
 -    Renderer.SetViewPort((S-1) * ScreenWPerScreen, 0, ScreenWPerScreen, ScreenH);
-+    if ShellEnabled then
++    if ShellEnabled and (CurrentScreen <> @ScreenLoading) then
 +      ShellViewport
 +    else
 +      Renderer.SetViewPort((S-1) * ScreenWPerScreen, 0, ScreenWPerScreen, ScreenH);
@@ -2458,6 +2473,26 @@ index 93e1eef..38b41c0 100644
    if Success then
      ScreenPopupInfo.ShowPopup(Format(Language.Translate('SCREENSHOT_SAVED'), [FileName.GetName.ToUTF8()]))
    else
+diff --git a/src/screens/UScreenLoading.pas b/src/screens/UScreenLoading.pas
+index 8afbd06..c759f80 100644
+--- a/src/screens/UScreenLoading.pas
++++ b/src/screens/UScreenLoading.pas
+@@ -129,7 +129,6 @@ constructor TScreenLoading.Create;
+   UpdateBar(DiscoveryBarBaseIndex, DiscoveryBarFillIndex, 0, DiscoveryBarAlpha * 0.5, DiscoveryBarAlpha);
+   UpdateBar(LoadingBarBaseIndex, LoadingBarFillIndex, 0, LoadingBarAlpha * 0.5, LoadingBarAlpha);
+   UpdateStatus('');
+-  RefreshProgress(true);
+   Fadeout := false;
+ end;
+ 
+@@ -232,7 +231,6 @@ procedure TScreenLoading.RefreshProgress(Force: boolean);
+   if not Force and (LastRedrawTicks <> 0) and (NowTicks - LastRedrawTicks < 100) then
+     Exit;
+ 
+-  Self.Draw;
+   Display.Draw;
+   Renderer.SwapBuffers;
+   LastRedrawTicks := NowTicks;
 diff --git a/src/screens/controllers/UScreenSingController.pas b/src/screens/controllers/UScreenSingController.pas
 index a682bbb..70dd63d 100644
 --- a/src/screens/controllers/UScreenSingController.pas
