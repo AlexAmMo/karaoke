@@ -27,12 +27,16 @@ var
   Focus: integer = -1;
   Scroll: integer = 0;
   EditValue, EditAction, Page, ErrorText, Token: UTF8String;
+  StartFailureToken, StartFailureAttempt, StartFailureMessage: UTF8String;
   EditSelectedAll: boolean = false;
   LastSubmitted, Composition: UTF8String;
   LastEditTick: cardinal;
   Sequence: integer = 0;
   SynthPosition: int64 = 0;
   SynthTick: cardinal;
+  ProbePending, ProbeMatched: array[0..KaraokeMaxSingers-1] of boolean;
+  ProbeClass, ProbeFirstMs, ProbeConfirmMs: array[0..KaraokeMaxSingers-1] of integer;
+  ProbeStart: array[0..KaraokeMaxSingers-1] of cardinal;
   SynthPattern: array[0..KaraokeMaxSingers-1] of boolean;
   SynthDelayMs: array[0..KaraokeMaxSingers-1] of integer;
   SynthFrequency: array[0..KaraokeMaxSingers-1] of double;
@@ -45,6 +49,7 @@ var
   CalibrationStarted, OutputChecked: cardinal;
   OutputName, CalibrationInputName, CalibrationOutputName: UTF8String;
   CalibrationDevice, CalibrationChannel, CalibrationOutputRate: integer;
+  CalibrationDirect: boolean;
   CalibrationResult: TCalibrationResult;
   CaptureTestFrame: boolean;
   Gains: array[0..KaraokeMaxSingers-1] of single;
@@ -236,6 +241,16 @@ begin
       and (Column > Trace^.Column) and (Tick-Trace^.LastTick <= 160) then
       FillChar(Trace^.Samples[Trace^.Column],Column-Trace^.Column,Byte(Trace^.Offset));
     Pitch := AudioInputProcessor.Sound[Singer].DetectedPitch;
+    if ProbePending[Singer] then
+    begin
+      if (Pitch>=0) and (Pitch mod 12=ProbeClass[Singer]) then
+      begin
+        if ProbeMatched[Singer] then
+        begin ProbeConfirmMs[Singer]:=Tick-ProbeStart[Singer]; ProbePending[Singer]:=false; end
+        else begin ProbeMatched[Singer]:=true; ProbeFirstMs[Singer]:=Tick-ProbeStart[Singer]; end;
+      end
+      else begin ProbeMatched[Singer]:=false; ProbeFirstMs[Singer]:=-1; end;
+    end;
     Offset := NoPitch;
     if Pitch >= 0 then
     begin
@@ -371,27 +386,34 @@ begin
   Result:=true;
 end;
 
+procedure FeedMobile(Slot: integer; var Frame: TMobileFrame);
+begin
+  AudioInputProcessor.Sound[Slot].TestFeed(@Frame[0],SizeOf(Frame));
+end;
 procedure ShellCaptureStart;
-var I: integer; Fmt: TAudioFormatInfo;
+var I: integer; Slots: Word; Fmt: TAudioFormatInfo;
 begin
   if CaptureActive then Exit;
-  CaptureCount:=PlayersPlay; CaptureActive:=true;
+  CaptureCount:=PlayersPlay; CaptureActive:=true; Slots:=0;
   if not ShellSynthetic then AudioInput.CaptureStart;
   Fmt:=TAudioFormatInfo.Create(1,48000,asfS16);
   try
     for I:=0 to CaptureCount-1 do
       if ShellSynthetic or MobileSlot[I] then
       begin
+        if MobileSlot[I] then Slots:=Slots or (1 shl I);
         SynthFeeding[I]:=not MobileSlot[I];
         AudioInputProcessor.Sound[I].TestStart(Fmt);
       end;
   finally Fmt.Free; end;
+  if Slots<>0 then MobileArm(Slots,@FeedMobile);
   SynthTick:=SDL_GetTicks; SynthPosition:=0;
 end;
 
 procedure ShellCaptureStop;
 var I: integer;
 begin
+  MobileClose; // Join the PCM callback before releasing any capture buffer.
   if CaptureActive then
   begin
     if not ShellSynthetic then AudioInput.CaptureStop;
@@ -403,7 +425,7 @@ begin
       AudioInputProcessor.Sound[I].MonitorGain:=Gains[I];
     end;
   end;
-  CaptureActive:=false; KaraokeHasRouteDelay:=false; MobileClose; ActiveMobileSecret:=''; RestoreRoutes;
+  CaptureActive:=false; KaraokeHasRouteDelay:=false; ActiveMobileSecret:=''; RestoreRoutes;
 end;
 
 function AllDevicesOpened(N: integer): boolean;
@@ -420,17 +442,6 @@ begin
       end;
 end;
 
-procedure PollMobileAudio;
-var Count,Slot: integer; Frame: TMobileFrame;
-begin
-  if not CaptureActive or (MobilePort=0) then Exit;
-  for Count:=1 to 128 do
-  begin
-    if not MobileRead(Slot,Frame) then Break;
-    if (Slot>=0) and (Slot<CaptureCount) and MobileSlot[Slot] and not ScreenSing.Paused then
-      AudioInputProcessor.Sound[Slot].TestFeed(@Frame[0], SizeOf(Frame));
-  end;
-end;
 procedure RefreshOutputIdentity;
 var RawName: PAnsiChar; Spec: TSDL_AudioSpec;
 begin
@@ -469,7 +480,9 @@ begin
   finally Routes.Free; end;
   PlayersPlay:=1; ShellCaptureStart;
   if not AllDevicesOpened(1) then begin ShellCaptureStop; Exit; end;
-  CalibrationStart(SDL_GetPerformanceCounter*1000.0/SDL_GetPerformanceFrequency,KaraokeOutputHz);
+  CalibrationDirect:=AudioInputProcessor.Sound[0].DirectMonitor;
+  if CalibrationDirect then CalibrationOutputRate:=Round(AudioInputProcessor.Sound[0].AudioFormat.SampleRate);
+  CalibrationStart(CalibrationClockMs(SDL_GetPerformanceCounter,SDL_GetPerformanceFrequency),CalibrationOutputRate,CalibrationDirect);
   CalibrationStarted:=SDL_GetTicks; CalibrationState:='running'; CalibrationMessage:='Escuchando siete pulsos…';
 end;
 
@@ -541,10 +554,21 @@ var Op: string; I,K,D,C,P: integer; SilentFrame: SmallInt; Probe: TJSONObject;
 begin
   Op:=J.Get('op','');
   ErrorText:='';
-  if CalibrationActive and ((Op='gain') or (Op='start') or (Op='testinput') or (Op='scan') or (Op='device') or (Op='calibrate')) then
+  if Op='start' then
+  begin
+    StartFailureToken:=''; StartFailureAttempt:=''; StartFailureMessage:='';
+    try
+      if CalibrationActive then ErrorText:='La medición termina en unos segundos.' else BeginSong(J);
+    except on E:Exception do ErrorText:=E.Message; end;
+    if ErrorText<>'' then
+    begin
+      StartFailureToken:=J.Get('token',''); StartFailureAttempt:=J.Get('attempt',''); StartFailureMessage:=ErrorText;
+    end;
+    Exit;
+  end;
+  if CalibrationActive and ((Op='gain') or (Op='testinput') or (Op='scan') or (Op='device') or (Op='calibrate')) then
   begin ErrorText:='La medición termina en unos segundos.'; Exit; end;
   if Op='calibrate' then BeginCalibration(J)
-  else if Op='start' then BeginSong(J)
   else if (Op='test-pattern') and ShellSynthetic and Singing then
   begin
     I:=J.Get('player',-1);
@@ -561,6 +585,12 @@ begin
       SynthPattern[I]:=false;
       SynthFeeding[I] := J.Get('connected',true);
       SynthFrequency[I] := EnsureRange(J.Get('hz',0.0),0.0,2000.0);
+      ProbePending[I]:=J.Get('measure',false) and (SynthFrequency[I]>0);
+      if ProbePending[I] then
+      begin
+        ProbeClass[I]:=Round(69+12*Log2(SynthFrequency[I]/440.0)) mod 12; ProbeStart[I]:=SDL_GetTicks;
+        ProbeMatched[I]:=false; ProbeFirstMs[I]:=-1; ProbeConfirmMs[I]:=-1;
+      end;
     end;
   end
   else if (Op='test-silent-frame') and ShellSynthetic and Singing then
@@ -623,7 +653,11 @@ begin
     Ini.InputDeviceConfig[K].ChannelToPlayerMap[C]:=P;
     Ini.Save; ErrorText:='';
   end
-  else if Op='quit' then begin Display.NextScreenWithCheck:=nil; Display.CheckOK:=true; end;
+  else if Op='quit' then
+  begin
+    if CalibrationActive then begin CalibrationCancel; ShellCaptureStop; end;
+    Display.NextScreenWithCheck:=nil; Display.CheckOK:=true;
+  end;
 end;
 procedure EditChanged;
 begin
@@ -697,7 +731,7 @@ begin
   // Query the system between performances; some SDL drivers contact the sound server.
   if not Singing and not CalibrationActive and ((OutputChecked=0) or (NowTick-OutputChecked>5000)) then RefreshOutputIdentity;
   if CalibrationActive and (NowTick-CalibrationStarted>=CalibrationDurationMs) then FinishCalibration;
-  if Singing then PollMobileAudio;
+  if MobilePort<>0 then MobileSetPaused(not Singing or ScreenSing.Paused);
   if ShellSynthetic and (Singing or TestingInput) and not Assigned(Display.NextScreen) then
   begin
     N:=Min(4096,Round((NowTick-SynthTick)*48));
@@ -789,8 +823,14 @@ begin
         if PanelToggleFocused then J.Add('focus_action','panel') else J.Add('focus_action','');
       end else J.Add('focus_action',FocusAction);
       J.Add('edit_selected',EditSelectedAll);
+      if ShellSynthetic then
+      begin
+        A:=TJSONArray.Create; for I:=0 to Max(2,CaptureCount)-1 do A.Add(ProbeFirstMs[I]); J.Add('trace_first_ms',A);
+        A:=TJSONArray.Create; for I:=0 to Max(2,CaptureCount)-1 do A.Add(ProbeConfirmMs[I]); J.Add('trace_confirm_ms',A);
+      end;
       J.Add('testing',TestingInput); J.Add('synthetic',ShellSynthetic);
       J.Add('token',Token); J.Add('error',ErrorText);
+      O:=TJSONObject.Create; O.Add('token',StartFailureToken); O.Add('attempt',StartFailureAttempt); O.Add('message',StartFailureMessage); J.Add('start_failure',O);
       if Assigned(CurrentSong) then J.Add('title',CurrentSong.Title) else J.Add('title','');
       J.Add('position',AudioPlayback.Position);
       Scores:=TJSONArray.Create; Levels:=TJSONArray.Create;
@@ -807,13 +847,15 @@ begin
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].BlockFrames); J.Add('input_frames',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorQueueMs); J.Add('monitor_queue_ms',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].MonitorDroppedFrames); J.Add('monitor_dropped_frames',A);
+      A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(AudioInputProcessor.Sound[I].DirectMonitor); J.Add('duplex_monitor',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(MobileReceived(I)); J.Add('mobile_received',A);
       A:=TJSONArray.Create; for I:=0 to N-1 do A.Add(MobileMissing(I)); J.Add('mobile_gap_frames',A);
-      J.Add('mobile_rejected',MobileRejected);
+      J.Add('mobile_rejected',MobileRejected); J.Add('mobile_discarded',MobileDiscarded);
       J.Add('max_singers',KaraokeMaxSingers); J.Add('mobile_port',MobilePort);
       J.Add('output_frames',KaraokeOutputFrames); J.Add('output_hz',KaraokeOutputHz);
       O:=TJSONObject.Create; J.Add('calibration',O);
       O.Add('name',CalibrationInputName); O.Add('device',CalibrationDevice); O.Add('channel',CalibrationChannel);
+      if CalibrationDirect then O.Add('monitor_path','duplex') else O.Add('monitor_path','mixer');
       O.Add('output_device',CalibrationOutputName); O.Add('output_hz',CalibrationOutputRate);
       J.Add('output_device',OutputName);
       O.Add('status',CalibrationState); O.Add('message',CalibrationMessage);
@@ -828,6 +870,9 @@ begin
         O.Add('index',I); O.Add('name',AudioInputProcessor.DeviceList[I].Name);
         with AudioInputProcessor.DeviceList[I] do
           if HasAdcTime and Capturing then O.Add('adc_to_callback_ms',AdcToCallbackMs);
+        with AudioInputProcessor.DeviceList[I] do
+          if HasDacTime and Capturing then O.Add('callback_to_dac_ms',CallbackToDacMs);
+        O.Add('output_underflows',AudioInputProcessor.DeviceList[I].OutputUnderflows);
         O.Add('input_overflows',AudioInputProcessor.DeviceList[I].Overflows);
         O.Add('channels',AudioInputProcessor.DeviceList[I].AudioFormat.Channels);
         O.Add('hz',AudioInputProcessor.DeviceList[I].AudioFormat.SampleRate);
@@ -1303,7 +1348,7 @@ begin
     LabelAt(X,Y+9,16,R.Get('label',''),321);
     Chevron(367,Y+(H-6)/2,true);
   end;
-  if Sub<>'' then LabelAt(X,Y+32,14,Sub,330,true);
+  if Sub<>'' then LabelAt(X,Y+32,14,Sub,330,Style<>'primary',false,Style='primary');
 end;
 
 procedure DrawFooter;
@@ -1568,6 +1613,7 @@ function ShellEvent(var Event: TSDL_Event): boolean;
 var Action,Control:string; X,Y,P,I: integer; A: TJSONArray; R: TJSONObject; Clip: PAnsiChar; Key: cardinal;
 begin
   Result:=false; if not ShellEnabled or not Started then Exit;
+  if (Event.type_=SDL_QUITEV) and CalibrationActive then begin CalibrationCancel; ShellCaptureStop; end;
   if (Event.type_=SDL_WINDOWEVENT) and (Event.window.event=SDL_WINDOWEVENT_FOCUS_GAINED) then Display.SetCursor;
   if (Event.type_=SDL_WINDOWEVENT) and
      ((Event.window.event=SDL_WINDOWEVENT_FOCUS_LOST) or (Event.window.event=SDL_WINDOWEVENT_LEAVE)) then

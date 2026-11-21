@@ -264,6 +264,10 @@ jobs:
         if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
         timeout-minutes: 5
         run: uv run python scripts/test_group_audio.py --launcher "$env:KARAOKE_CI_LAUNCHER"
+      - name: Measure visible pitch transitions across the singing register
+        if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
+        timeout-minutes: 3
+        run: uv run python scripts/test_trace_response.py --launcher "$env:KARAOKE_CI_LAUNCHER" --output build/windows-desktop-smoke/trace-response.json
       - name: Verify turn menus and room closure with three mobile browsers
         if: ${{ !cancelled() && env.KARAOKE_CI_LAUNCHER != '' }}
         timeout-minutes: 5

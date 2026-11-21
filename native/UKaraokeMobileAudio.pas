@@ -5,15 +5,18 @@ interface
 const KaraokeMaxSingers = 10;
       MobileFrameSamples = 960;
 type TMobileFrame = array[0..MobileFrameSamples-1] of SmallInt;
+     TMobileSink = procedure(Slot: integer; var Frame: TMobileFrame);
 function MobileOpen(const TurnSecret: RawByteString): boolean;
 procedure MobileClose;
+procedure MobileArm(Slots: Word; Sink: TMobileSink);
+procedure MobileSetPaused(Value: boolean);
+function MobileDiscarded: integer;
 function MobileReceived(Slot: integer): integer;
 function MobileMissing(Slot: integer): integer;
 function MobileRejected: integer;
 function MobilePort: integer;
-function MobileRead(out Slot: integer; out Frame: TMobileFrame): boolean;
 implementation
-uses SysUtils, {$IFDEF MSWINDOWS} WinSock2 {$ELSE} BaseUnix {$ENDIF}, Sockets;
+uses Classes, SysUtils, {$IFDEF MSWINDOWS} WinSock2 {$ELSE} BaseUnix {$ENDIF}, Sockets;
 type TPacket = packed record
   Secret: array[0..31] of AnsiChar;
   Slot: byte;
@@ -21,27 +24,49 @@ type TPacket = packed record
   Frame: TMobileFrame;
   Extra: byte; { Detect and drop oversized datagrams. }
 end;
-var SocketFD: TSocket;
+type TReceiver = class(TThread)
+  protected procedure Execute; override;
+  end;
+var Receiver: TReceiver;
+    Feed: TMobileSink;
+    ActiveSlots: Word;
+    Paused, Discarded: LongInt;
+    SocketFD: TSocket;
     Port: integer;
     Secret: RawByteString;
     Accepted,Missing: array[0..KaraokeMaxSingers-1] of integer;
     Rejections: integer;
     LastSeq: array[0..KaraokeMaxSingers-1] of Int64;
+function MobileDiscarded: integer;
+begin Result:=InterlockedCompareExchange(Discarded,0,0); end;
+procedure MobileSetPaused(Value: boolean);
+begin InterlockedExchange(Paused,Ord(Value)); end;
+procedure MobileArm(Slots: Word; Sink: TMobileSink);
+begin
+  if (Port=0) or Assigned(Receiver) then Exit;
+  ActiveSlots:=Slots; Feed:=Sink; MobileSetPaused(false);
+  Receiver:=TReceiver.Create(true); Receiver.FreeOnTerminate:=false; Receiver.Start;
+end;
 function MobileReceived(Slot: integer): integer;
-begin Result:=Accepted[Slot]; end;
+begin Result:=InterlockedCompareExchange(Accepted[Slot],0,0); end;
 function MobileMissing(Slot: integer): integer;
-begin Result:=Missing[Slot]; end;
+begin Result:=InterlockedCompareExchange(Missing[Slot],0,0); end;
 function MobileRejected: integer;
-begin Result:=Rejections; end;
+begin Result:=InterlockedCompareExchange(Rejections,0,0); end;
 function MobilePort: integer;
 begin Result:=Port; end;
 procedure MobileClose;
 begin
+  if Assigned(Receiver) then
+  begin
+    Receiver.Terminate; Receiver.WaitFor; FreeAndNil(Receiver);
+  end;
+  Feed:=nil; ActiveSlots:=0;
   if Port <> 0 then CloseSocket(SocketFD);
   Port:=0; Secret:='';
 end;
 function MobileOpen(const TurnSecret: RawByteString): boolean;
-var Addr: TInetSockAddr; Size: TSockLen; I: integer;
+var Addr: TInetSockAddr; Size: TSockLen; I,BufferBytes: integer;
     {$IFDEF MSWINDOWS} Mode: u_long; {$ENDIF}
 begin
   MobileClose; Result:=false;
@@ -53,6 +78,8 @@ begin
   try
     FillChar(Addr,SizeOf(Addr),0);
     Addr.sin_family:=AF_INET; Addr.sin_addr:=StrToNetAddr('127.0.0.1');
+    BufferBytes:=512*1024;
+    fpSetSockOpt(SocketFD,SOL_SOCKET,SO_RCVBUF,@BufferBytes,SizeOf(BufferBytes));
     if fpBind(SocketFD,@Addr,SizeOf(Addr))<>0 then Exit;
     {$IFDEF MSWINDOWS}
     Mode:=1;
@@ -63,7 +90,7 @@ begin
     Size:=SizeOf(Addr);
     if fpGetSockName(SocketFD,@Addr,@Size)<>0 then Exit;
     Port:=ntohs(Addr.sin_port); Secret:=TurnSecret;
-    FillChar(Accepted,SizeOf(Accepted),0); FillChar(Missing,SizeOf(Missing),0); Rejections:=0;
+    FillChar(Accepted,SizeOf(Accepted),0); FillChar(Missing,SizeOf(Missing),0); Rejections:=0; Discarded:=0;
     for I:=0 to High(LastSeq) do LastSeq[I]:=-1;
     Result:=true;
   finally
@@ -87,6 +114,25 @@ begin
   if LastSeq[Packet.Slot]>=0 then Inc(Missing[Packet.Slot],Int64(Seq)-LastSeq[Packet.Slot]-1);
   LastSeq[Packet.Slot]:=Seq; Slot:=Packet.Slot;
   for I:=0 to High(Frame) do Frame[I]:=LEtoN(Packet.Frame[I]);
+end;
+procedure TReceiver.Execute;
+var Frame: TMobileFrame; Slot: integer; Previous,NowMs: QWord; Stale: boolean;
+begin
+  Previous:=GetTickCount64; Stale:=false;
+  while not Terminated do
+  begin
+    NowMs:=GetTickCount64;
+    if NowMs-Previous>200 then Stale:=true;
+    Previous:=NowMs;
+    if not MobileRead(Slot,Frame) then
+    begin
+      Stale:=false; Sleep(2); Continue;
+    end;
+    if Slot<0 then Continue;
+    if Stale or (InterlockedCompareExchange(Paused,0,0)<>0) or ((ActiveSlots and (1 shl Slot))=0) then
+    begin Inc(Discarded); Continue; end;
+    Feed(Slot,Frame);
+  end;
 end;
 finalization
   MobileClose;

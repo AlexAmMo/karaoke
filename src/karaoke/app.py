@@ -68,6 +68,22 @@ def instance_lock(path):
         file.close()
 
 
+def stop_engine(process, service):
+    if process.poll() is not None:
+        return
+    try:
+        service.command("quit")
+        process.wait(timeout=8)
+    except (OSError, subprocess.TimeoutExpired):
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            # A native error dialog can ignore both the IPC command and SIGTERM.
+            process.kill()
+            process.wait()
+
+
 def run(root, demo=False, window_size="1280x800"):
     root.mkdir(parents=True, exist_ok=True)
     if os.name != "nt":
@@ -136,17 +152,13 @@ def run(root, demo=False, window_size="1280x800"):
                 f"El motor se ha cerrado con código {process.returncode}. Consulta {root / 'engine.log'}."
             )
     finally:
-        if process.poll() is None:
-            service.command("quit")
-            try:
-                process.wait(timeout=8)
-            except subprocess.TimeoutExpired:
-                process.terminate()
-                process.wait(timeout=5)
-        service.close()
-        log.close()
-        for signum, handler in previous.items():
-            signal.signal(signum, handler)
+        try:
+            stop_engine(process, service)
+        finally:
+            service.close()
+            log.close()
+            for signum, handler in previous.items():
+                signal.signal(signum, handler)
 
 
 def main():

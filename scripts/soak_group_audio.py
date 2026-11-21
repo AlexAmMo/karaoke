@@ -19,7 +19,7 @@ from test_group_audio import tone_frames
 from test_session import Session
 
 
-def run(engine, seconds, destination):
+def run(engine, seconds, destination, system_playback=False):
     secret = secrets.token_hex(16)
     inputs = list(range(0, 10, 2))
     env = dict(
@@ -28,6 +28,10 @@ def run(engine, seconds, destination):
         SDL_AUDIO_DRIVER="dummy",
         KARAOKE_ENGINE=str(engine.resolve()),
     )
+    if system_playback:
+        # Exercise the real output clock with a silent backing and muted monitor.
+        env.pop("SDL_AUDIODRIVER", None)
+        env.pop("SDL_AUDIO_DRIVER", None)
     with tempfile.TemporaryDirectory(prefix="karaoke-soak-") as tmp:
         root = Path(tmp)
         with wave.open(str(root / "music.wav"), "wb") as audio:
@@ -57,7 +61,12 @@ def run(engine, seconds, destination):
                 precision=2,
                 mobile_secret=secret,
                 routes=[
-                    dict(mobile=i % 2 == 0, device=i, channel=0, gain=0.12 if i < 2 else 0.0)
+                    dict(
+                        mobile=i % 2 == 0,
+                        device=i,
+                        channel=0,
+                        gain=0.12 if i < 2 and not system_playback else 0.0,
+                    )
                     for i in range(10)
                 ],
             )
@@ -170,16 +179,25 @@ def run(engine, seconds, destination):
                 time.sleep(0.1)
             stop.set()
             worker.join()
+            elapsed_total = time.monotonic() - begin
+            # engine.json is published at 5 Hz. Read transport accounting once all final datagrams have drained.
+            settled = session.wait(
+                lambda s: s.get("token") == "soak" and s["position"] > state["position"] + 0.4
+            )
             deltas = [b - a for a, b in zip(state_times, state_times[1:])]
             result = dict(
-                elapsed_s=round(time.monotonic() - begin, 3),
+                elapsed_s=round(elapsed_total, 3),
                 song_position_s=state["position"],
                 cuts=cuts,
                 datagrams_sent=counts["datagrams"],
                 invalid_sent=counts["invalid"],
-                accepted=state["mobile_received"],
-                rejected=state["mobile_rejected"],
-                gap_frames=state["mobile_gap_frames"],
+                accepted=settled["mobile_received"],
+                rejected=settled["mobile_rejected"],
+                gap_frames=settled["mobile_gap_frames"],
+                stale_discarded=settled.get("mobile_discarded", 0),
+                unaccounted=counts["datagrams"]
+                - sum(settled["mobile_received"])
+                - settled["mobile_rejected"],
                 scores=state["scores"],
                 peak_monitor_queue_ms=peak_fifo,
                 monitor_dropped_frames=caps,
@@ -196,7 +214,7 @@ def run(engine, seconds, destination):
             ), result
             assert (
                 abs(state["scores"][1] - state["scores"][9]) < 150
-                and state["scores"][0] < state["scores"][1]
+                and state["scores"][0] < state["scores"][2]
             ), result
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(json.dumps(result, indent=2) + "\n")
@@ -213,7 +231,12 @@ if __name__ == "__main__":
     parser.add_argument("--engine", type=Path, required=True)
     parser.add_argument("--seconds", type=int, default=1200)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--system-playback",
+        action="store_true",
+        help="Use the system output driver with silent audio",
+    )
     args = parser.parse_args()
     if not 60 <= args.seconds <= 10800:
         parser.error("duration must be between 60 seconds and 3 hours")
-    run(args.engine, args.seconds, args.output)
+    run(args.engine, args.seconds, args.output, args.system_playback)

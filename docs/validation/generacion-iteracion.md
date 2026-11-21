@@ -52,3 +52,55 @@ uv run --locked python scripts/prepare_generation_validation.py docs/validation/
 uv pip install --python build/chart-env/bin/python -r src/karaoke/generation_assets/requirements.txt
 build/chart-env/bin/python scripts/benchmark_generation_corpus.py build/private-recordings/manifest.json build/private-scores --lookup-lyrics
 ```
+
+La variante adicional de Tune Studio asignó un máximo acústico de comienzo silábico a cada sílaba cercana. Con una ventana de 300 ms, en *Go the Distance* bajó el p90 de 125 a 108 ms y elevó el F1 de 0,582 a 0,607. En *Sigo aquí* elevó el p90 de 139 a 150 ms para una mejora de F1 inferior a 0,002. En Fito pasó de 111 a 122 ms. No se adoptó como ajuste general del generador. En otra prueba se comprobó el perfil estándar con una vocal sintética afinada en la4 e intervalo sordo. Devolvió MIDI 69 y un evento sin puntuación, respectivamente.
+
+Antes de revisar el conjunto retenido se definió una comprobación adicional de confianza para el modo automático. Se considera candidato un mapa con letra independiente corroborada al menos al 90 %, concordancia de clase entre los estimadores musicales de al menos el 88 % y un máximo del 15 % de notas marcadas para revisar. Se comparan por separado su cobertura y cuántos candidatos incumplen realmente alguno de los cuatro objetivos. Se trata de un experimento de calibración. La app requiere aprobación humana en todos los casos.
+
+## Repetibilidad, memoria y corrección de tonos
+
+GAME usa muestreo aleatorio durante la segmentación. Dos generaciones de la misma grabación podían producir barras distintas. Al fijar la semilla en 113 y crear una sesión de segmentación por canción obtuvimos tres huellas idénticas para los eventos de un fragmento real. Una cuarta ejecución con semilla 114 produjo otra huella. La semilla queda en el manifiesto. En el separador se conserva únicamente la salida vocal durante la suma de ventanas. En una mezcla estéreo de 24 s el máximo error absoluto de los 2.116.800 valores de muestra frente a las cuatro salidas de referencia fue cero. En una canción de cuatro minutos esto evita acumular unos 242 MiB de salidas estéreo que se iban a descartar.
+
+Probamos también los pesos MIT de corrección musical de Nico Franke. Calculamos la afinación global del cantante, su distribución tonal en la nota y el contexto de las notas vecinas y del tono de la canción. La regla publicada permite desplazamientos de hasta dos semitonos cuando la probabilidad del modelo supera el umbral de 0,5. Usamos el modelo de alturas. El modelo independiente de finales redujo la cobertura correcta en las tres canciones de ensayo. La reproducción mantiene las duraciones obtenidas de la voz. [Código de los refinadores y características](https://github.com/ZerNico/tunestudio/blob/88d4fac5cb6df35c593cc16e730eddd10d96de39/training/src/tunestudio_training/pipeline/notefix.py) · [Pesos y evaluación del autor](https://huggingface.co/tuneperfect/tunestudio-note-refiners)
+
+| Canción y referencia fijas | Clase antes / después | F1 antes / después | Notas cuyo tono cambió |
+|---|---:|---:|---:|
+| Sigo aquí | 82,9 % / 83,1 % | 0,554 / 0,551 | 12 |
+| Go the Distance | 79,9 % / 80,3 % | 0,582 / 0,604 | 30 |
+| Por la boca vive el pez | 70,3 % / 74,3 % | 0,747 / 0,777 | 48 |
+
+Estas comparaciones usaron exactamente los mismos eventos y la misma letra antes y después del corrector. El F1 de *Sigo aquí* bajó dos milésimas mientras subió la clase por fotograma. Los tres ensayos miden el cambio del corrector respecto a su propia entrada.
+
+## Primer conjunto retenido
+
+Antes de fijar la semilla y aplicar el último corrector de tono se evaluaron 20 fragmentos por idioma. Cada uno dura 24 s y empieza en la posición definida por el protocolo. Cada celda es la mediana de la métrica calculada por grabación. El p90 es el p90 de cada fragmento antes de tomar la mediana. [Ejecución en Windows x64](https://github.com/AlexAmMo/karaoke/actions/runs/44899387367)
+
+| Idioma | Grabaciones | WER | Inicio p90 | Clase correcta | F1 de ataques | Pasan todos |
+|---|---:|---:|---:|---:|---:|---:|
+| Español, M4 | 20 | 6,93 % | 133 ms | 71,75 % | 0,624 | 0 |
+| Inglés, Windows x64 | 20 | 6,86 % | 74 ms | 69,52 % | 0,623 | 0 |
+
+El mismo runner de Windows preparó los 79,45 s completos de *Mr. Fancy Pants* en 189 s incluyendo separación, ASR y construcción del mapa. Frente a esa referencia se obtuvo WER del 52,61 %, p90 de 59 ms, clase del 55,38 % y F1 de 0,496. El error pequeño de las palabras acertadas coexistió con muchas palabras ausentes o distintas. Una prueba de doce segundos con el perfil estándar generó asimismo un paquete con 38 notas. Cada ejecución en CI descarga los paquetes oficiales con sus créditos y verifica su identidad. Los trabajos distribuidos almacenan únicamente los resultados numéricos.
+
+### Recuperación de un verso omitido
+
+En la grabación completa de *Mr. Fancy Pants* el primer pase reconoció 104 palabras, frente a las 211 del mapa humano. La letra de LRCLIB describía la misma edición, pero con casi el doble de texto del que recogió Whisper. El generador vuelve a escuchar el audio en ventanas de 24 s con tres segundos de contexto en cada extremo cuando coinciden tres indicios previos. La identidad y la duración de la edición deben encajar, el texto candidato debe tener entre 1,25 y 2,6 veces la longitud del primer pase y debe contener, en orden, al menos el 85 % de lo que ya se oyó. Cada palabra del segundo pase pertenece a la ventana en la que cae su punto medio.
+
+La letra externa se admite únicamente si el segundo pase aporta al menos un 20 % de palabras adicionales, su longitud queda entre 0,88 y 1,13 veces la de ese pase y el acuerdo ordenado supera el 85 %. Los casos que ya tienen una letra corroborada conservan un solo pase. Los casos sin indicios suficientes conservan su transcripción inicial.
+
+| Misma grabación, mismo modelo | Palabras reconocidas | WER de ASR | Acuerdo con la letra recuperada |
+|---|---:|---:|---:|
+| CPU, pase completo | 104 | 53,08 % | Insuficiente |
+| CPU, ventanas de 18 s | 204 | 8,53 % | 96,3 % |
+| CPU, ventanas de 24 s | 203 | 6,64 % | 98,0 % |
+| Apple Metal, ventanas de 24 s | 203 | 6,16 % | 98,5 % |
+
+La letra recuperada por ambos dispositivos tuvo WER del 6,64 %. El rescate mantiene la condición de borrador. Las palabras que conservan las dos transcripciones no certifican la melodía ni el resto de la letra. Las cifras proceden de un caso seleccionado por el fallo observado en la primera tanda. Deben considerarse una regresión corregida y una prueba de que se puede recuperar un verso omitido.
+
+### Independencia del evaluador
+
+Al preparar el corpus se verifican los paquetes que se usarán como referencia. Al generar solo se entregan audio, idioma, artista, título y, cuando proceda, letra externa corroborada. Para evaluar se guarda primero el borrador, se calcula su SHA-256 y entonces se abre el mapa humano. Como control adicional se prohibió durante la inferencia abrir los dos ficheros de referencia mediante un auditor de acceso de Python. En la primera comparación se usó el mapa real. En la segunda se desplazaron sus notas cinco semitonos. Ambas inferencias generaron las mismas 63 notas y la misma huella `ca26c201a9cc3603325937dd8f665b56ccd3254bbee834cad08e724def8b13bd`. Con el mapa real se obtuvo clase correcta del 74,79 % y F1 de 0,682. Con la referencia alterada se obtuvo 0,61 % y 0,016.
+
+El reloj de transcodificación también se comprobó por separado. Una mezcla real de 24 s se codificó como Opus en WebM y se procesó con el paso a MP3 del generador. Al decodificar a 8 kHz había el mismo número de muestras. En ventanas a los 2, 12 y 20 s la correlación superó 0,999 y el retardo medido fue 0 ms. Esta medición cubre ese flujo de códecs y equipo.
+
+El runner público de GitHub intentó obtener un máster español por el identificador exacto de YouTube. YouTube exigió autenticación de la máquina y el trabajo se detuvo. El corpus español se procesa en el Mac que sí pudo obtener las grabaciones. Se conservan dos comprobaciones de identidad, SHA-256 del archivo y SHA-256 de todas las muestras PCM a 44,1 kHz estéreo de 16 bits. El conjunto público de resultados contiene identificadores, huellas y medidas. [Prueba de origen del runner](https://github.com/AlexAmMo/karaoke/actions/runs/44900526573) · [Resultados por grabación](generacion-resultados.csv)

@@ -23,6 +23,37 @@ HERE = Path(__file__).parent
 WORKER = HERE / "generation_worker.py"
 
 
+def recording_credit(info, job, catalogues):
+    """Prefer exact video credits. A channel uploading a lyric video may be a fan."""
+    title, artist = job["title"] or info.get("track"), job["artist"] or info.get("artist")
+    if not title or not artist:
+        from .allkaraoke import search
+
+        try:
+            exact = search("", catalogues, video_id=job["video"])
+            pairs = {(s["title"], s["artist"]) for s in exact if s.get("video_id") == job["video"]}
+            if len(pairs) == 1:
+                catalog_title, catalog_artist = pairs.pop()
+                title, artist = title or catalog_title, artist or catalog_artist
+        except (OSError, ValueError):
+            pass
+    video_title = info.get("title") or job["video"]
+    clean_title = re.sub(
+        r"\s*[\[(](?:official (?:music |lyric )?video|official audio|vídeo oficial|videoclip oficial|lyrics?|letra)[\])]\s*$",
+        "",
+        video_title,
+        flags=re.IGNORECASE,
+    )
+    parts = re.split(r"\s+[-–—]\s+", clean_title, maxsplit=1)
+    if len(parts) == 2 and not title and not artist:
+        artist, title = parts
+    channel = re.sub(r"\s*- Topic$", "", info.get("uploader") or "")
+    return (
+        " ".join((title or clean_title).split())[:180],
+        " ".join((artist or channel or "Artista desconocido").split())[:180],
+    )
+
+
 class GenerationLab:
     def __init__(self, host):
         self.host = host
@@ -33,6 +64,9 @@ class GenerationLab:
         self.db.execute("""CREATE TABLE IF NOT EXISTS drafts(id TEXT PRIMARY KEY,video TEXT NOT NULL,profile TEXT NOT NULL,
           title TEXT NOT NULL,artist TEXT NOT NULL,language TEXT NOT NULL,lookup INTEGER NOT NULL,lyrics TEXT,
           state TEXT NOT NULL,message TEXT NOT NULL,created REAL NOT NULL, song_id TEXT)""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS draft_turns(
+            draft_id TEXT NOT NULL REFERENCES drafts(id), turn_id TEXT NOT NULL REFERENCES turns(id),
+            source TEXT NOT NULL, PRIMARY KEY(draft_id, turn_id))""")
         self.db.execute(
             "UPDATE drafts SET state='waiting', message='Reanudando al abrir Karaoke' WHERE state='working'"
         )
@@ -267,10 +301,7 @@ class GenerationLab:
                         tracks = manual_tracks(info, job["language"], dl.urlopen)
             if not audio.is_file():
                 raise SongError("No se pudo obtener el audio de esta edición.")
-            title = job["title"] or info.get("track") or info.get("title") or job["video"]
-            artist = (
-                job["artist"] or info.get("artist") or info.get("uploader") or "Artista desconocido"
-            )
+            title, artist = recording_credit(info, job, self.host.root / "catalogues")
             command = [
                 self.python,
                 WORKER,
@@ -427,6 +458,13 @@ class GenerationLab:
                 "UPDATE drafts SET state='approved',message='Revisada por el anfitrión',song_id=? WHERE id=?",
                 (info["id"], uid),
             )
+            self.db.db.execute(
+                """UPDATE turns SET song_id=?,source=?
+                WHERE state='queued' AND song_id IS NULL AND EXISTS (
+                    SELECT 1 FROM draft_turns dt WHERE dt.draft_id=? AND dt.turn_id=turns.id AND dt.source=turns.source
+                )""",
+                (info["id"], "reviewed:" + uid, uid),
+            )
         return info["id"]
 
     def close(self):
@@ -475,7 +513,7 @@ class GenerationLab:
             elif profile == "quality":
                 button(
                     "Consultar LRCLIB · "
-                    + ("Sí" if view.store.setting("draft_lookup", False) else "No"),
+                    + ("Sí" if view.store.setting("draft_lookup", True) else "No"),
                     "lab:lookup",
                     style="link",
                 )
@@ -485,6 +523,8 @@ class GenerationLab:
                 )
             else:
                 text("Descarga los modelos una vez. Los borradores se revisan antes de cantar.")
+            if getattr(view, "draft_turn", None):
+                text("Al aprobarlo se conservarán el turno y sus cantantes.")
             button("Generar borrador", "lab:enqueue", style="primary")
             for row in self.rows():
                 button(
@@ -526,7 +566,7 @@ class GenerationLab:
                 else "quality",
             )
         elif op == "lookup":
-            view.store.configure("draft_lookup", not view.store.setting("draft_lookup", False))
+            view.store.configure("draft_lookup", not view.store.setting("draft_lookup", True))
         elif op == "lyrics":
 
             def chosen(path):
@@ -536,6 +576,23 @@ class GenerationLab:
             view.submit(lambda: view.choose_folder("lyrics"), chosen)
         elif op == "clear":
             view.fields.pop("draft_lyrics", None)
+        elif op.startswith("from-turn:"):
+            uid = op.split(":", 1)[1]
+            turn = next(
+                (t for t in self.db.queue() if t["id"] == uid and t["preparation"] == "error"), {}
+            )
+            song = json.loads(turn.get("job_payload") or "{}").get("song", {})
+            video = song.get("video_id")
+            if not re.fullmatch("[a-zA-Z0-9_-]{11}", video or ""):
+                raise SongError("Este turno ya ha cambiado.")
+            view.fields.update(
+                generate_url="https://youtu.be/" + video,
+                generate_title=song["title"],
+                generate_artist=song["artist"],
+            )
+            view.fields.pop("draft_lyrics", None)
+            view.draft_turn = (uid, turn["source"], video)
+            view.page = "Generar"
         elif op == "enqueue":
             from .service import youtube_id
 
@@ -546,9 +603,16 @@ class GenerationLab:
                 view.fields.get("generate_artist", ""),
                 view.store.setting("draft_language", "auto"),
                 view.store.setting("draft_profile", "quality"),
-                view.store.setting("draft_lookup", False),
+                view.store.setting("draft_lookup", True),
                 view.fields.get("draft_lyrics"),
             )
+            turn = getattr(view, "draft_turn", None)
+            if turn and turn[2] == youtube_id(url):
+                self.db.execute(
+                    "INSERT OR IGNORE INTO draft_turns VALUES(?,?,?)",
+                    (view.draft_id, turn[0], turn[1]),
+                )
+            view.draft_turn = None
             view.page = "Borrador"
         elif op.startswith("detail:"):
             view.draft_id = self.row(op.split(":", 1)[1])["id"]

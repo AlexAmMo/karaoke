@@ -73,6 +73,10 @@ def collect_licenses(destination: Path):
 
 def pyinstaller(destination: Path, work: Path, name='karaoke'):
     import uv
+    worker_assets = []
+    for member in sorted((ROOT / 'src/karaoke/generation_assets').iterdir()):
+        if member.is_file() and member.suffix in ('.py', '.in', '.txt'):
+            worker_assets.extend(['--add-data', str(member) + ':karaoke/generation_assets'])
     run(sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--name', name,
         *(['--windowed', '--osx-bundle-identifier', 'org.alexammo.karaoke'] if sys.platform == 'darwin' else ['--hide-console', 'hide-early'] if sys.platform == 'win32' else []),
         '--distpath', destination, '--workpath', work, '--specpath', ROOT / 'build',
@@ -81,7 +85,7 @@ def pyinstaller(destination: Path, work: Path, name='karaoke'):
         '--copy-metadata', 'usdb-syncer', '--copy-metadata', 'yt-dlp',
         '--add-binary', str(uv.find_uv_bin()) + ':tools',
         '--add-data', str(ROOT / 'src/karaoke/generation_worker.py') + ':karaoke',
-        '--add-data', str(ROOT / 'src/karaoke/generation_assets') + ':karaoke/generation_assets',
+        *worker_assets,
         '--add-data', str(ROOT / 'src/karaoke/review_web') + ':karaoke/review_web',
         '--add-data', str(ROOT / 'src/karaoke/remote_web') + ':karaoke/remote_web',
         '--collect-data', 'yt_dlp_ejs', '--hidden-import', 'keyring.backends.macOS' if sys.platform == 'darwin' else 'keyring.backends.Windows',

@@ -75,3 +75,73 @@ def test_disagreement_is_localized_for_review():
     ]
     with pytest.raises(ValueError, match="notas"):
         w.chart_text([], "title", "artist", "en", 100)
+
+
+def test_long_asr_segment_wraps_between_complete_words_without_changing_notes():
+    notes = [
+        {"syllable": "casa ", "line_index": 0, "pitch": 60, "start": i / 3, "end": (i + 1) / 3}
+        for i in range(8)
+    ]
+    notes.extend(
+        [
+            {"syllable": "bue-", "line_index": 0, "pitch": 60, "start": 2.7, "end": 2.8},
+            {"syllable": "no ", "line_index": 0, "pitch": 60, "start": 2.8, "end": 3.0},
+        ]
+    )
+    chart = w.chart_text(notes, "A", "B", "es", 4)
+    assert chart.count("\n- ") == 1
+    assert chart.index("\n- ") < chart.index(" bue\n") < chart.index(" no ")
+    assert chart.count("\n: ") == len(notes)
+
+
+def test_learned_correction_preserves_silent_and_unscored_events():
+    from karaoke.generation_assets.pitch_refinement import refine
+
+    class CertainSemitone:
+        def run(self, outputs, inputs):
+            assert outputs == ["probabilities"]
+            assert inputs["features"].shape == (1, 24)
+            assert np.isfinite(inputs["features"]).all()
+            return [np.array([[0.0, 0.0, 0.15, 0.85, 0.0]], dtype=np.float32)]
+
+    notes = [
+        {"start": 0.0, "end": 0.5, "syllable": "voz ", "pitch": 69},
+        {"start": 0.6, "end": 0.7, "syllable": "sh ", "pitch": None},
+    ]
+    track = {"times": np.arange(0, 1, 0.01), "frequencies": np.full(100, 440.0)}
+    assert refine(notes, track, CertainSemitone()) == 1
+    assert [n["pitch"] for n in notes] == [70, None]
+
+
+def test_missing_verse_requires_independent_second_pass_and_ordered_first_pass():
+    first = " ".join(f"palabra{i}" for i in range(20))
+    extra = " ".join(f"estrofa{i}" for i in range(16))
+    lyrics = first + " " + extra
+    candidate = row(plainLyrics=lyrics)
+    result = w.choose_candidate([candidate], first, "María", "El valle", 180, rescue=lambda: lyrics)
+    assert result[0] == lyrics and result[1]["recovered_with_windows"]
+    assert (
+        w.choose_candidate([candidate], first, "María", "El valle", 180, rescue=lambda: first)
+        is None
+    )
+    wrong = " ".join(reversed(first.split()))
+    assert (
+        w.choose_candidate(
+            [candidate],
+            wrong,
+            "María",
+            "El valle",
+            180,
+            rescue=lambda: pytest.fail("unexpected ASR pass"),
+        )
+        is None
+    )
+    direct = w.choose_candidate(
+        [candidate],
+        lyrics,
+        "María",
+        "El valle",
+        180,
+        rescue=lambda: pytest.fail("unnecessary retry"),
+    )
+    assert direct[0] == lyrics and "recovered_with_windows" not in direct[1]

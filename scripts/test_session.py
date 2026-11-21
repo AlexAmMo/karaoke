@@ -165,7 +165,9 @@ class Session:
             except subprocess.TimeoutExpired:
                 self.process.terminate()
                 try:
-                    self.process.wait(timeout=10)
+                    # The host gives the native engine up to 13 s to exit and
+                    # reaps it before shutting down its own services.
+                    self.process.wait(timeout=20)
                 except subprocess.TimeoutExpired:
                     self.process.kill()
                     self.process.wait(timeout=5)

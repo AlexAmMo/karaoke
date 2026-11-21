@@ -1,0 +1,25 @@
+{
+  "video_id": "IA0uSub1xy4",
+  "title": "Sigo Aquí",
+  "artist": "Álex Ubago",
+  "generation_seconds": 518.1,
+  "source": "lrclib",
+  "notes": 435,
+  "analyzed_duration_s": 224.676,
+  "method": "sung-ctc+free-game+fcpe",
+  "models": {
+    "asr": "mobiuslabsgmbh/faster-whisper-large-v3-turbo@0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+    "separator": "adefossez/HTDemucs@cbc8a9b1a87023b7fd74e7b3412e6321c0eab003",
+    "alignment": "Retotito/ultrastar-models@75854108a364f01f8ee0a3df0db9ce8eb902beca",
+    "pitch": "FCPE@75854108a364f01f8ee0a3df0db9ce8eb902beca",
+    "notes": "openvpi/GAME@1.0.3",
+    "notes_seed": 113,
+    "refiner": "tuneperfect/tunestudio-note-refiners@a770e8194a70c5b5f7dce8ab3b44fbe77db1a5a0",
+    "code": "retotito/UltrastarCreatorTool@39d3eb5f9fb1e24220c4ca58888af8a88e11a38a"
+  },
+  "regions": 152,
+  "approval": "explicit in temporary test data",
+  "native_singing": true,
+  "actual_position_s": 2.127354166666667,
+  "synthetic_microphone": true
+}

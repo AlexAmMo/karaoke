@@ -167,7 +167,7 @@ class CatalogueSearch:
     def result_states(self, groups):
         """Resolve the same recording and on-disk availability for both clients."""
         keys = {catalog.source_key(song) for group in groups for song in group}
-        saved, working, failed = {}, set(), {}
+        saved, working, failed = {}, {}, {}
         keys = list(keys)
         for offset in range(0, len(keys), 200):
             batch = keys[offset:offset + 200]
@@ -177,14 +177,14 @@ class CatalogueSearch:
                 saved[row["source"]] = row
             candidates = batch + ["selection:" + key for key in batch]
             if self.query and not self.query.startswith(("http://", "https://")):
-                candidates += ["work:" + key for key in batch]
+                candidates += ["work:" + key for key in batch] + ["host:" + key for key in batch]
             job_slots = ",".join("?" for _ in candidates)
-            for row in self.store.rows(f"SELECT source,state,message FROM jobs WHERE state IN ('waiting','working','error') AND source IN ({job_slots})", candidates):
-                source = row["source"].removeprefix("selection:").removeprefix("work:")
+            for row in self.store.rows(f"SELECT source,state,message FROM jobs WHERE state IN ('waiting','working','error','host') AND source IN ({job_slots})", candidates):
+                source = row["source"].removeprefix("selection:").removeprefix("work:").removeprefix("host:")
                 if row["state"] == "error":
                     failed[source] = row["message"]
                 else:
-                    working.add(source)
+                    working[source] = row["state"]
         return saved, working, failed
 
     def describe_result(self, group, states):
@@ -199,19 +199,21 @@ class CatalogueSearch:
             status = "missing"
         elif local:
             status = "saved"
+        elif working.get(source) == "host" and self.spanish_choice(group):
+            status = "host"
         elif choices:
-            status = "working" if source in working else "failed" if source in failed else "direct"
+            status = "working" if working.get(source) in ("waiting","working") else "failed" if source in failed else "direct"
         elif assisted and time.monotonic() < self.prefer_direct_until and (
                 self.catalogue_status.get("AllKaraoke") == "Consultando" or self.search_busy):
             status = "checking"
         else:
             status = "assisted" if assisted else "reference"
-        labels = {"saved": "Descargada", "direct": "Para descargar", "working": "Preparando…",
+        labels = {"host": "Pendiente en el ordenador", "saved": "Descargada", "direct": "Para descargar", "working": "Preparando…",
                   "checking": "Comprobando ediciones…", "assisted": "Requiere al anfitrión",
                   "reference": "Sin edición compatible", "missing": "Copia incompleta", "failed": "Preparación fallida"}
         return item, {"availability": status, "status_label": labels[status],
-                      "available": status in ("saved", "direct", "working", "assisted"),
-                      "assisted": bool(assisted), "saved": status == "saved",
+                      "available": status in ("saved", "direct", "working", "assisted", "host"),
+                      "assisted": bool(assisted) or status == "host", "saved": status == "saved",
                       "library_id": local_id if status == "saved" else None}
 
     def editions_for(self, source):
@@ -428,6 +430,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         self.engine = {}
         self.active = None
         self.started_at = 0
+        self.start_attempt = ""
         self.was_singing = False
         self.pool = concurrent.futures.ThreadPoolExecutor(
             max_workers=2, thread_name_prefix="karaoke"
@@ -1024,6 +1027,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         if "output_device" in self.engine:
             extra["output_device"] = self.engine["output_device"]
         self.active = turn_id
+        self.start_attempt = uuid.uuid4().hex
         self.started_at = time.monotonic()
         self.was_singing = False
         try:
@@ -1033,7 +1037,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 self.remote.mics.route(turn_id, secret, routes)
             self.command(
                 "start", chart=turn["chart"], names=json.loads(turn["names"]), token=turn_id,
-                precision=self.pitch_precision, **extra,
+                precision=self.pitch_precision, attempt=self.start_attempt, **extra,
             )
         except Exception:
             self.store.execute("UPDATE turns SET state='queued' WHERE id=?", (turn_id,))
@@ -1204,6 +1208,10 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
         if action.startswith("page:"):
             self.message = ""
             destination = action[5:]
+            if destination == "Generar":
+                self.draft_turn = None
+                if youtube_id(self.query):
+                    self.fields.update(generate_url=self.query, generate_title="", generate_artist="")
             if destination == "Otros catálogos":
                 self.catalogue_return_page = self.page
             if destination != "Opciones de canción":
@@ -1568,6 +1576,8 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
             self.command("latency", value=self.store.setting("latency", 0))
             self.sent_audio = True
         if self.active:
+            failure = self.engine.get("start_failure") or {}
+            rejected = bool(self.start_attempt and failure.get("token") == self.active and failure.get("attempt") == self.start_attempt)
             if self.engine.get("state") == "singing" and self.engine.get("token") == self.active:
                 if (
                     not self.was_singing
@@ -1584,11 +1594,11 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 )
                 self.message = "Interpretación terminada. Elige cuándo empezar el siguiente turno."
                 self.active = None
-            elif not self.was_singing and time.monotonic() - self.started_at > 15:
+            elif not self.was_singing and (rejected or time.monotonic() - self.started_at > 15):
                 self.store.execute("UPDATE turns SET state='queued' WHERE id=?", (self.active,))
                 self.active = None
                 self.message = (
-                    self.engine.get("error")
+                    (failure.get("message") if rejected else self.engine.get("error"))
                     or "No se pudo iniciar. Revisa las entradas de micrófono en Ajustes."
                 )
         if self.download and self.download[0].done():
@@ -1737,7 +1747,7 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 if state["availability"] == "reference" and not references_shown:
                     text("Sin descarga integrada")
                     references_shown = True
-                if state["availability"] == "assisted":
+                if state["availability"] == "assisted" or (state["availability"] == "host" and self.spanish_choice([song])):
                     add_action = "result:obtain:" + token
                 elif state["available"]:
                     add_action = "result:best:" + token
@@ -1746,6 +1756,10 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                 description = " · ".join(filter(None, (song["artist"], song.get("language"), state["status_label"])))
                 song_row(song, song["title"], description, detail_action, add_action)
                 rows[-1]["assisted"] = state["assisted"]
+            if visible and youtube_id(self.query) and all(
+                self.describe_result(group, states)[1]["availability"] in ("failed", "reference", "missing") for group in visible
+            ):
+                button("Crear un borrador con este vídeo", "page:Generar", style="link")
             if start:
                 button("Resultados anteriores", "search:previous", style="link")
             if start + len(visible) < len(grouped):
@@ -1904,6 +1918,9 @@ class Service(CatalogueSearch, PackageImportMixin, PartyMixin):
                         jobs = self.store.rows("SELECT id FROM jobs WHERE source=?", (turn["source"],))
                         if jobs:
                             button("Reintentar", "retry:" + jobs[0]["id"], style="primary")
+                        song = json.loads(turn["job_payload"] or "{}").get("song", {})
+                        if turn["preparation"] == "error" and song.get("video_id"):
+                            button("Crear un mapa con este vídeo", "lab:from-turn:" + turn["id"], style="link")
                     pending = [t for t in turns if t["state"] == "queued"]
                     if turn != pending[0]:
                         button("Subir turno", "up:" + turn["id"], style="link")

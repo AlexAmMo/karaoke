@@ -170,11 +170,38 @@ def exercise_preflight(session, chart):
     session.native(
         "start",
         token="collision",
+        attempt="first-route-choice",
         names=["Uno", "Dos"],
         chart=str(chart),
         routes=[dict(device=0, channel=0)] * 2,
     )
-    session.wait(lambda s: s.get("state") == "idle" and "distinta" in s.get("error", ""))
+    # An unrelated audio command must not erase the rejection before the host polls.
+    session.native("gain", player=0, value=0.0)
+    session.wait(
+        lambda s: (
+            s.get("state") == "idle"
+            and s.get("start_failure", {}).get("token") == "collision"
+            and s["start_failure"].get("attempt") == "first-route-choice"
+            and "distinta" in s["start_failure"]["message"]
+        )
+    )
+    session.native(
+        "start",
+        token="collision",
+        attempt="corrected-route",
+        names=["Uno"],
+        chart=str(chart),
+        routes=[dict(device=0, channel=0)],
+    )
+    session.wait(
+        lambda s: (
+            s.get("state") == "singing"
+            and s.get("token") == "collision"
+            and not s.get("start_failure", {}).get("token")
+        )
+    )
+    session.native("end", token="collision")
+    session.wait(lambda s: s.get("state") == "idle")
     session.native("calibrate", device=0, channel=0, name="Entrada de prueba")
     session.wait(lambda s: s.get("calibration", {}).get("status") == "running")
     rejected = session.wait(lambda s: s.get("calibration", {}).get("status") == "failed")

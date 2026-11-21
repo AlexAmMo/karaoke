@@ -46,7 +46,7 @@ Los instaladores esperan archivos publicados en Releases de `AlexAmMo/karaoke`; 
 macOS:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.2.0/scripts/install.sh | KARAOKE_VERSION=v0.2.0 bash
+curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.3.0/scripts/install.sh | KARAOKE_VERSION=v0.3.0 bash
 ```
 
 Windows PowerShell:
@@ -55,7 +55,7 @@ Windows PowerShell:
 $env:KARAOKE_VERSION='v0.2.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.2.0/scripts/install.ps1 | iex
 ```
 
-Estos comandos solo son utilizables después de publicar los archivos requeridos. Seleccionan explícitamente la prerelease `v0.2.0`. Si se ejecuta el instalador sin `KARAOKE_VERSION`, consulta la última versión **estable** y excluye las prereleases.
+Estos comandos solo son utilizables después de publicar los archivos requeridos. Seleccionan explícitamente la prerelease `v0.3.0`. Si se ejecuta el instalador sin `KARAOKE_VERSION`, consulta la última versión **estable** y excluye las prereleases.
 
 La instalación es por usuario, sin permisos de administrador: `~/Applications/Karaoke.app` en macOS y `%LOCALAPPDATA%\Programs\Karaoke` en Windows. La actualización conserva la biblioteca y los ajustes, verifica SHA-256 y guarda temporalmente la versión anterior para restaurarla si falla el reemplazo. Los hashes detectan corrupción; su autenticidad depende del canal GitHub que sirve también el paquete.
 
@@ -90,3 +90,29 @@ tar -xzf Karaoke-0.1.0-dependency-source-windows-x86_64.tar.gz
 ```
 
 Las [instrucciones de reconstrucción incluidas en la Release](https://github.com/AlexAmMo/karaoke/releases/download/v0.1.0/Karaoke-0.1.0-windows-source-reassembly.md) contienen también comandos PowerShell que verifican cada parte y unen los archivos sin cargarlos enteros en memoria. SHA-256 del archivo completo: `6c1d1f4422cdcc6c8e71cacc40dc7687773b0f64af30a80948879527f3514b93`.
+
+## Verificar una instalación candidata de macOS
+
+En un Mac de la arquitectura que se está probando, `KARAOKE_ASSET_BASE_URL` puede señalar el directorio local que contiene el ZIP y su `.sha256`. `KARAOKE_INSTALL_DIR` permite instalar la copia de prueba sin tocar las aplicaciones del usuario. El flujo de CI realiza la instalación y ejecuta una sesión contra el motor contenido en la app.
+
+```sh
+export KARAOKE_VERSION="v$(uv run python -c 'from karaoke import __version__; print(__version__)')"
+export KARAOKE_ASSET_BASE_URL="file://$PWD/dist"
+export KARAOKE_INSTALL_DIR="$(mktemp -d)/Applications"
+bash scripts/install.sh
+launcher="$KARAOKE_INSTALL_DIR/Karaoke.app/Contents/MacOS/karaoke"
+SDL_AUDIODRIVER=dummy SDL_AUDIO_DRIVER=dummy uv run python scripts/test_session.py --launcher "$launcher" --check-panel --output build/mac-install.json
+uv run python scripts/test_remote_session.py --launcher "$launcher" --phone-mic
+```
+
+El empaquetador firma primero la aplicación anidada `Engine.app` en `Contents/Resources`, después la aplicación exterior y verifica ambos sellos. La prueba del micrófono móvil abre una conexión WebRTC local y envía audio Opus sintético hasta que el servicio instalado confirma la primera trama decodificada. Las dependencias opcionales de reconocimiento y sus modelos se preparan al solicitar la primera generación.
+
+## Comprobar el generador en un equipo limpio
+
+Con FFmpeg en el PATH, este comando crea el entorno opcional mediante el mismo instalador que usa Karaoke. Descarga los modelos, añade una señal de acompañamiento a ocho segundos de la edición libre de «Mr. Fancy Pants» de Jonathan Coulton y genera audio, letra y notas. Al terminar comprueba el paquete con el importador y verifica la huella de la grabación analizada.
+
+```sh
+uv run --locked python scripts/test_generation_bootstrap.py --report build/generation-compatibility.json
+```
+
+La prueba requiere varios GB de almacenamiento temporal. El informe guarda la arquitectura, el tiempo de instalación, el tiempo de procesamiento y el número de notas. Para medir precisión musical se utiliza la evaluación con mapas humanos descrita en el [informe de generación](validation/generacion-iteracion.md).

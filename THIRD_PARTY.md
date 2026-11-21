@@ -54,3 +54,9 @@ Instrument Sans se distribuye bajo SIL Open Font License 1.1. Las fuentes TTF de
 ## Transporte de micrófonos móviles
 
 aiortc negocia WebRTC. Sus dependencias PyAV y pylibsrtp incluyen copias propias de FFmpeg, códecs y SRTP/OpenSSL. El paquete de fuentes incluye los archivos correspondientes a esas ruedas de Python, sus sumas SHA-256 y las recetas exactas de compilación, además de las bibliotecas utilizadas por Deluxe. La lista se valida contra las versiones instaladas durante el empaquetado. [Inventario y procedencia](third_party/wheel-media-sources.json) · [Compilación PyAV](https://github.com/PyAV-Org/PyAV/blob/v19.0.2/scripts/ffmpeg-latest.json) · [Compilación pylibsrtp](https://github.com/aiortc/pylibsrtp/tree/1.0.0/scripts)
+
+## Generación local opcional
+
+El corrector de tono de Tune Studio utiliza el modelo de Nico Franke (ZerNico) publicado con licencia MIT. El entorno de generación comprueba la revisión y la huella del modelo al descargarlo. [Modelo y descripción de variables](https://huggingface.co/tuneperfect/tunestudio-note-refiners) · [Aviso MIT incluido](src/karaoke/generation_assets/TuneStudio-LICENSE.txt)
+
+El generador descarga por separado el adaptador GPL de UltrastarCreatorTool, Whisper, HTDemucs y los modelos de alineación, tono y notas. El método de alineación cantada incluye componentes con condiciones de uso no comercial. El manifiesto de cada borrador identifica los modelos utilizados. [Métodos, revisiones y licencias](docs/validation/generacion-iteracion.md)

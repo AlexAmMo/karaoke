@@ -104,3 +104,51 @@ def test_worker_progress_pauses_while_singing_and_resumes(tmp_path):
             lab.pause_analysis(False)
             (tmp_path / "resume").touch()
             host.close()
+
+
+def test_video_credit_uses_exact_catalogue_metadata_and_keeps_user_overrides(monkeypatch, tmp_path):
+    from karaoke.generation_lab import recording_credit
+
+    video = "IA0uSub1xy4"
+    job = {"title": "", "artist": "", "video": video}
+    info = {"title": "Vídeo de un aficionado [Letra]", "uploader": "Canal de aficionados"}
+    monkeypatch.setattr(
+        "karaoke.allkaraoke.search",
+        lambda *a, **k: [{"video_id": video, "title": "Tema", "artist": "Autor"}],
+    )
+    assert recording_credit(info, job, tmp_path) == ("Tema", "Autor")
+    assert recording_credit(info, {**job, "artist": "Mi artista"}, tmp_path) == (
+        "Tema",
+        "Mi artista",
+    )
+    monkeypatch.setattr("karaoke.allkaraoke.search", lambda *a, **k: [])
+    assert recording_credit({"title": "Autor — Tema (Live) [Official Video]"}, job, tmp_path) == (
+        "Tema (Live)",
+        "Autor",
+    )
+
+
+def test_generated_replacement_keeps_only_the_requested_turn(tmp_path, package):
+    host = Service(tmp_path / "room")
+    try:
+        source = "allkaraoke:example"
+        song = {"artist": "Fixture", "title": "Ejemplo", "video_id": "IA0uSub1xy4"}
+        turns = [
+            host.store.request(source, {"kind": "allkaraoke", "song": song}, [name])
+            for name in ("Sol", "Luna")
+        ]
+        host.store.execute("UPDATE jobs SET state='error' WHERE source=?", (source,))
+        host.handle({"action": "lab:from-turn:" + turns[1]})
+        assert host.page == "Generar" and host.fields["generate_url"].endswith(song["video_id"])
+        host.handle({"action": "lab:enqueue"})
+        uid = host.draft_id
+        shutil.copytree(package.parent, host.lab.root / uid / "draft")
+        host.store.execute("UPDATE drafts SET state='review' WHERE id=?", (uid,))
+        song_id = host.lab.approve(uid)
+        first, second = host.store.queue()
+        assert first["song_id"] is None and first["source"] == source
+        assert second["id"] == turns[1] and second["song_id"] == song_id
+        assert second["source"] == "reviewed:" + uid and "Luna" in second["names"]
+        assert not host.store.rows("SELECT 1 FROM song_sources WHERE source=?", (source,))
+    finally:
+        host.close()

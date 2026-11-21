@@ -101,3 +101,30 @@ def test_two_unassigned_singers_cannot_fall_back_to_the_same_usb(tmp_path):
         )
     finally:
         store.close()
+
+
+def test_native_start_rejection_is_tied_to_the_specific_attempt(tmp_path, package):
+    from karaoke.service import Service
+    from karaoke.songs import import_package
+
+    host = Service(tmp_path / "host")
+    try:
+        track = import_package(package, host.library)
+        host.store.save_song(track)
+        turn = host.enqueue_song(track["id"])
+        host.engine = {"state": "idle", "max_singers": 10, "synthetic": True}
+        host.start(turn)
+        engine = host.engine
+        engine["start_failure"] = {"token": turn, "attempt": "previous", "message": "Old error"}
+        (host.ipc / "engine.json").write_text(json.dumps(engine))
+        host.tick()
+        assert host.active == turn
+        engine["start_failure"].update(attempt=host.start_attempt, message="Micro desconectado")
+        (host.ipc / "engine.json").write_text(json.dumps(engine))
+        host.tick()
+        assert host.active is None and host.message == "Micro desconectado"
+        assert host.store.queue()[0]["state"] == "queued" and not host.store.rows(
+            "SELECT * FROM reservations"
+        )
+    finally:
+        host.close()

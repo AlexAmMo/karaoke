@@ -17,7 +17,7 @@ import tarfile
 from pathlib import Path
 import requests
 from package_macos import ROOT, VERSION
-from collect_sources import OUT, python_sources, source_download, qt_sources
+from collect_sources import OUT, file_sha256, python_sources, source_download, qt_sources
 
 
 def sections(file):

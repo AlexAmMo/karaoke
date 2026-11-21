@@ -39,6 +39,7 @@ end;
 const Rates: array[0..1] of integer = (441,480);
 var Rate: integer;
 begin
+  if Abs((CalibrationClockMs(1728000001000000,1000000000)-CalibrationClockMs(1728000000000000,1000000000))-1)>0.00001 then Halt(1);
   for Rate in Rates do begin
     Exercise(Rate*100,0,2); Exercise(Rate*100,50,2); Exercise(Rate*100,100,2); Exercise(Rate*100,200,2);
     Exercise(Rate*100,0,0); Exercise(Rate*100,0,1);

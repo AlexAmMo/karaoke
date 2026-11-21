@@ -1,0 +1,12 @@
+{
+  "https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.11.3-src/pyside-setup-everywhere-src-6.11.3.tar.xz": "050819cb05e14d6689f42b56e4fa9c8ff63be2bb339e0c094c45b990b7cabde1",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtbase-everywhere-src-6.11.3.tar.xz": "46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtdeclarative-everywhere-src-6.11.3.tar.xz": "6d6db328a02ae3bb0b1e6944aeef8dfe44cd6b55ab59b1708bbf0400f5759cb5",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtimageformats-everywhere-src-6.11.3.tar.xz": "2759929c7abbc5376120394d1ccac1abbb816bc2791b34ece6c1412d323e6213",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtpositioning-everywhere-src-6.11.3.tar.xz": "a38695bc412b7261476e8e96178460ec9319e61c34ecc6a14eb2e76e5c73eca1",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtquick3d-everywhere-src-6.11.3.tar.xz": "c05d2491ead3ee22d2c8e9b7c9cc8e5874e7c05c1fc3329bc6a0ece70eaccc96",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtserialport-everywhere-src-6.11.3.tar.xz": "b09bfb0eace070ce1b980f7f2c9ba9fb885c2cc29a4cd0416061496426601722",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtsvg-everywhere-src-6.11.3.tar.xz": "9bdf6fa4b5a2d91c3eaa2edd12263fdff0ae19d0ac25d3c99946cd4189a07123",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtwebchannel-everywhere-src-6.11.3.tar.xz": "1df120c2904ca0a0dd4fd4fb5e9459fe15cbc50477c08c65d20070eafffaf01a",
+  "https://download.qt.io/official_releases/qt/6.11/6.11.3/submodules/qtwebengine-everywhere-src-6.11.3.tar.xz": "4f4701b4976d90571e67557f2c12cbfee8c64ecc8295430236921cae2f9f43ca"
+}

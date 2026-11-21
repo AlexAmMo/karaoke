@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 import requests
@@ -23,31 +24,69 @@ from package_macos import ROOT, VERSION
 OUT = ROOT / 'build/corresponding-sources'
 
 
+# Both HTTPS mirrors are listed by https://download.qt.io/static/mirrorlist/.
+QT_MIRRORS = ('https://ftp.fau.de/qtproject', 'https://www.mirrorservice.org/sites/download.qt-project.org')
+
+
+def file_sha256(path):
+    with path.open('rb') as file:
+        return hashlib.file_digest(file, 'sha256').hexdigest()
+
+
+def source_urls(url):
+    urls = [url]
+    if url.startswith('https://download.qt.io/'):
+        path = urlparse(url).path
+        urls.extend(mirror + path for mirror in QT_MIRRORS)
+    return urls
+
+
+def collect_file(item, target, expected):
+    url = item['url']
+    if item.get('name') == 'lua' and '5.4.8' in url:
+        url = 'https://distfiles.macports.org/lua/' + Path(urlparse(url).path).name
+    temporary = target.with_suffix(target.suffix + '.part')
+    # A failed stream must never replace a complete cached archive. Try every
+    # approved mirror with the same digest, then retry after a bounded delay.
+    attempts = source_urls(url) * 2
+    for index, candidate in enumerate(attempts):
+        try:
+            digest = hashlib.sha256()
+            with requests.get(candidate, stream=True, timeout=(10, 60)) as response:
+                response.raise_for_status()
+                with temporary.open('wb') as file:
+                    for block in response.iter_content(1024 * 1024):
+                        digest.update(block)
+                        file.write(block)
+            actual = digest.hexdigest()
+            if expected and actual != expected:
+                raise ValueError(f'SHA-256 mismatch for {item["filename"]}')
+            temporary.replace(target)
+            return actual, candidate
+        except (requests.RequestException, ValueError):
+            temporary.unlink(missing_ok=True)
+            if index + 1 == len(attempts):
+                raise
+            time.sleep(min(2 ** index, 5))
+        except OSError:
+            temporary.unlink(missing_ok=True)
+            raise
+
+
 def source_download(item):
     target = OUT / item['group'] / item['filename']
     target.parent.mkdir(parents=True, exist_ok=True)
     expected = item.get('sha256')
     vendored = ROOT / 'third_party/sources' / Path(urlparse(item['url']).path).name
-    if not target.exists() and expected and vendored.is_file() and hashlib.sha256(vendored.read_bytes()).hexdigest() == expected:
-        shutil.copy2(vendored, target)
     try:
-        if not target.exists() or (expected and hashlib.sha256(target.read_bytes()).hexdigest() != expected):
-            temp = target.with_suffix(target.suffix + '.part')
-            url = item['url']
-            if item.get('name') == 'lua' and '5.4.8' in url:
-                # Exact upstream tarball mirrored by MacPorts; authoritative hash still applies.
-                url = 'https://distfiles.macports.org/lua/' + Path(urlparse(url).path).name
-            with requests.get(url, stream=True, timeout=(20, 90)) as response:
-                response.raise_for_status()
-                with temp.open('wb') as f:
-                    for block in response.iter_content(1024 * 1024):
-                        f.write(block)
-            digest = hashlib.sha256(temp.read_bytes()).hexdigest()
-            if expected and digest != expected:
-                temp.unlink()
-                raise ValueError(f'SHA-256 mismatch for {item["filename"]}')
-            temp.replace(target)
-        return {**item, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'upstream_hash_checked': bool(expected), 'bytes': target.stat().st_size, 'status': 'collected'}
+        if not target.exists() and expected and vendored.is_file() and file_sha256(vendored) == expected:
+            shutil.copy2(vendored, target)
+        actual = file_sha256(target) if target.exists() else None
+        origin = 'verified-local-cache' if expected else 'local-cache'
+        if not actual or (expected and actual != expected):
+            actual, origin = collect_file(item, target, expected)
+        return {**item, 'sha256': actual, 'retrieved_from': origin, 'upstream_hash_checked': bool(expected),
+                'bytes': target.stat().st_size, 'status': 'collected'}
     except Exception as exc:
         return {**item, 'status': 'failed', 'error': str(exc)}
 
@@ -201,11 +240,14 @@ def qt_sources(app):
             raise RuntimeError('Add source module for additional bundled Qt library: ' + module)
     urls = [qt_base + f'{source}-everywhere-src-{version}.tar.xz' for source in sorted(sources)]
     urls.append(f'https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-{version}-src/pyside-setup-everywhere-src-{version}.tar.xz')
+    # These are the published Qt .sha256 values for the sources matched to our
+    # locked PySide release. A dependency upgrade must update the pins first.
+    upstream = json.loads((ROOT / 'third_party/qt-source-checksums.json').read_text())
     items = []
     for url in urls:
-        response = requests.get(url+'.sha256', timeout=20); response.raise_for_status()
-        checksum = response.text.split()[0]
-        if not re.fullmatch('[a-f0-9]{64}', checksum): raise ValueError('Invalid upstream Qt checksum')
+        checksum = upstream.get(url, '')
+        if not re.fullmatch('[a-f0-9]{64}', checksum):
+            raise ValueError('Missing reviewed upstream checksum for ' + url)
         items.append({'name': Path(url).name, 'group': 'qt', 'filename': Path(url).name, 'url': url, 'sha256': checksum})
     return items
 
@@ -246,7 +288,7 @@ The manifest's unresolved list must be reviewed before publication. A failed dow
     archive = ROOT / 'dist' / f'Karaoke-{VERSION}-dependency-source-macos-{platform.machine()}.tar.gz'
     with tarfile.open(archive, 'w:gz') as tar:
         tar.add(OUT, arcname='corresponding-sources', filter=lambda info: None if info.name.endswith('.part') else info)
-    archive.with_suffix('.gz.sha256').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+    archive.with_suffix('.gz.sha256').write_text(file_sha256(archive) + '  ' + archive.name + '\n')
     print(json.dumps({'archive': str(archive), 'bytes': archive.stat().st_size, 'unresolved': manifest['unresolved']}, indent=2))
     if any(r['status'] == 'failed' for r in results): raise SystemExit(1)
 

@@ -1,17 +1,17 @@
 # Karaoke
 
-Karaoke doméstico instalado en el ordenador: UltraStar Deluxe muestra letras, notas y puntuación; un lateral permite preparar biblioteca y próximos turnos sin abrir otra ventana.
+Karaoke doméstico para macOS y Windows. UltraStar Deluxe muestra la letra, las notas y la puntuación. Desde el lateral o desde un móvil puedes buscar la próxima canción mientras alguien canta.
 
-La rama de desarrollo reúne el catálogo y las descargas en Buscar. Admite hasta diez cantantes, entradas por cable y móviles, y generación local de borradores desde YouTube. Las pruebas y sus condiciones están en [Validación](docs/VALIDACION.md).
+La versión 0.3 reúne el catálogo y las descargas en Buscar. Admite hasta diez cantantes, entradas por cable y móviles, y generación local de borradores desde YouTube. Las pruebas y sus condiciones están en [Validación](docs/VALIDACION.md).
 
 ## Instalación
 
-La versión v0.2.0 incluye el ajuste de afinación y el mando móvil con cola compartida. Puedes instalarla con uno de estos comandos o descargar el paquete para tu equipo. [Descargas de v0.2.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.2.0)
+Instala la versión preliminar 0.3.0 con el comando de tu plataforma o elige el paquete de tu equipo. [Descargas de v0.3.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.3.0)
 
 **macOS**, desde Terminal (Apple Silicon: macOS 26 o posterior; Intel: macOS 15 o posterior):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.2.0/scripts/install.sh | KARAOKE_VERSION=v0.2.0 bash
+curl -fsSL https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.3.0/scripts/install.sh | KARAOKE_VERSION=v0.3.0 bash
 ```
 
 Se instala en `~/Applications/Karaoke.app`. La firma es ad hoc y no está notarizada; el instalador no desactiva Gatekeeper.
@@ -19,14 +19,14 @@ Se instala en `~/Applications/Karaoke.app`. La firma es ad hoc y no está notari
 **Windows x64**, desde PowerShell (objetivo: Windows 10 versión 1809 o posterior y Windows 11; controlador OpenGL 2.0 o superior):
 
 ```powershell
-$env:KARAOKE_VERSION='v0.2.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/main/scripts/install.ps1 | iex
+$env:KARAOKE_VERSION='v0.3.0'; irm https://raw.githubusercontent.com/AlexAmMo/karaoke/v0.3.0/scripts/install.ps1 | iex
 ```
 
-Se instala en `%LOCALAPPDATA%\Programs\Karaoke` y crea un acceso directo en Inicio. El ejecutable no tiene firma comercial. La validación automatizada usa Windows Server 2022; quedan pendientes pruebas de audio y gráficos en un PC físico. En Mac Intel están comprobados la compilación y el arranque de utilidades; falta validar una sesión gráfica.
+Se instala en `%LOCALAPPDATA%\Programs\Karaoke` y crea un acceso directo en Inicio. El ejecutable no tiene firma comercial. La validación automatizada usa Windows Server 2022; quedan pendientes pruebas de audio y gráficos en un PC físico. El paquete Intel también se ha probado con Rosetta en Apple Silicon.
 
-Los instaladores verifican SHA-256 y conservan la biblioteca y los ajustes fuera de la app. Esta prerelease no incluye canciones comerciales.
+Los instaladores verifican SHA-256 y conservan la biblioteca y los ajustes fuera de la app. Las canciones se preparan durante la búsqueda.
 
-## Una sesión en la versión de desarrollo
+## Una sesión de karaoke
 
 1. Abre **Buscar** y escribe el título o el artista. Por ejemplo, `Alex Ubago Sigo Aqui`. También puedes pegar el enlace de un vídeo de YouTube.
 2. Pulsa **+** junto a la canción. Karaoke elige una edición compatible y prepara la grabación con voz en segundo plano. Puedes seguir buscando mientras tanto.
@@ -40,7 +40,7 @@ Los 39 paquetes de UltraStar Deluxe Songs incluyen mapa, audio y licencia. Los m
 
 En **Sesión → Cantantes y entradas** puedes crear hasta diez perfiles y asignar una entrada a cada uno. Varias personas pueden compartir un micro en turnos distintos. En la cola puedes cambiar quién canta y con qué entrada. En la ficha del cantante se ajustan el retorno y la compensación temporal por dispositivo. Si percibes eco, baja el retorno o usa la monitorización directa de tu interfaz de audio.
 
-En **Ajustes → Precisión de afinación** puedes elegir **Flexible** (hasta dos semitonos por encima o por debajo), **Normal** (un semitono de margen, valor inicial) o **Estricta** (el motor debe detectar la nota indicada). El mando móvil ofrece el mismo selector en **Ajustes de la sesión**. El nivel queda guardado y se aplica a los cantantes desde el siguiente turno.
+En **Sesión → Precisión de afinación** puedes elegir **Flexible** (hasta dos semitonos por encima o por debajo), **Normal** (un semitono de margen, valor inicial) o **Estricta** (el motor debe detectar la nota indicada). El mando móvil ofrece el mismo selector en **Ajustes de la sesión**. El nivel queda guardado y se aplica a los cantantes desde el siguiente turno.
 
 ## Mando desde varios móviles
 
@@ -60,7 +60,7 @@ Puedes plegar el lateral con la flecha de su encabezado o **Cmd/Ctrl+B**, y recu
 
 Pega el enlace en **Buscar** para localizar un mapa de esa grabación. Si falta, elige **Crear un borrador con este vídeo**. También puedes abrir **Sesión → Generar desde YouTube**. La primera vez Karaoke instala el entorno y los modelos en tu ordenador. Esta opción ocupa varios GB. El procesamiento se pausa mientras alguien canta.
 
-Karaoke conserva la mezcla con la voz original, separa la voz para el análisis y calcula letra, sílabas, tiempos y melodía. Intenta aprovechar los subtítulos del autor que coincidan en palabras y tiempos con la interpretación. También puedes aportar un TXT de letra o activar la consulta opcional a LRCLIB. **Alineación cantada** utiliza modelos disponibles para uso no comercial.
+Karaoke conserva la mezcla con la voz original, separa la voz para el análisis y calcula letra, sílabas, tiempos y melodía. Intenta aprovechar los subtítulos del autor que coincidan en palabras y tiempos con la interpretación. En el método de alineación cantada, Karaoke consulta LRCLIB con el título y el artista para buscar una letra que coincida con la grabación. Puedes desactivar la consulta o aportar tu propio TXT. **Alineación cantada** utiliza modelos disponibles para uso no comercial.
 
 Cuando termine, abre **Escuchar y revisar**. Puedes saltar a los pasajes donde los modelos discrepan, escuchar una guía de tono sobre la grabación y corregir la letra, la nota o su posición. **Aprobar para cantar** guarda esa edición en Buscar. Los resultados dependen de la grabación y pueden necesitar correcciones, especialmente con voces superpuestas y rap.
 

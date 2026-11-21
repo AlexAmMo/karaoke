@@ -1,5 +1,18 @@
 # Validación de la implementación
 
+## Iteración 0.3
+
+| Qué se probó | Evidencia |
+|---|---|
+| Buscar, guardar para después, encolar, cantar y gestionar la sala durante la canción | [Sesión en escritorio, Chromium y WebKit](validation/sesion-unificada-2026-11-21.md) |
+| Cobertura real y preparación de títulos EN y ES, incluyendo un vídeo exacto | [Consulta y descarga de los 40 títulos](validation/catalogo-2026-11-21.md) |
+| Retorno físico, trazo, puntuación independiente y calibración | [Recorridos del micrófono y motor](validation/audio-iteracion.md) |
+| QR, audio Opus, veinte minutos con diez voces, cinco dúos utilizando dos entradas | [Micrófonos web y perfiles](validation/voz-web-y-borradores.md) |
+| Grabación original, letra, notas y tiempos frente a mapas humanos | [Generación, controles y límites observados](validation/generacion-iteracion.md) |
+| Paquetes macOS e instalación del entorno opcional | [Instalación y pruebas por arquitectura](validation/instalacion-macos-y-mando.md) |
+
+## Historial de la versión 0.1
+
 Estado de la prerelease [v0.1.0](https://github.com/AlexAmMo/karaoke/releases/tag/v0.1.0), publicada el 13 de noviembre de 2026. Este documento distingue código implementado, pruebas de software y comprobaciones que requieren equipos o cuentas externos.
 
 ## Comprobado localmente

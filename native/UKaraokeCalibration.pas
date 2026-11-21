@@ -7,10 +7,11 @@ type TCalibrationResult = record
   Success: boolean;
   RoundtripMs, SpreadMs, Samples, InputFrames, InputPeak, PulsesSent: integer;
 end;
-procedure CalibrationStart(NowMs: double; OutputRate: integer);
+function CalibrationClockMs(Counter, Frequency: QWord): double;
+procedure CalibrationStart(NowMs: double; OutputRate: integer; Direct: boolean = false);
 procedure CalibrationCancel;
 function CalibrationActive: boolean;
-procedure CalibrationOutput(Data: PSmallInt; Frames, Channels: integer; Rate: double; NowMs: double);
+procedure CalibrationOutput(Data: PSmallInt; Frames, Channels: integer; Rate: double; NowMs: double; Direct: boolean = false);
 procedure CalibrationInput(Data: PSmallInt; Frames: integer; Rate, NowMs: double);
 function CalibrationFinish: TCalibrationResult;
 implementation
@@ -28,16 +29,23 @@ var
   Emitted: array[0..High(Pulses)] of integer;
   InPhase, Quadrature: array[0..CalibrationDurationMs] of double;
   InputSamples, MaxInput: integer;
+  DirectRoute: boolean;
   Count: array[0..CalibrationDurationMs] of integer;
+function CalibrationClockMs(Counter, Frequency: QWord): double;
+begin
+  { Pascal may select single precision for an untyped floating constant
+    multiplied by UInt64. Convert explicitly before scaling the host uptime. }
+  Result:=Double(Counter)/Double(Frequency)*1000;
+end;
 function CalibrationActive: boolean;
 begin Result:=InterlockedCompareExchange(Active,0,0)=1; end;
-procedure CalibrationStart(NowMs: double; OutputRate: integer);
+procedure CalibrationStart(NowMs: double; OutputRate: integer; Direct: boolean);
 var I: integer; Phase: double;
 begin
   CalibrationCancel;
   EnterCriticalSection(Guard);
   try
-    Origin:=NowMs; OutputFrames:=0;
+    Origin:=NowMs; OutputFrames:=0; DirectRoute:=Direct;
     FillChar(InPhase,SizeOf(InPhase),0); FillChar(Quadrature,SizeOf(Quadrature),0);
     FillChar(Count,SizeOf(Count),0); InputSamples:=0; MaxInput:=0;
     for I:=0 to High(Emitted) do Emitted[I]:=-1;
@@ -56,13 +64,13 @@ begin
   { Wait for the previous measurement's callback before reusing its workspace. }
   EnterCriticalSection(Guard); LeaveCriticalSection(Guard);
 end;
-procedure CalibrationOutput(Data: PSmallInt; Frames, Channels: integer; Rate: double; NowMs: double);
+procedure CalibrationOutput(Data: PSmallInt; Frames, Channels: integer; Rate: double; NowMs: double; Direct: boolean);
 var Pulse,I,C,Start,First,Last,Index: integer;
 begin
   if not CalibrationActive then Exit;
   EnterCriticalSection(Guard);
   try
-    if not CalibrationActive then Exit;
+    if not CalibrationActive or (DirectRoute<>Direct) then Exit;
     for Pulse:=0 to High(Pulses) do
     begin
       Start:=Round(Pulses[Pulse]*Rate/1000)-OutputFrames;

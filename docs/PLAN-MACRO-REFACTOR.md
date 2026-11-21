@@ -1,5 +1,7 @@
 # Próxima iteración de Karaoke
 
+El diseño y los objetivos de aceptación originales quedan recogidos a continuación. Las ejecuciones del refactor, la cobertura obtenida, las medidas físicas y los resultados del generador se actualizan en el [informe de validación](VALIDACION.md).
+
 **Plan de producto e ingeniería · 21 de noviembre de 2026.** Punto de partida: Karaoke 0.2.0 para macOS y Windows. El recorrido que queremos es sencillo: un invitado encuentra una canción desde el móvil, la añade y conserva su puesto mientras se prepara. Cuando llega su turno, canta con el micro que tiene en la mano, oye la música sin un retorno que le estorbe y recibe puntos por la voz que realmente entró. [Maqueta de escritorio y móvil](diseno/sesion.html) · [Sistema visual](diseno/SISTEMA-DE-SESION.md)
 
 ## 1. Prioridades y alcance

@@ -1,0 +1,338 @@
+{
+  "date": "2026-11-21",
+  "account": "anonymous",
+  "platform": "macOS arm64",
+  "sample_count": 40,
+  "sample": [
+    {
+      "artist": "Eminem",
+      "title": "Lose Yourself",
+      "language": "inglés",
+      "outcome": "ready",
+      "source": "allkaraoke:eminem-lose-yourself",
+      "seconds": 323.21,
+      "elapsed": 15.71
+    },
+    {
+      "artist": "Eminem",
+      "title": "Without Me",
+      "language": "inglés",
+      "outcome": "unavailable",
+      "source": "allkaraoke:eminem-without-me",
+      "reason": "No se ha podido verificar la sincronía de esta edición. Elige otra versión.",
+      "elapsed": 12.08
+    },
+    {
+      "artist": "Eminem",
+      "title": "The Real Slim Shady",
+      "language": "inglés",
+      "outcome": "unavailable",
+      "source": "allkaraoke:eminem-the-real-slim-shady",
+      "reason": "La voz no coincide con las notas de esta edición. Elige otra versión.",
+      "elapsed": 14.34
+    },
+    {
+      "artist": "Eminem",
+      "title": "Mockingbird",
+      "language": "inglés",
+      "outcome": "unavailable",
+      "source": "allkaraoke:eminem-mockingbird",
+      "reason": "No se ha podido verificar la sincronía de esta edición. Elige otra versión.",
+      "elapsed": 10.46
+    },
+    {
+      "artist": "Queen",
+      "title": "Bohemian Rhapsody",
+      "language": "inglés",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Queen",
+      "title": "Don't Stop Me Now",
+      "language": "inglés",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:queen-dont-stop-me-now",
+      "reason": "La duración difiere de la grabación de referencia. Selecciona la edición exacta. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 10.78
+    },
+    {
+      "artist": "ABBA",
+      "title": "Dancing Queen",
+      "language": "inglés",
+      "outcome": "ready",
+      "source": "allkaraoke:abba-dancing-queen",
+      "seconds": 232.85,
+      "elapsed": 11.23
+    },
+    {
+      "artist": "ABBA",
+      "title": "Mamma Mia",
+      "language": "inglés",
+      "outcome": "ready",
+      "source": "allkaraoke:abba-mamma-mia",
+      "seconds": 210.08,
+      "elapsed": 11.01
+    },
+    {
+      "artist": "Adele",
+      "title": "Rolling in the Deep",
+      "language": "inglés",
+      "outcome": "ready",
+      "source": "allkaraoke:adele-rolling-in-the-deep",
+      "seconds": 233.88,
+      "elapsed": 11.58
+    },
+    {
+      "artist": "Adele",
+      "title": "Someone Like You",
+      "language": "inglés",
+      "outcome": "ready",
+      "source": "allkaraoke:adele-someone-like-you",
+      "seconds": 284.92,
+      "elapsed": 12.84
+    },
+    {
+      "artist": "The Beatles",
+      "title": "Hey Jude",
+      "language": "inglés",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:the-beatles-hey-jude",
+      "reason": "No se ha podido verificar la sincronía de esta edición. Elige otra versión. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 14.85
+    },
+    {
+      "artist": "The Beatles",
+      "title": "Let It Be",
+      "language": "inglés",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:the-beatles-let-it-be",
+      "reason": "No se ha podido verificar la sincronía de esta edición. Elige otra versión. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 11.45
+    },
+    {
+      "artist": "Michael Jackson",
+      "title": "Billie Jean",
+      "language": "inglés",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:michael-jackson-billie-jean",
+      "reason": "La grabación de esta edición no está disponible. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 9.35
+    },
+    {
+      "artist": "Oasis",
+      "title": "Wonderwall",
+      "language": "inglés",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:oasis-wonderwall",
+      "reason": "La grabación de esta edición no está disponible. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 9.89
+    },
+    {
+      "artist": "Coldplay",
+      "title": "Viva La Vida",
+      "language": "inglés",
+      "outcome": "ready",
+      "source": "allkaraoke:coldplay-viva-la-vida",
+      "seconds": 242.1,
+      "elapsed": 10.62
+    },
+    {
+      "artist": "Linkin Park",
+      "title": "In the End",
+      "language": "inglés",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Bon Jovi",
+      "title": "Livin' on a Prayer",
+      "language": "inglés",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:bon-jovi-livin-on-a-prayer",
+      "reason": "No se ha podido verificar la sincronía de esta edición. Elige otra versión. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 11.28
+    },
+    {
+      "artist": "Ed Sheeran",
+      "title": "Perfect",
+      "language": "inglés",
+      "outcome": "ready",
+      "source": "allkaraoke:ed-sheeran-perfect",
+      "seconds": 281.83,
+      "elapsed": 10.82
+    },
+    {
+      "artist": "Rihanna",
+      "title": "Diamonds",
+      "language": "inglés",
+      "outcome": "ready",
+      "source": "allkaraoke:rihanna-diamonds",
+      "seconds": 282.85,
+      "elapsed": 10.72
+    },
+    {
+      "artist": "Lady Gaga",
+      "title": "Bad Romance",
+      "language": "inglés",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:lady-gaga-bad-romance",
+      "reason": "No se ha podido verificar la sincronía de esta edición. Elige otra versión. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 10.84
+    },
+    {
+      "artist": "Estopa",
+      "title": "Como Camarón",
+      "language": "español",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:estopa-como-camaron",
+      "reason": "La voz no coincide con las notas de esta edición. Elige otra versión. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 10.74
+    },
+    {
+      "artist": "Melendi",
+      "title": "Caminando por la vida",
+      "language": "español",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "La Oreja de Van Gogh",
+      "title": "Rosas",
+      "language": "español",
+      "outcome": "ready",
+      "source": "allkaraoke:la-oreja-de-van-gogh-rosas",
+      "seconds": 231.89,
+      "elapsed": 10.69
+    },
+    {
+      "artist": "El Canto del Loco",
+      "title": "Zapatillas",
+      "language": "español",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Fito & Fitipaldis",
+      "title": "Soldadito marinero",
+      "language": "español",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Héroes del Silencio",
+      "title": "Entre dos tierras",
+      "language": "español",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:heroes-del-silencio-entre-dos-tierras",
+      "reason": "No se ha podido verificar la sincronía de esta edición. Elige otra versión. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 11.19
+    },
+    {
+      "artist": "Hombres G",
+      "title": "Devuélveme a mi chica",
+      "language": "español",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Mecano",
+      "title": "Hijo de la luna",
+      "language": "español",
+      "outcome": "ready",
+      "source": "allkaraoke:mecano-hijo-de-la-luna",
+      "seconds": 258.32,
+      "elapsed": 10.5
+    },
+    {
+      "artist": "Shakira",
+      "title": "Antología",
+      "language": "español",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Shakira",
+      "title": "Suerte",
+      "language": "español",
+      "outcome": "ready",
+      "source": "allkaraoke:shakira-suerte",
+      "seconds": 193.7,
+      "elapsed": 9.68
+    },
+    {
+      "artist": "Juanes",
+      "title": "La camisa negra",
+      "language": "español",
+      "outcome": "ready",
+      "source": "allkaraoke:juanes-la-camisa-negra",
+      "seconds": 247.23,
+      "elapsed": 10.79
+    },
+    {
+      "artist": "Maná",
+      "title": "Rayando el sol",
+      "language": "español",
+      "outcome": "ready",
+      "source": "allkaraoke:mana-rayando-el-sol",
+      "seconds": 243.95,
+      "elapsed": 10.02
+    },
+    {
+      "artist": "Luis Fonsi",
+      "title": "Despacito",
+      "language": "español",
+      "outcome": "reference"
+    },
+    {
+      "artist": "Daddy Yankee",
+      "title": "Gasolina",
+      "language": "español",
+      "outcome": "unavailable",
+      "source": "allkaraoke:daddy-yankee-gasolina",
+      "reason": "La voz no coincide con las notas de esta edición. Elige otra versión.",
+      "elapsed": 9.33
+    },
+    {
+      "artist": "Nino Bravo",
+      "title": "Libre",
+      "language": "español",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Joan Manuel Serrat",
+      "title": "Mediterráneo",
+      "language": "español",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Amaral",
+      "title": "Sin ti no soy nada",
+      "language": "español",
+      "outcome": "assisted-after-check",
+      "source": "allkaraoke:amaral-sin-ti-no-soy-nada",
+      "reason": "No se ha podido verificar la sincronía de esta edición. Elige otra versión. Hay un paquete completo que puedes elegir en el ordenador.",
+      "elapsed": 10.66
+    },
+    {
+      "artist": "Nach",
+      "title": "Efectos vocales",
+      "language": "español",
+      "outcome": "assisted"
+    },
+    {
+      "artist": "Canserbero",
+      "title": "Es épico",
+      "language": "español",
+      "outcome": "absent"
+    },
+    {
+      "artist": "Celia Cruz",
+      "title": "La vida es un carnaval",
+      "language": "español",
+      "outcome": "assisted"
+    }
+  ],
+  "additional_check": {
+    "artist": "Álex Ubago",
+    "title": "Sigo Aquí",
+    "language": "español",
+    "outcome": "ready",
+    "source": "allkaraoke:alex-ubago-sigo-aqui",
+    "seconds": 224.68,
+    "elapsed": 11.58
+  }
+}
