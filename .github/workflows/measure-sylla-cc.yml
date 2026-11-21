@@ -1,0 +1,43 @@
+name: Character alignment on verified Creative Commons editions
+on:
+  push:
+    branches: [codex/validar-sylla-20261121]
+permissions:
+  contents: read
+jobs:
+  compute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Prepare CPU inference
+        run: |
+          if ! command -v ffmpeg >/dev/null; then sudo apt-get update -qq && sudo apt-get install -yqq ffmpeg; fi
+          uv venv .sylla
+          uv pip install --python .sylla/bin/python torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .sylla/bin/python transformers==4.57.6 huggingface-hub==0.36.2 tokenizers==0.22.2 requests scipy
+      - name: Infer exact mixtures without chart text
+        env:
+          SHARD: ${{ matrix.shard }}
+          OMP_NUM_THREADS: '4'
+          OPENBLAS_NUM_THREADS: '1'
+          HF_HUB_DISABLE_XET: '1'
+        run: |
+          .sylla/bin/python scripts/prepare_generation_validation.py docs/validation/generacion-muestra.json "$RUNNER_TEMP/input" --language en --shard "$SHARD" --shards 5
+          .sylla/bin/python -u scripts/experiments/timing_sylla_emissions.py "$RUNNER_TEMP/input/manifest.json" "$RUNNER_TEMP/posteriors" --threads 4
+          tar -cf "$RUNNER_TEMP/measurements.tar" -C "$RUNNER_TEMP/posteriors" .
+          openssl cms -encrypt -aes-256-gcm -binary -outform DER -in "$RUNNER_TEMP/measurements.tar" -out "$RUNNER_TEMP/measurements.cms" .github/validation/recipient.crt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sealed-sylla-${{ matrix.shard }}
+          path: ${{ runner.temp }}/measurements.cms
+          retention-days: 2
+          if-no-files-found: error
