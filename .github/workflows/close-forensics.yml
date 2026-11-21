@@ -1,0 +1,51 @@
+name: Repeat the exact installed 0.3.0 macOS session
+on:
+  push:
+    branches: [codex/diagnosticar-cierre-macos-030]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  close:
+    runs-on: macos-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: brew install ffmpeg && uv sync --locked
+      - name: Install the original ZIP built for 3d96438
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 44904388370 --name karaoke-macos-latest --dir candidate
+          cd candidate/dist && shasum -a 256 -c *.zip.sha256 && cd ../..
+          export KARAOKE_ASSET_BASE_URL="file://$PWD/candidate/dist" KARAOKE_VERSION=v0.3.0 KARAOKE_INSTALL_DIR="$RUNNER_TEMP/karaoke-app"
+          bash scripts/install.sh
+      - name: Repeat singing and exiting with a new database
+        env:
+          SDL_ADDIODRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          mkdir -p results
+          failed=0
+          for attempt in {1..6}; do
+            if ! uv run --locked python -u scripts/test_session.py --launcher "$RUNNER_TEMP/karaoke-app/Karaoke.app/Contents/MacOS/karaoke" --check-panel --output "results/session-$attempt.json" > "results/test-$attempt.log" 2>&1; then failed=1; fi
+            path=$(sed -n 's/^DATA //p' "results/test-$attempt.log" | tail -1)
+            tail -5 "results/test-$attempt.log"
+            if [[ -n "$path" && -d "$path" ]]; then
+              for file in engine.log launcher-1.log launcher-2.log; do
+                if [[ -f "$path/$file" ]]; then cp "$path/$file" "results/run-$attempt-$file"; tail -15 "$path/$file"; fi
+              done
+            fi
+            if [[ $failed -eq 1 ]]; then break; fi
+          done
+          find "$HOME/Library/Logs/DiagnosticReports" -iname 'ultrastardx*' -o -iname 'karaoke*' | while IFS= read -r file; do if [[ -f "$file" ]]; then cp "$file" results/; fi; done
+          exit "$failed"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exact-mac-close-evidence
+          path: results
