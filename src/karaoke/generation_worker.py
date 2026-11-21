@@ -402,16 +402,22 @@ def split_vocals(audio, directory, separator):
 
 
 def transcribe(voice, whisper, language, model=None, *, windowed=False):
-    from faster_whisper import WhisperModel
     import soundfile as sf
     from scipy.signal import resample_poly
 
-    if model is None:
-        model = WhisperModel(str(whisper), device="cpu", compute_type="int8", cpu_threads=3)
     samples, rate = sf.read(voice, dtype="float32", always_2d=True)
+    if not len(samples):
+        return [], language
     factor = math.gcd(16000, rate)
     waveform = resample_poly(samples.mean(axis=1), 16000 // factor, rate // factor)
     del samples
+    # Test exact digital silence, without treating a quiet singer as absent.
+    if not waveform.any():
+        return [], language
+    if model is None:
+        from faster_whisper import WhisperModel
+
+        model = WhisperModel(str(whisper), device="cpu", compute_type="int8", cpu_threads=3)
     duration = len(waveform) / 16000
     chunk_size = 24 if windowed else max(1, math.ceil(duration))
     words = []
@@ -419,8 +425,11 @@ def transcribe(voice, whisper, language, model=None, *, windowed=False):
     for offset in range(0, math.ceil(duration), chunk_size):
         left = max(0, offset - 3) if windowed else 0
         right = min(duration, offset + chunk_size + 3)
+        chunk = waveform[round(left * 16000) : round(right * 16000)]
+        if not chunk.any():
+            continue
         segments, detail = model.transcribe(
-            waveform[round(left * 16000) : round(right * 16000)],
+            chunk,
             language=None if detected == "auto" else detected,
             beam_size=5,
             word_timestamps=True,
